@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Webhooks filtered to `message` only never received stage-2 media events
+  (`message.media.stored` / `message.media.failed`) after CAS download, so
+  receivers only saw the instant meta payload without a permanent storage
+  URL. Subscribing to `message` now also matches those media stage-2 events.
+  Legacy instance `webhookEvents` uses the same matcher.
+- Media URL after CAS: private R2/S3 API hosts are not used as `mediaUrl`
+  (not browser-fetchable); fall back to the authenticated API media path.
+
 ## [0.1.2] - 2026-07-13
 
 ### Fixed

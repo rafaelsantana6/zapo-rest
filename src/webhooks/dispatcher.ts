@@ -7,7 +7,7 @@ import { assertPublicUrl } from '~/lib/ssrf-guard'
 import type { CacheClient } from '~/redis/client'
 import { cacheKey } from '~/redis/client'
 import type { WebhookOutbox } from './outbox'
-import type { WebhookConfigRepo } from './repo'
+import { type WebhookConfigRepo, webhookMatchesEvent } from './repo'
 import type { WebhookEventName, WebhookPayloadEnvelope } from './types'
 
 export type WebhookEvent =
@@ -122,10 +122,10 @@ export class WebhookDispatcher {
       }
     }
 
-    // Legacy single webhook on instance row
+    // Legacy single webhook on instance row (same filter rules as multi-config)
     if (instance.webhookUrl) {
-      const allowed = instance.webhookEvents
-      if (allowed.length === 0 || allowed.includes(event) || allowed.includes('*')) {
+      const allowed = instance.webhookEvents ?? []
+      if (webhookMatchesEvent(allowed, event)) {
         if (this.outbox) {
           await this.outbox.enqueue(instance.name, null, envelope, {
             url: instance.webhookUrl,

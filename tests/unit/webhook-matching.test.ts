@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { browserFetchableMediaUrl } from '~/events/processor'
 import { webhookMatchesEvent } from '~/webhooks/repo'
 import { toPublicWebhook } from '~/webhooks/types'
 
@@ -31,6 +32,29 @@ describe('webhookMatchesEvent', () => {
   it('message.any + other names', () => {
     expect(webhookMatchesEvent(['message.any', 'call.incoming'], 'call.incoming')).toBe(true)
     expect(webhookMatchesEvent(['message.any', 'call.incoming'], 'message.edited')).toBe(true)
+  })
+
+  it('message also matches media stage-2 (permanent storage URL)', () => {
+    expect(webhookMatchesEvent(['message'], 'message')).toBe(true)
+    expect(webhookMatchesEvent(['message'], 'message.media.stored')).toBe(true)
+    expect(webhookMatchesEvent(['message'], 'message.media.failed')).toBe(true)
+    // still scoped — not every message.* unless message.any
+    expect(webhookMatchesEvent(['message'], 'message.ack')).toBe(false)
+    expect(webhookMatchesEvent(['message'], 'message.edited')).toBe(false)
+    expect(webhookMatchesEvent(['message'], 'call.incoming')).toBe(false)
+  })
+})
+
+describe('browserFetchableMediaUrl', () => {
+  it('rejects private R2 S3 API hosts', () => {
+    expect(
+      browserFetchableMediaUrl('https://91afff183c91a8a07ba812cee2779128.r2.cloudflarestorage.com/zapo/key.jpg'),
+    ).toBeNull()
+  })
+
+  it('keeps relative API paths and public CDN URLs', () => {
+    expect(browserFetchableMediaUrl('/v1/instances/a/messages/b/media')).toBe('/v1/instances/a/messages/b/media')
+    expect(browserFetchableMediaUrl('https://media.example.com/cas/x.jpg')).toBe('https://media.example.com/cas/x.jpg')
   })
 })
 

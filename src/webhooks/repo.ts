@@ -167,11 +167,17 @@ export class WebhookConfigRepo {
  * - `*` → all events
  * - exact name → that event
  * - `message.any` → only events whose name starts with `message` (not calls/presence/etc.)
+ * - `message` → also media stage-2 (`message.media.stored` / `message.media.failed`)
+ *   so subscribers that only list `message` still get the permanent storage URL
  */
 export function webhookMatchesEvent(events: string[], event: string): boolean {
   if (events.length === 0) return true
   if (events.includes('*')) return true
   if (events.includes(event)) return true
   if (events.includes('message.any') && event.startsWith('message')) return true
+  // Two-stage media: stage-1 is `message` (mediaStage=meta); stage-2 is media.*
+  if (events.includes('message') && (event === 'message.media.stored' || event === 'message.media.failed')) {
+    return true
+  }
   return false
 }
