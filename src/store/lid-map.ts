@@ -30,11 +30,45 @@ export class LidMapStore {
     )
   }
 
+  /**
+   * Bulk upsert LID→PN pairs. Chunked multi-row INSERT (not N sequential round-trips).
+   * Used by startup/history reconcile when mailbox_contacts has thousands of rows.
+   */
   async saveMany(instanceName: string, pairs: { lid: string; pn: string }[]): Promise<number> {
-    let n = 0
+    const cleaned: { lid: string; pn: string }[] = []
+    const seen = new Set<string>()
     for (const p of pairs) {
-      await this.save(instanceName, p.lid, p.pn)
-      n++
+      const lidBare = bareUserJid(p.lid)
+      const pnBare = toPnJid(p.pn)
+      if (!isLidJid(lidBare) || !isPnJid(pnBare)) continue
+      if (seen.has(lidBare)) continue
+      seen.add(lidBare)
+      cleaned.push({ lid: lidBare, pn: pnBare })
+    }
+    if (cleaned.length === 0) return 0
+
+    // Stay under typical param limits (~65k); 3 params/row → ~500 is safe and fast.
+    const CHUNK = 500
+    let n = 0
+    for (let i = 0; i < cleaned.length; i += CHUNK) {
+      const chunk = cleaned.slice(i, i + CHUNK)
+      const values: unknown[] = []
+      const placeholders: string[] = []
+      let p = 1
+      for (const row of chunk) {
+        placeholders.push(`($${p}, $${p + 1}, $${p + 2}, now())`)
+        values.push(instanceName, row.lid, row.pn)
+        p += 3
+      }
+      await this.pool.query(
+        `INSERT INTO lid_map (instance_name, lid, pn, updated_at)
+         VALUES ${placeholders.join(', ')}
+         ON CONFLICT (instance_name, lid) DO UPDATE SET
+           pn = EXCLUDED.pn,
+           updated_at = now()`,
+        values,
+      )
+      n += chunk.length
     }
     return n
   }

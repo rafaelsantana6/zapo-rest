@@ -184,18 +184,9 @@ async function main() {
     contacts,
     cache,
   })
+  // Shared runtime (store/media) only — do NOT await WA connect / lid reconcile before listen.
+  // AUTO_CONNECT + reconcile over large mailbox_contacts blocked :3000 past Docker healthcheck.
   await manager.init()
-  await manager.boot()
-
-  try {
-    const { reconcileLidChats } = await import('~/store/chat-reconcile')
-    const all = await instanceRepo.list()
-    for (const inst of all) {
-      await reconcileLidChats(pool, inst.name, { lidMap, chats, messages })
-    }
-  } catch (err) {
-    log.warn({ err }, 'startup lid reconcile failed (non-fatal)')
-  }
 
   const app = await buildApp({
     env,
@@ -217,6 +208,25 @@ async function main() {
 
   await app.listen({ host: env.HOST, port: env.PORT })
   log.info({ host: env.HOST, port: env.PORT }, 'zapo-rest listening')
+
+  // Background: reconnect WA sessions + lid map reconcile (healthcheck already green).
+  void (async () => {
+    try {
+      await manager.boot()
+      log.info('auto-connect boot finished')
+    } catch (err) {
+      log.error({ err }, 'auto-connect boot failed')
+    }
+    try {
+      const { reconcileLidChats } = await import('~/store/chat-reconcile')
+      const all = await instanceRepo.list()
+      for (const inst of all) {
+        await reconcileLidChats(pool, inst.name, { lidMap, chats, messages })
+      }
+    } catch (err) {
+      log.warn({ err }, 'startup lid reconcile failed (non-fatal)')
+    }
+  })()
 
   shutdownImpl = (signal: string) => {
     if (shuttingDown) {

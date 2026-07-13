@@ -54,10 +54,11 @@ export async function reconcileLidChats(
     // ignore
   }
 
-  for (const [lid, pn] of pairs) {
-    await deps.lidMap.save(instanceName, lid, pn)
-    mappingsFromContacts++
-  }
+  // Batch upsert — sequential save() over 10k+ pairs blocked HTTP listen past healthcheck.
+  mappingsFromContacts = await deps.lidMap.saveMany(
+    instanceName,
+    [...pairs.entries()].map(([lid, pn]) => ({ lid, pn })),
+  )
 
   // 2) Re-key every LID chat that has a PN mapping
   const { rows: lidChats } = await pool.query<{ chat_jid: string }>(
