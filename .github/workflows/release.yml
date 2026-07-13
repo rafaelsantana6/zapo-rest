@@ -95,9 +95,9 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          # Prefer PAT with write:packages (secret GHCR_TOKEN); fall back to GITHUB_TOKEN
-          username: ${{ secrets.GHCR_USERNAME || github.actor }}
-          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Docker meta (Hub)
         id: meta_hub
         uses: docker/metadata-action@v5
@@ -135,8 +135,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Secondary: GHCR (uses GHCR_TOKEN PAT when set — GITHUB_TOKEN may get write_package denied)
+      # Secondary: GHCR best-effort. Primary publish is Docker Hub (required above).
       - name: Build and push GHCR
+        continue-on-error: true
+        id: ghcr
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -148,3 +150,8 @@ jobs:
           sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: GHCR status
+        if: steps.ghcr.outcome == 'failure'
+        run: |
+          echo "::warning::GHCR push failed (package ACL / token scope). Docker Hub image is still published."
