@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Pages deploy for the product guide SPA (`docs-site`) at
+  https://rafaelsantana6.github.io/zapo-rest/ (workflow `docs-pages.yml`;
+  `DOCS_BASE` for project-site path).
+
 ## [0.1.4] - 2026-07-13
 
 ### Fixed

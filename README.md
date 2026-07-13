@@ -17,7 +17,8 @@
 </p>
 
 <p align="center">
- 📚 <a href="#documentation"><strong>Docs</strong></a>
+ 📚 <a href="https://rafaelsantana6.github.io/zapo-rest/"><strong>Guide (GitHub Pages)</strong></a>
+ · 📖 <a href="#documentation"><strong>Docs</strong></a>
  · 🛠 <a href="CONTRIBUTING.md"><strong>Contributing</strong></a>
  · 🔐 <a href="SECURITY.md"><strong>Security</strong></a>
  · 💛 <a href="https://github.com/sponsors/vinikjkkj"><strong>Sponsor zapo</strong></a>
@@ -366,8 +367,9 @@ tests/ unit · integration · e2e
 
 | Resource | Description |
 | -------- | ----------- |
-| `/docs` | Interactive OpenAPI (Scalar) |
-| `/guide` | Narrative product guide (build `docs-site`) |
+| **[Guide (GitHub Pages)](https://rafaelsantana6.github.io/zapo-rest/)** | Public product guide (pt / en / es) — architecture, auth, webhooks, VoIP, FAQ |
+| `/docs` | Interactive OpenAPI (Scalar) on a running API |
+| `/guide` | Same guide SPA when `docs-site` is built into the Docker image |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, PR rules, SemVer |
 | [`AGENTS.md`](AGENTS.md) | Architecture contract for contributors & agents |
 | [`docs/API-COVERAGE.md`](docs/API-COVERAGE.md) | other multi-session APIs parity |

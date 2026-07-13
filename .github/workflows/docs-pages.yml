@@ -1,0 +1,74 @@
+# Publish docs-site (product guide SPA) to GitHub Pages.
+# Site: https://rafaelsantana6.github.io/zapo-rest/
+#
+# First-time: repo Settings → Pages → Source = GitHub Actions
+# (or run this workflow once after merge — GitHub creates the environment).
+
+name: Docs (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/docs-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-pages
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    name: Build guide SPA
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.18.0'
+          cache: pnpm
+          cache-dependency-path: docs-site/pnpm-lock.yaml
+
+      - name: Install docs-site deps
+        working-directory: docs-site
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (GitHub Pages base)
+        working-directory: docs-site
+        env:
+          # Project Pages URL path: https://<user>.github.io/<repo>/
+          DOCS_BASE: /zapo-rest/
+        run: pnpm build
+
+      - name: SPA fallback for client routes
+        run: cp docs-site/dist/index.html docs-site/dist/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
