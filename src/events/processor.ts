@@ -683,10 +683,10 @@ export class EventProcessor {
             'inbound media deduped (reused existing CAS object)',
           )
         }
-        // Prefer permanent public URL; else API stream path (not WA CDN)
-        const url =
-          stored.url ??
-          `/v1/instances/${encodeURIComponent(instanceName)}/messages/${encodeURIComponent(messageId)}/media`
+        // Prefer browser-fetchable permanent URL; R2 S3 API hosts are private → use API path
+        // (GET with X-Api-Key; may 302 to a presigned URL when MEDIA_REDIRECT_DOWNLOADS=true).
+        const apiMediaPath = `/v1/instances/${encodeURIComponent(instanceName)}/messages/${encodeURIComponent(messageId)}/media`
+        const url = browserFetchableMediaUrl(stored.url) ?? apiMediaPath
         await this.deps.messages.setMedia(instanceName, messageId, {
           url,
           storageKey: stored.storageKey,
@@ -809,6 +809,28 @@ function extractReceiptIds(e: any): string[] {
   if (e?.id) return [String(e.id)]
   if (e?.stanzaId) return [String(e.stanzaId)]
   return []
+}
+
+/**
+ * Storage backends sometimes return a "public" URL that is only the private S3 API
+ * endpoint (e.g. `*.r2.cloudflarestorage.com` without a public custom domain). Those
+ * are not usable in a browser/webhook consumer without signing — prefer the API path.
+ */
+export function browserFetchableMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('/')) return url
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    if (host.endsWith('.r2.cloudflarestorage.com')) return null
+    if (host === 's3.amazonaws.com' || /^s3[.-]/.test(host) || host.includes('.s3.')) {
+      // Unsigned AWS S3 console/API hosts without public-read are often useless; keep
+      // custom CDN/domains (CloudFront, etc.) that do not look like raw S3 API.
+      if (host.endsWith('.amazonaws.com')) return null
+    }
+    return url
+  } catch {
+    return null
+  }
 }
 
 function mapAck(status: unknown): number | null {

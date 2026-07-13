@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Webhooks filtered to `message` only never received stage-2 media events
+  (`message.media.stored` / `message.media.failed`) after CAS download, so
+  receivers only saw the instant meta payload without a permanent storage
+  URL. Subscribing to `message` now also matches those media stage-2 events.
+  Legacy instance `webhookEvents` uses the same matcher.
+- Media URL after CAS: private R2/S3 API hosts are not used as `mediaUrl`
+  (not browser-fetchable); fall back to the authenticated API media path.
 - History import: `WaContactStore` has no `list()` (zapo-js / store-postgres) —
   import no longer throws `contactStore?.list is not a function`; falls back to
   reading `mailbox_contacts` via the shared Postgres pool.
