@@ -135,8 +135,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Secondary: GHCR — independent so Hub success is not rolled back by GHCR ACL issues
+      # Secondary: GHCR. GITHUB_TOKEN sometimes lacks package create rights on first
+      # publish even with packages:write — do not fail the release if Hub already shipped.
       - name: Build and push GHCR
+        continue-on-error: true
         uses: docker/build-push-action@v6
         with:
           context: .
