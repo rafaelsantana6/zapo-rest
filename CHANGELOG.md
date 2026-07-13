@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- VoIP call PCM stream auth: instance API keys were compared against the
+  masked `***` field after hashing-at-rest, so non-admin softphones always
+  got `4403 forbidden` on `/calls/:id/stream` — accept hung forever and the
+  peer kept ringing. Auth now uses the same hash lookup as the rest of `/v1`.
+- Softphone: reject when the audio WS closes before `ready` (no more hung
+  Promise); accept signaling runs before opening the stream so the peer stops
+  ringing even if audio setup is slow.
+
 ## [0.1.1] - 2026-07-13
 
 ### Changed

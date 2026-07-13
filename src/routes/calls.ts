@@ -17,6 +17,7 @@ import {
   StreamQuerySchema,
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
+import type { InstanceRepo } from '~/instances/repo'
 import { asVoipClient } from '~/instances/wa-client'
 import { badRequest, notFound } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
@@ -31,6 +32,7 @@ import type { CallRecordingManager } from '~/voip/recording-manager'
 export type CallRoutesDeps = {
   manager: InstanceManager
   env: Env
+  instanceRepo: InstanceRepo
   calls?: CallStore
   callRecording?: CallRecordingManager
   mediaStorage?: MediaStorage
@@ -41,7 +43,7 @@ type InstanceParams = { Params: z.infer<typeof InstanceNameParams> }
 type CallParams = { Params: z.infer<typeof CallParamsSchema> }
 
 export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) => {
-  const { manager, env, calls, callRecording, mediaStorage, cache } = deps
+  const { manager, env, instanceRepo, calls, callRecording, mediaStorage, cache } = deps
 
   app.post<InstanceParams & { Body: z.infer<typeof StartCallBodySchema> }>(
     '/v1/instances/:name/calls',
@@ -452,6 +454,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         instanceName: params.name,
         callId: params.callId,
         apiKey,
+        instanceRepo,
         callRecording,
       })
     },

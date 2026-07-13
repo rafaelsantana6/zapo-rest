@@ -297,7 +297,14 @@ export function Softphone() {
       wsRef.current = ws
 
       await new Promise<void>((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error('timeout ao abrir stream de áudio')), 15_000)
+        let settled = false
+        const settle = (fn: () => void) => {
+          if (settled) return
+          settled = true
+          clearTimeout(t)
+          fn()
+        }
+        const t = setTimeout(() => settle(() => reject(new Error('timeout ao abrir stream de áudio'))), 15_000)
         ws.onmessage = (ev) => {
           if (typeof ev.data === 'string') {
             try {
@@ -307,8 +314,7 @@ export function Softphone() {
                 isActive?: boolean
               }
               if (msg.op === 'ready') {
-                clearTimeout(t)
-                resolve()
+                settle(() => resolve())
               }
               if (msg.op === 'state') {
                 setActiveCall((prev) => {
@@ -344,11 +350,16 @@ export function Softphone() {
           audioRef.current?.pushRemotePcm(ev.data as ArrayBuffer)
         }
         ws.onerror = () => {
-          clearTimeout(t)
-          reject(new Error('erro no WebSocket de áudio'))
+          settle(() => reject(new Error('erro no WebSocket de áudio')))
         }
-        ws.onclose = () => {
-          clearTimeout(t)
+        // Critical: reject if server closes before ready (e.g. 4403 forbidden / 4404 not found).
+        // Old code only cleared the timer — Promise hung forever and "Atender" never finished.
+        ws.onclose = (ev) => {
+          settle(() =>
+            reject(
+              new Error(`stream de áudio fechou antes do ready (code=${ev.code}${ev.reason ? ` ${ev.reason}` : ''})`),
+            ),
+          )
         }
       })
 
@@ -451,8 +462,9 @@ export function Softphone() {
           `Não dá pra atender: estado="${activeCall.state}" direção=${activeCall.direction}. Só incoming_ringing.`,
         )
       }
-      // Mic first (user gesture), then accept via VoIP control WS
-      await openStream(wanted)
+      // Accept signaling FIRST so the peer stops ringing even if audio stream is slow.
+      // Server enables external audio mode before acceptCall; PCM stream opens next.
+      // (Opening stream before accept used to hang forever when stream auth failed.)
       const res = await voipSocket.acceptCall(wanted)
       if (!res.ok) throw new Error(res.message)
       const data = (res.data ?? {}) as { callId?: string; call?: LiveCall }
@@ -462,6 +474,12 @@ export function Softphone() {
       setPhase('connecting')
       phaseRef.current = 'connecting'
       setIncomingFlash(false)
+      try {
+        await openStream(callId)
+      } catch (streamErr) {
+        // Call is already accepted — surface audio error without rolling back signaling
+        setError(streamErr instanceof Error ? streamErr.message : 'Áudio falhou após atender')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao atender')
     } finally {

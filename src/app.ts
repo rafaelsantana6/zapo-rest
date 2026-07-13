@@ -145,6 +145,7 @@ export async function buildApp(deps: BuildAppDeps) {
   await app.register(callRoutes, {
     manager: deps.manager,
     env: deps.env,
+    instanceRepo: deps.instanceRepo,
     calls: deps.calls,
     callRecording: deps.callRecording,
     mediaStorage: deps.mediaStorage,
