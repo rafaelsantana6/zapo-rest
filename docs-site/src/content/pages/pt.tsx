@@ -123,7 +123,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <strong>Outbox + HMAC</strong> — webhook at-least-once, sem double-fire
             </li>
             <li>
-              <strong>SSE / WS só VoIP</strong> · <strong>LID↔PN</strong> · boot friendly a healthcheck
+              <strong>SSE / WS só VoIP</strong> · <strong>LID↔PN</strong> · boot friendly a healthcheck ·{' '}
+              <strong>WAM</strong> paridade de wire (<code>WAM_ENABLED=false</code> desliga)
             </li>
           </ul>
           <p>
@@ -189,6 +190,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           <li>
             <strong>Boot ops-friendly</strong> — HTTP sobe antes do reconnect/reconcile longo (healthcheck verde)
           </li>
+          <li>
+            <strong>Paridade de wire do WA Web</strong> — telemetria WAM ligada por padrão; desligue com{' '}
+            <code>WAM_ENABLED=false</code>
+          </li>
         </ul>
 
         <h2 id="table">Decisão → benefício</h2>
@@ -251,6 +256,15 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
                 <code>listen</code> antes do boot WA longo
               </td>
               <td>Healthcheck Docker/Swarm verde durante reconnect/reconcile</td>
+            </tr>
+            <tr>
+              <td>
+                Telemetria <strong>WAM</strong> (<code>@zapo-js/wam</code>, default on)
+              </td>
+              <td>
+                Emite batches <code>w:stats</code> do WA Web para paridade de wire. Desligue com{' '}
+                <code>WAM_ENABLED=false</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -478,8 +492,44 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
               </td>
               <td>Healthcheck Docker/Swarm verde durante reconnect/reconcile</td>
             </tr>
+            <tr>
+              <td>
+                <strong>WAM</strong> (<code>@zapo-js/wam</code>, default on)
+              </td>
+              <td>
+                <code>w:stats</code> client-side como uma aba real do WA Web. <code>WAM_ENABLED=false</code> desliga
+              </td>
+            </tr>
           </tbody>
         </table>
+
+        <h2 id="wam">Telemetria WAM (paridade de wire da sessão)</h2>
+        <p>
+          Abas reais do WhatsApp Web enviam batches de analytics no canal <code>w:stats</code>. O zapo-rest anexa o
+          plugin upstream <code>@zapo-js/wam</code> em toda sessão <strong>por padrão</strong> para o footprint headless
+          multi-session se aproximar de um browser (eventos de protocolo + telemetria de UI sintética).
+        </p>
+        <ul>
+          <li>
+            <strong>Não</strong> é métrica/log da sua aplicação nem superfície OpenAPI
+          </li>
+          <li>
+            <strong>Não</strong> altera REST, SSE, mídia ou VoIP
+          </li>
+          <li>
+            <strong>Ligado por padrão</strong> (<code>WAM_ENABLED=true</code> quando omitido)
+          </li>
+          <li>
+            Desligar: <code>WAM_ENABLED=false</code> e reinicie o processo da API
+          </li>
+        </ul>
+        <p>
+          Guia upstream:{' '}
+          <a href="https://zapo.to/pt-br/guides/wam" rel="noreferrer" target="_blank">
+            zapo.to/pt-br/guides/wam
+          </a>
+          .
+        </p>
 
         <h2 id="voip-arch">VoIP em dois canais</h2>
         <table>
@@ -1275,6 +1325,14 @@ const dec = new TextDecoder
         <p>
           Storage precisa estar configurado e <code>storageReady: true</code>. Ative <code>call-recording</code> na
           instância.
+        </p>
+
+        <h3 id="q-wam">O que é WAM / como desligar?</h3>
+        <p>
+          WAM é a analytics client-side do WhatsApp Web (<code>w:stats</code>) para paridade de wire com uma aba real —
+          não são métricas do zapo-rest. Fica <strong>ligado por padrão</strong> via <code>@zapo-js/wam</code>. Para
+          desligar: <code>WAM_ENABLED=false</code> e reinicie o processo. Ver{' '}
+          <a href="/guide/architecture#wam">Arquitetura</a>.
         </p>
       </>
     ),

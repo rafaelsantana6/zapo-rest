@@ -121,7 +121,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <strong>Outbox + HMAC</strong> — webhooks at-least-once, sin double-fire
             </li>
             <li>
-              <strong>SSE / WS solo VoIP</strong> · <strong>LID↔PN</strong> · boot amigable al healthcheck
+              <strong>SSE / WS solo VoIP</strong> · <strong>LID↔PN</strong> · boot amigable al healthcheck ·{' '}
+              <strong>WAM</strong> paridad de wire (<code>WAM_ENABLED=false</code> para apagar)
             </li>
           </ul>
           <p>
@@ -187,6 +188,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           <li>
             <strong>Boot ops-friendly</strong> — HTTP sube antes del reconnect/reconcile largo (healthcheck verde)
           </li>
+          <li>
+            <strong>Paridad de wire de WA Web</strong> — telemetría WAM activa por defecto; apaga con{' '}
+            <code>WAM_ENABLED=false</code>
+          </li>
         </ul>
 
         <h2 id="table">Decisión → beneficio</h2>
@@ -249,6 +254,15 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
                 <code>listen</code> antes del boot WA largo
               </td>
               <td>Healthcheck Docker/Swarm verde durante reconnect/reconcile</td>
+            </tr>
+            <tr>
+              <td>
+                Telemetría <strong>WAM</strong> (<code>@zapo-js/wam</code>, default on)
+              </td>
+              <td>
+                Emite batches <code>w:stats</code> de WA Web para paridad de wire. Apaga con{' '}
+                <code>WAM_ENABLED=false</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -475,8 +489,45 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
               </td>
               <td>Healthcheck Docker/Swarm verde durante reconnect/reconcile</td>
             </tr>
+            <tr>
+              <td>
+                <strong>WAM</strong> (<code>@zapo-js/wam</code>, default on)
+              </td>
+              <td>
+                <code>w:stats</code> client-side como una pestaña real de WA Web. <code>WAM_ENABLED=false</code> lo
+                apaga
+              </td>
+            </tr>
           </tbody>
         </table>
+
+        <h2 id="wam">Telemetría WAM (paridad de wire de la sesión)</h2>
+        <p>
+          Las pestañas reales de WhatsApp Web envían batches de analytics en el canal <code>w:stats</code>. zapo-rest
+          adjunta el plugin upstream <code>@zapo-js/wam</code> en cada sesión <strong>por defecto</strong> para que el
+          footprint headless multi-session se acerque a un browser (eventos de protocolo + telemetría de UI sintética).
+        </p>
+        <ul>
+          <li>
+            <strong>No</strong> son métricas/logs de tu aplicación ni superficie OpenAPI
+          </li>
+          <li>
+            <strong>No</strong> cambia REST, SSE, media ni VoIP
+          </li>
+          <li>
+            <strong>Activo por defecto</strong> (<code>WAM_ENABLED=true</code> si se omite)
+          </li>
+          <li>
+            Desactivar: <code>WAM_ENABLED=false</code> y reinicia el proceso de la API
+          </li>
+        </ul>
+        <p>
+          Guía upstream:{' '}
+          <a href="https://zapo.to/guides/wam" rel="noreferrer" target="_blank">
+            zapo.to/guides/wam
+          </a>
+          .
+        </p>
 
         <h2 id="voip-arch">VoIP en dos canales</h2>
         <table>
@@ -1278,6 +1329,14 @@ const dec = new TextDecoder
         <p>
           El storage debe estar configurado y <code>storageReady: true</code>. Activa <code>call-recording</code> en la
           instancia.
+        </p>
+
+        <h3 id="q-wam">¿Qué es WAM / cómo lo apago?</h3>
+        <p>
+          WAM es la analytics client-side de WhatsApp Web (<code>w:stats</code>) para paridad de wire con una pestaña
+          real — no son métricas de zapo-rest. Está <strong>activo por defecto</strong> vía <code>@zapo-js/wam</code>.
+          Para desactivar: <code>WAM_ENABLED=false</code> y reinicia el proceso. Ver{' '}
+          <a href="/guide/architecture#wam">Arquitectura</a>.
         </p>
       </>
     ),

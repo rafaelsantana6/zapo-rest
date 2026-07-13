@@ -58,6 +58,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **Right realtime** — SSE for app events; WebSocket only for VoIP
 - **Modern WA identity** — LID ↔ PN map + reconcile (no split history)
 - **Ops-friendly boot** — HTTP listens before long reconnect/reconcile (healthchecks stay green)
+- **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
 
 | Decision | Benefit |
 | -------- | ------- |
@@ -72,6 +73,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **Per-session serial queue** | No races on message upsert, ack, and presence for a given instance. |
 | **LID ↔ PN map + reconcile** | Modern WhatsApp identities without split chat history. |
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
+| **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 
 ---
 
@@ -106,6 +108,7 @@ Use this before exposing the stack beyond localhost. Deeper pipeline guarantees 
 | Set **`CORS_ORIGINS`** if the UI is on another host | Production default is same-origin only (no open CORS) |
 | Tune **`RATE_LIMIT_*`** (app limits `/v1` in production) | Defaults: 300 req / 60s / IP; also rate-limit at the reverse proxy |
 | Private media bucket + presigned GET | Compose may set anonymous download on MinIO for local convenience |
+| Leave **`WAM_ENABLED=true`** (default) unless you must quiet analytics | Emits WA Web `w:stats` for wire parity; `false` turns the plugin off |
 | Rotate instance keys after staff changes | `POST /v1/instances/:name/keys/rotate` |
 | Pin image digests (already in `docker-compose.yml`) | Reproducible deploys; override only deliberately |
 
@@ -274,6 +277,17 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 ### History on QR pair
 
 `HISTORY_SYNC_ENABLED=true` (default). zapo processes history notifications; we mirror mailbox → `app_*` and emit `history.sync` webhooks. On-demand: `POST.../chats/:chatId/history-sync`.
+
+### WAM telemetry (session wire parity)
+
+WhatsApp Web clients send analytics batches on the `w:stats` channel (**WAM**). zapo-rest attaches [`@zapo-js/wam`](https://zapo.to/guides/wam) on every session **by default** so the wire footprint is closer to a real browser tab (protocol events + synthetic UI telemetry). This is **not** your app’s metrics and does **not** change the public API.
+
+| Env | Default | Effect |
+| --- | ------- | ------ |
+| `WAM_ENABLED` | `true` | Load `wamPlugin()` next to VoIP when creating each `WaClient` |
+| `WAM_ENABLED=false` | — | No WAM plugin; quieter headless footprint |
+
+Restart the process after changing the env. Details: [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) · guide [Architecture](https://rafaelsantana6.github.io/zapo-rest/architecture) / [FAQ](https://rafaelsantana6.github.io/zapo-rest/faq).
 
 ### Media (CAS + rehydrate)
 

@@ -120,7 +120,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <strong>Outbox + HMAC</strong> — at-least-once webhooks, no double-fire
             </li>
             <li>
-              <strong>SSE / WS for VoIP only</strong> · <strong>LID↔PN</strong> · healthcheck-friendly boot
+              <strong>SSE / WS for VoIP only</strong> · <strong>LID↔PN</strong> · healthcheck-friendly boot ·{' '}
+              <strong>WAM</strong> wire parity (<code>WAM_ENABLED=false</code> to disable)
             </li>
           </ul>
           <p>
@@ -186,6 +187,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           <li>
             <strong>Ops-friendly boot</strong> — HTTP listens before long reconnect/reconcile (healthchecks stay green)
           </li>
+          <li>
+            <strong>WA Web wire parity</strong> — WAM telemetry on by default; set <code>WAM_ENABLED=false</code> to
+            disable
+          </li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -248,6 +253,14 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
                 <code>listen</code> before long WA boot
               </td>
               <td>Docker/Swarm healthchecks stay green during reconnect/reconcile</td>
+            </tr>
+            <tr>
+              <td>
+                <strong>WAM</strong> telemetry (<code>@zapo-js/wam</code>, default on)
+              </td>
+              <td>
+                Emits WA Web <code>w:stats</code> batches for wire parity. Disable with <code>WAM_ENABLED=false</code>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -474,8 +487,44 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
               </td>
               <td>Docker/Swarm healthchecks stay green during reconnect/reconcile</td>
             </tr>
+            <tr>
+              <td>
+                <strong>WAM</strong> (<code>@zapo-js/wam</code>, default on)
+              </td>
+              <td>
+                Client-side <code>w:stats</code> like a real WA Web tab. <code>WAM_ENABLED=false</code> turns it off
+              </td>
+            </tr>
           </tbody>
         </table>
+
+        <h2 id="wam">WAM telemetry (session wire parity)</h2>
+        <p>
+          Real WhatsApp Web tabs send analytics batches on the <code>w:stats</code> channel. zapo-rest attaches the
+          upstream plugin <code>@zapo-js/wam</code> on every session <strong>by default</strong> so headless
+          multi-session clients look closer to a browser tab on the wire (protocol events + synthetic UI telemetry).
+        </p>
+        <ul>
+          <li>
+            <strong>Not</strong> your application metrics, logs, or OpenAPI surface
+          </li>
+          <li>
+            Does <strong>not</strong> change REST, SSE, media, or VoIP behaviour
+          </li>
+          <li>
+            <strong>Enabled by default</strong> (<code>WAM_ENABLED=true</code> when unset)
+          </li>
+          <li>
+            Disable: set <code>WAM_ENABLED=false</code> and restart the API process
+          </li>
+        </ul>
+        <p>
+          Upstream guide:{' '}
+          <a href="https://zapo.to/guides/wam" rel="noreferrer" target="_blank">
+            zapo.to/guides/wam
+          </a>
+          .
+        </p>
 
         <h2 id="voip-arch">VoIP on two channels</h2>
         <table>
@@ -1272,6 +1321,14 @@ const dec = new TextDecoder
         <p>
           Storage must be configured and <code>storageReady: true</code>. Enable <code>call-recording</code> on the
           instance.
+        </p>
+
+        <h3 id="q-wam">What is WAM / how do I turn it off?</h3>
+        <p>
+          WAM is WhatsApp Web client-side analytics (<code>w:stats</code>) for wire parity with a real browser tab — not
+          zapo-rest app metrics. It is <strong>on by default</strong> via <code>@zapo-js/wam</code>. To disable: set{' '}
+          <code>WAM_ENABLED=false</code> and restart the process. See <a href="/guide/architecture#wam">Architecture</a>
+          .
         </p>
       </>
     ),
