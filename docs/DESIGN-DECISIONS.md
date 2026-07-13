@@ -1,6 +1,16 @@
 # Design decisions (why zapo-rest is built this way)
 
-Short list of **intentional engineering choices** that show up in production cost, reliability, and integrator experience.  
+Short list of **intentional engineering choices** that show up in production cost, reliability, and integrator experience.
+
+**Public summaries (keep in sync — do not force readers to open this file):**
+
+| Surface | Location |
+| ------- | -------- |
+| README | **Design advantages (summary)** |
+| Guide SPA / GitHub Pages | `/why` (and feature pages: media, webhooks, architecture, …) |
+
+When adding a new decision here, update those summaries too (see `AGENTS.md` → *Design surface triad*).
+
 Narrative guide: `/guide/architecture`. Ops guarantees: [`PRODUCTION-CONSISTENCY.md`](./PRODUCTION-CONSISTENCY.md).
 
 Not affiliated with WhatsApp/Meta.

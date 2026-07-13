@@ -108,26 +108,33 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           </tbody>
         </table>
 
-        <Callout title="Decisões que reduzem custo e dor em produção">
+        <Callout title="Vantagens de design (resumo)">
+          <p>Você não precisa abrir outro arquivo para ver o que este gateway faz de diferente:</p>
           <ul>
             <li>
               <strong>CAS de mídia</strong> — mesmo arquivo (forward/sticker) grava uma vez por instância
             </li>
             <li>
-              <strong>Outbox + HMAC</strong> — webhook at-least-once com retry, sem perder evento se o receptor cair
+              <strong>Rehydrate + 302</strong> — mídia recuperável do WA; download direto no storage
             </li>
             <li>
-              <strong>SSE para eventos / WS só VoIP</strong> — transporte certo para cada carga
+              <strong>Outbox + HMAC</strong> — webhook at-least-once, sem double-fire
             </li>
             <li>
-              Detalhe completo na página <a href="/guide/architecture">Arquitetura</a> e no repo{' '}
-              <code>docs/DESIGN-DECISIONS.md</code>
+              <strong>SSE / WS só VoIP</strong> · <strong>LID↔PN</strong> · boot friendly a healthcheck
             </li>
           </ul>
+          <p>
+            Tabela completa: <a href="/guide/why">Vantagens de design</a> · fluxos em{' '}
+            <a href="/guide/architecture">Arquitetura</a>.
+          </p>
         </Callout>
 
         <h2 id="links">Links rápidos</h2>
         <ul>
+          <li>
+            <a href="/guide/why">Vantagens de design (resumo)</a>
+          </li>
           <li>
             <a href="/guide/quickstart">Quickstart em 4 passos</a>
           </li>
@@ -144,6 +151,122 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           </li>
           <li>
             <ExternalLink href="/docs">Abrir Scalar</ExternalLink>
+          </li>
+        </ul>
+      </>
+    ),
+  },
+
+  why: {
+    title: 'Vantagens de design',
+    description:
+      'Resumo das decisões que baixam custo e risco em produção — legível sem abrir o repositório.',
+    body: (
+      <>
+        <p>
+          Estas escolhas são <strong>intencionais</strong>. O resumo abaixo basta para avaliar o projeto; o arquivo{' '}
+          <code>docs/DESIGN-DECISIONS.md</code> no repo é só o detalhe para contribuidores.
+        </p>
+
+        <h2 id="glance">Em uma olhada</h2>
+        <ul>
+          <li>
+            <strong>Mídia mais barata</strong> — CAS (SHA-256 por instância); forwards/stickers não multiplicam objetos
+          </li>
+          <li>
+            <strong>Mídia recuperável</strong> — se o objeto sumir, re-baixa do WhatsApp e regrava
+          </li>
+          <li>
+            <strong>Webhooks confiáveis</strong> — grava o chat primeiro, outbox + retry, HMAC, sem double-fire
+          </li>
+          <li>
+            <strong>Realtime certo</strong> — SSE para eventos da app; WebSocket só para VoIP
+          </li>
+          <li>
+            <strong>Identidade WA moderna</strong> — mapa LID ↔ PN + reconcile (sem histórico partido)
+          </li>
+          <li>
+            <strong>Boot ops-friendly</strong> — HTTP sobe antes do reconnect/reconcile longo (healthcheck verde)
+          </li>
+        </ul>
+
+        <h2 id="table">Decisão → benefício</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Decisão</th>
+              <th>Benefício</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>CAS</strong> <code>…/cas/sha256/…</code> por instância
+              </td>
+              <td>Economia de storage; identidade estável do objeto</td>
+            </tr>
+            <tr>
+              <td>Rehydrate se objeto sumir</td>
+              <td>Mídia recuperável sem re-parear; 404 só se o WA não entregar</td>
+            </tr>
+            <tr>
+              <td>302 + presign</td>
+              <td>API não é middleman permanente de bandwidth</td>
+            </tr>
+            <tr>
+              <td>
+                Webhooks em 2 etapas (<code>meta</code> → <code>stored</code>)
+              </td>
+              <td>
+                Bot reage cedo; arquivo estável em <code>message.media.stored</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Projection → <code>processed_events</code> → outbox
+              </td>
+              <td>Store consistente + side-effects sem duplicar entrega</td>
+            </tr>
+            <tr>
+              <td>SSE app / WS só VoIP</td>
+              <td>Contrato simples; softphone sem poll REST</td>
+            </tr>
+            <tr>
+              <td>Auth por header preferida</td>
+              <td>Key fora de access log / Referer</td>
+            </tr>
+            <tr>
+              <td>Fila serial por sessão</td>
+              <td>Sem corrida em upsert/ack/presença</td>
+            </tr>
+            <tr>
+              <td>
+                <code>lid_map</code> + reconcile
+              </td>
+              <td>Identidade moderna do WA sem threads duplicadas</td>
+            </tr>
+            <tr>
+              <td>
+                <code>listen</code> antes do boot WA longo
+              </td>
+              <td>Healthcheck Docker/Swarm verde durante reconnect/reconcile</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="next">Onde aprofundar</h2>
+        <ul>
+          <li>
+            <a href="/guide/architecture">Arquitetura</a> — filas, projeções, diagrama
+          </li>
+          <li>
+            <a href="/guide/media">Mídia</a> — CAS, rehydrate, 302
+          </li>
+          <li>
+            <a href="/guide/webhooks">Webhooks</a> — outbox, HMAC, eventos
+          </li>
+          <li>
+            <a href="/guide/realtime">SSE</a> — por que não WebSocket geral
           </li>
         </ul>
       </>
@@ -291,8 +414,8 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
 
         <h2 id="design-choices">Decisões de design (benefícios)</h2>
         <p>
-          Escolhas conscientes — não “framework pela moda”. Texto canônico no repositório:{' '}
-          <code>docs/DESIGN-DECISIONS.md</code>.
+          Resumo completo na página <a href="/guide/why">Vantagens de design</a> (não precisa abrir o repo). Escolhas
+          conscientes — não “framework pela moda”. Canônico para contribuidores: <code>docs/DESIGN-DECISIONS.md</code>.
         </p>
         <table>
           <thead>

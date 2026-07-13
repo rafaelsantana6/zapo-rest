@@ -105,26 +105,33 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           </tbody>
         </table>
 
-        <Callout title="Decisions that cut cost and pain in production">
+        <Callout title="Design advantages (summary)">
+          <p>You do not need to open another file to see what makes this gateway different:</p>
           <ul>
             <li>
-              <strong>Media CAS</strong> — same file (forward/sticker) is stored once per instance
+              <strong>Media CAS</strong> — same file (forward/sticker) stored once per instance
             </li>
             <li>
-              <strong>Outbox + HMAC</strong> — at-least-once webhooks with retry if the receiver is down
+              <strong>Rehydrate + 302</strong> — recoverable from WA; direct download from storage
             </li>
             <li>
-              <strong>SSE for events / WS for VoIP only</strong> — right transport per workload
+              <strong>Outbox + HMAC</strong> — at-least-once webhooks, no double-fire
             </li>
             <li>
-              Full detail on <a href="/guide/architecture">Architecture</a> and repo{' '}
-              <code>docs/DESIGN-DECISIONS.md</code>
+              <strong>SSE / WS for VoIP only</strong> · <strong>LID↔PN</strong> · healthcheck-friendly boot
             </li>
           </ul>
+          <p>
+            Full table: <a href="/guide/why">Design advantages</a> · flows in{' '}
+            <a href="/guide/architecture">Architecture</a>.
+          </p>
         </Callout>
 
         <h2 id="links">Quick links</h2>
         <ul>
+          <li>
+            <a href="/guide/why">Design advantages (summary)</a>
+          </li>
           <li>
             <a href="/guide/quickstart">Quickstart in 4 steps</a>
           </li>
@@ -287,8 +294,8 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
 
         <h2 id="design-choices">Design decisions (benefits)</h2>
         <p>
-          Intentional choices — not framework fashion. Canonical write-up in the repo:{' '}
-          <code>docs/DESIGN-DECISIONS.md</code>.
+          Full summary on <a href="/guide/why">Design advantages</a> (no need to open the repo). Intentional choices —
+          not framework fashion. Contributor canonical: <code>docs/DESIGN-DECISIONS.md</code>.
         </p>
         <table>
           <thead>

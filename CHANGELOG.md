@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   https://rafaelsantana6.github.io/zapo-rest/docs/ (workflow `docs-pages.yml`;
   `DOCS_BASE` for project-site path; guide header links to GitHub + Scalar).
 - Documented production-facing design choices (CAS media dedup, webhook
-  outbox, SSE vs VoIP WS, LID map, …) in `docs/DESIGN-DECISIONS.md`, README,
-  and the product guide architecture/media/webhooks pages.
+  outbox, SSE vs VoIP WS, LID map, …) in `docs/DESIGN-DECISIONS.md`, README
+  **Design advantages (summary)**, and guide page `/why` (+ architecture/media/webhooks).
+- AGENTS.md *Design surface triad*: keep DESIGN-DECISIONS + README summary +
+  guide `why`/feature pages in sync when shipping material design wins.
 - Track `docs/*.md` in git (removed accidental root `.gitignore` entry `docs`
   that hid DESIGN-DECISIONS, PRODUCTION-CONSISTENCY, coverage notes, etc.).
 

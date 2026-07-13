@@ -31,6 +31,7 @@ const NAV_COPY: Record<Locale, NavCopy> = {
     tools: 'Ferramentas',
     items: {
       intro: 'O que é zapo-rest',
+      why: 'Vantagens de design',
       quickstart: 'Quickstart',
       architecture: 'Arquitetura',
       concepts: 'Conceitos & entidades',
@@ -59,6 +60,7 @@ const NAV_COPY: Record<Locale, NavCopy> = {
     tools: 'Tools',
     items: {
       intro: 'What is zapo-rest',
+      why: 'Design advantages',
       quickstart: 'Quickstart',
       architecture: 'Architecture',
       concepts: 'Concepts & entities',
@@ -87,6 +89,7 @@ const NAV_COPY: Record<Locale, NavCopy> = {
     tools: 'Herramientas',
     items: {
       intro: 'Qué es zapo-rest',
+      why: 'Ventajas de diseño',
       quickstart: 'Quickstart',
       architecture: 'Arquitectura',
       concepts: 'Conceptos y entidades',
@@ -143,6 +146,7 @@ export function getNav(locale: Locale): NavGroup[] {
       title: c.intro,
       items: [
         { id: 'intro', title: tItem(c, 'intro', 'Intro'), href: '/guide/' },
+        { id: 'why', title: tItem(c, 'why', 'Design advantages'), href: '/guide/why' },
         { id: 'quickstart', title: tItem(c, 'quickstart', 'Quickstart'), href: '/guide/quickstart' },
         { id: 'architecture', title: tItem(c, 'architecture', 'Architecture'), href: '/guide/architecture' },
         { id: 'concepts', title: tItem(c, 'concepts', 'Concepts'), href: '/guide/concepts' },

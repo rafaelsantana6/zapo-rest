@@ -44,20 +44,31 @@
 
 Not affiliated with WhatsApp/Meta. Independent gateway for engineering and interoperability.
 
-### Design that shows up in production
+### Design advantages (summary)
 
-These are intentional — full write-up: [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md).
+You do **not** need to open another file to see why this stack is shaped this way. Same summary lives in the
+[guide → Why zapo-rest](https://rafaelsantana6.github.io/zapo-rest/why) page. Longer narrative for operators:
+[`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md).
+
+**At a glance**
+
+- **Cheaper media** — CAS dedup (SHA-256 per instance); forwards/stickers do not multiply objects
+- **Recoverable media** — missing object re-downloads from WhatsApp, then re-stores
+- **Reliable webhooks** — persist chat first, outbox + retries, HMAC, no double-fire on redelivery
+- **Right realtime** — SSE for app events; WebSocket only for VoIP
+- **Modern WA identity** — LID ↔ PN map + reconcile (no split history)
+- **Ops-friendly boot** — HTTP listens before long reconnect/reconcile (healthchecks stay green)
 
 | Decision | Benefit |
 | -------- | ------- |
-| **Content-addressed media (CAS)** — `{instance}/cas/sha256/{hash}{ext}` | Same bytes inside one instance are stored **once** (forwards, stickers, re-downloads). Less object storage; stable identity. |
+| **Content-addressed media (CAS)** — `{instance}/cas/sha256/{hash}{ext}` | Same bytes inside one instance are stored **once**. Less object storage; stable identity. |
 | **Rehydrate from WhatsApp** if the object is missing | Media stays recoverable after storage loss; 404 only when WA itself cannot provide the file. |
 | **302 + presigned GET** | Clients download from S3/R2 directly; the API is not a permanent bandwidth middleman. |
-| **Two-stage media events** (`mediaStage: meta` → `stored`) | Integrators get a fast “message arrived” webhook, then a permanent URL after CAS (`message.media.stored`). |
+| **Two-stage media events** (`mediaStage: meta` → `stored`) | Fast “message arrived”, then permanent URL after CAS (`message.media.stored`). |
 | **Persist projections before webhooks** | Chat store stays consistent even if a receiver is down; outbox retries separately. |
 | **`processed_events` claim** | Protocol redelivery does not double-fire side-effects. |
-| **SSE for app events / WS for VoIP only** | Right tool per job; avoids a fragile general events WebSocket. |
-| **Header API keys preferred** | Keys out of access logs, proxies, and `Referer` (query `apiKey` only for browser EventSource/WS fallbacks). |
+| **SSE for app events / WS for VoIP only** | Right tool per job; no fragile general events WebSocket. |
+| **Header API keys preferred** | Keys out of access logs, proxies, and `Referer`. |
 | **Per-session serial queue** | No races on message upsert, ack, and presence for a given instance. |
 | **LID ↔ PN map + reconcile** | Modern WhatsApp identities without split chat history. |
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
@@ -399,7 +410,8 @@ tests/ unit · integration · e2e
 | **[Scalar (GitHub Pages)](https://rafaelsantana6.github.io/zapo-rest/docs/)** | Interactive OpenAPI reference (static; same contract as a running API) |
 | `/docs` | Interactive OpenAPI (Scalar) on a running API |
 | `/guide` | Same guide SPA when `docs-site` is built into the Docker image |
-| [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) | **Why** the stack is shaped this way (CAS, outbox, SSE, LID, …) |
+| [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) | Deep dive on **why** (CAS, outbox, SSE, LID, …) |
+| **[Why / advantages (guide)](https://rafaelsantana6.github.io/zapo-rest/why)** | Same summary as README — no need to open the MD |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, PR rules, SemVer |
 | [`AGENTS.md`](AGENTS.md) | Architecture contract for contributors & agents |
 | [`docs/API-COVERAGE.md`](docs/API-COVERAGE.md) | other multi-session APIs parity |
