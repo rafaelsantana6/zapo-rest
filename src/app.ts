@@ -227,32 +227,32 @@ export async function buildApp(deps: BuildAppDeps) {
     })
   }
 
-  if (hasGuide || hasDash) {
-    app.setNotFoundHandler((request, reply) => {
-      const path = request.url.split('?')[0] ?? ''
-      if (
-        path.startsWith('/v1') ||
-        path.startsWith('/docs') ||
-        path.startsWith('/health') ||
-        path.startsWith('/ready') ||
-        path.startsWith('/media')
-      ) {
-        return reply.status(404).send({
-          error: { code: 'NOT_FOUND', message: 'Not found' },
-        })
-      }
-      // SPA fallback for docs guide
-      if (hasGuide && (path === '/guide' || path.startsWith('/guide/'))) {
-        return reply.type('text/html').send(readFileSync(join(guideDir, 'index.html')))
-      }
-      if (hasDash) {
-        return reply.type('text/html').send(readFileSync(join(dashDir, 'index.html')))
-      }
+  // Always register so /v1 404s use the API envelope even without dashboard/docs dist
+  // (CI runs tests without built SPAs; Fastify's default 404 body is not ErrorBodySchema).
+  app.setNotFoundHandler((request, reply) => {
+    const path = request.url.split('?')[0] ?? ''
+    if (
+      path.startsWith('/v1') ||
+      path.startsWith('/docs') ||
+      path.startsWith('/health') ||
+      path.startsWith('/ready') ||
+      path.startsWith('/media')
+    ) {
       return reply.status(404).send({
         error: { code: 'NOT_FOUND', message: 'Not found' },
       })
+    }
+    // SPA fallback for docs guide / dashboard when built
+    if (hasGuide && (path === '/guide' || path.startsWith('/guide/'))) {
+      return reply.type('text/html').send(readFileSync(join(guideDir, 'index.html')))
+    }
+    if (hasDash) {
+      return reply.type('text/html').send(readFileSync(join(dashDir, 'index.html')))
+    }
+    return reply.status(404).send({
+      error: { code: 'NOT_FOUND', message: 'Not found' },
     })
-  }
+  })
 
   return app
 }

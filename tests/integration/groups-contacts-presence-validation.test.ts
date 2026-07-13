@@ -21,22 +21,24 @@ describe('groups / contacts / presence validation matrix', () => {
     await ctx.app.close()
   })
 
-  async function post(path: string, payload: unknown) {
+  async function inject(method: 'POST' | 'PUT', path: string, payload: unknown) {
     return ctx.app.inject({
-      method: 'POST',
+      method,
       url: `/v1/instances/${name}${path}`,
       headers: { 'x-api-key': key, 'content-type': 'application/json' },
       payload: payload as Record<string, unknown>,
     })
   }
 
+  async function post(path: string, payload: unknown) {
+    return inject('POST', path, payload)
+  }
+
   function expectValidation(res: { statusCode: number; json: () => unknown }) {
-    // 400 validation, 503 not registered, or 404 — all JSON error envelopes
-    expect(res.statusCode).toBeGreaterThanOrEqual(400)
-    expect(res.statusCode).toBeLessThan(600)
-    if (res.statusCode < 500 || res.statusCode === 503) {
-      expect(ErrorBodySchema.safeParse(res.json()).success).toBe(true)
-    }
+    // Prefer real schema validation (400). Wrong paths used to soft-pass via 404,
+    // which broke in CI when dashboard/docs dist is absent (no SPA notFound envelope).
+    expect(res.statusCode).toBe(400)
+    expect(ErrorBodySchema.safeParse(res.json()).success).toBe(true)
   }
 
   describe('presence', () => {
@@ -102,16 +104,23 @@ describe('groups / contacts / presence validation matrix', () => {
 
     it('participant ops require non-empty arrays', async () => {
       const gid = '120363@g.us'
-      expectValidation(await post(`/groups/${encodeURIComponent(gid)}/participants/add`, { participants: [] }))
-      expectValidation(await post(`/groups/${encodeURIComponent(gid)}/participants/remove`, { participants: [] }))
-      expectValidation(await post(`/groups/${encodeURIComponent(gid)}/participants/promote`, {}))
+      const g = `/groups/${encodeURIComponent(gid)}`
+      expectValidation(await post(`${g}/participants/add`, { participants: [] }))
+      expectValidation(await post(`${g}/participants/remove`, { participants: [] }))
+      // promote lives under /admin, not /participants
+      expectValidation(await post(`${g}/admin/promote`, {}))
+      expectValidation(await post(`${g}/admin/demote`, { participants: [] }))
     })
 
     it('subject / description / join code validation', async () => {
       const gid = '120363@g.us'
-      expectValidation(await post(`/groups/${encodeURIComponent(gid)}/subject`, { subject: '' }))
-      expectValidation(await post(`/groups/${encodeURIComponent(gid)}/join`, { code: '' }))
-      expectValidation(await post(`/groups/${encodeURIComponent(gid)}/join`, {}))
+      const g = `/groups/${encodeURIComponent(gid)}`
+      // subject is PUT
+      expectValidation(await inject('PUT', `${g}/subject`, { subject: '' }))
+      expectValidation(await inject('PUT', `${g}/description`, { description: 1 }))
+      // join is POST /groups/join (no :groupId)
+      expectValidation(await post('/groups/join', { code: '' }))
+      expectValidation(await post('/groups/join', {}))
     })
   })
 
