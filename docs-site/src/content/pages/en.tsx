@@ -154,6 +154,121 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
     ),
   },
 
+  why: {
+    title: 'Design advantages',
+    description: 'Summary of decisions that cut cost and risk in production — readable without opening the repo.',
+    body: (
+      <>
+        <p>
+          These choices are <strong>intentional</strong>. The summary below is enough to evaluate the project; the repo
+          file <code>docs/DESIGN-DECISIONS.md</code> is the long form for contributors.
+        </p>
+
+        <h2 id="glance">At a glance</h2>
+        <ul>
+          <li>
+            <strong>Cheaper media</strong> — CAS (SHA-256 per instance); forwards/stickers do not multiply objects
+          </li>
+          <li>
+            <strong>Recoverable media</strong> — if the object is missing, re-download from WhatsApp and re-store
+          </li>
+          <li>
+            <strong>Reliable webhooks</strong> — persist chat first, outbox + retry, HMAC, no double-fire
+          </li>
+          <li>
+            <strong>Right realtime</strong> — SSE for app events; WebSocket only for VoIP
+          </li>
+          <li>
+            <strong>Modern WA identity</strong> — LID ↔ PN map + reconcile (no split history)
+          </li>
+          <li>
+            <strong>Ops-friendly boot</strong> — HTTP listens before long reconnect/reconcile (healthchecks stay green)
+          </li>
+        </ul>
+
+        <h2 id="table">Decision → benefit</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Decision</th>
+              <th>Benefit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>CAS</strong> <code>…/cas/sha256/…</code> per instance
+              </td>
+              <td>Lower object storage cost; stable object identity</td>
+            </tr>
+            <tr>
+              <td>Rehydrate if object is missing</td>
+              <td>Recoverable media without re-pairing; 404 only if WA cannot deliver</td>
+            </tr>
+            <tr>
+              <td>302 + presign</td>
+              <td>API is not a permanent bandwidth middleman</td>
+            </tr>
+            <tr>
+              <td>
+                Two-stage webhooks (<code>meta</code> → <code>stored</code>)
+              </td>
+              <td>
+                Bots react early; stable file on <code>message.media.stored</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Projection → <code>processed_events</code> → outbox
+              </td>
+              <td>Consistent store + side-effects without double delivery</td>
+            </tr>
+            <tr>
+              <td>SSE for app / WS for VoIP only</td>
+              <td>Simple contract; softphone without REST polling</td>
+            </tr>
+            <tr>
+              <td>Header auth preferred</td>
+              <td>Keys out of access logs / Referer</td>
+            </tr>
+            <tr>
+              <td>Per-session serial queue</td>
+              <td>No races on upsert/ack/presence</td>
+            </tr>
+            <tr>
+              <td>
+                <code>lid_map</code> + reconcile
+              </td>
+              <td>Modern WA identity without duplicate threads</td>
+            </tr>
+            <tr>
+              <td>
+                <code>listen</code> before long WA boot
+              </td>
+              <td>Docker/Swarm healthchecks stay green during reconnect/reconcile</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2 id="next">Go deeper</h2>
+        <ul>
+          <li>
+            <a href="/guide/architecture">Architecture</a> — queues, projections, diagram
+          </li>
+          <li>
+            <a href="/guide/media">Media</a> — CAS, rehydrate, 302
+          </li>
+          <li>
+            <a href="/guide/webhooks">Webhooks</a> — outbox, HMAC, events
+          </li>
+          <li>
+            <a href="/guide/realtime">SSE</a> — why not a general WebSocket
+          </li>
+        </ul>
+      </>
+    ),
+  },
+
   quickstart: {
     title: 'Quickstart',
     description: 'From zero to first message and first webhook.',
