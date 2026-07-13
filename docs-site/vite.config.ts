@@ -2,9 +2,16 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+/**
+ * Asset/router base path:
+ * - Docker/API mount: `/guide/` (default)
+ * - GitHub Pages project site: `/zapo-rest/` via DOCS_BASE env in CI
+ */
+const base = process.env.DOCS_BASE || '/guide/'
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/guide/',
+  base: base.endsWith('/') ? base : `${base}/`,
   server: {
     port: 5174,
     proxy: {
@@ -18,3 +25,4 @@ export default defineConfig({
     emptyOutDir: true,
   },
 })
+
