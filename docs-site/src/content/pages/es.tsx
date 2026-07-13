@@ -97,7 +97,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             </tr>
             <tr>
               <td>Media</td>
-              <td>Disco local o S3/MinIO</td>
+              <td>Local o S3/MinIO/R2 con <strong>CAS</strong> (dedup SHA-256 por instancia)</td>
             </tr>
             <tr>
               <td>UI</td>
@@ -105,6 +105,24 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             </tr>
           </tbody>
         </table>
+
+        <Callout title="Decisiones que bajan costo y dolor en producción">
+          <ul>
+            <li>
+              <strong>CAS de media</strong> — el mismo archivo (forward/sticker) se guarda una vez por instancia
+            </li>
+            <li>
+              <strong>Outbox + HMAC</strong> — webhooks at-least-once con reintento si el receptor cae
+            </li>
+            <li>
+              <strong>SSE para eventos / WS solo VoIP</strong> — transporte correcto por carga
+            </li>
+            <li>
+              Detalle completo en <a href="/guide/architecture">Arquitectura</a> y en el repo{' '}
+              <code>docs/DESIGN-DECISIONS.md</code>
+            </li>
+          </ul>
+        </Callout>
 
         <h2 id="links">Enlaces rápidos</h2>
         <ul>
@@ -258,11 +276,83 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
           <li>
             Inbound con media → auto-download opcional (<code>MEDIA_AUTO_DOWNLOAD</code>)
           </li>
-          <li>Storage preferido (S3/local) → si falta, redescarga de WhatsApp y re-guarda</li>
           <li>
-            GET <code>.../messages/:id/media</code> o <code>getBase64FromMediaMessage</code>
+            Escritura <strong>content-addressed</strong> (CAS) → si el objeto ya existe, <code>deduped</code> (sin
+            reescribir)
+          </li>
+          <li>
+            GET <code>.../messages/:id/media</code> prefiere <strong>302</strong> al storage; si falta, redescarga de
+            WhatsApp y re-guarda
           </li>
         </ol>
+
+        <h2 id="design-choices">Decisiones de diseño (beneficios)</h2>
+        <p>
+          Elecciones conscientes — no “framework por moda”. Texto canónico en el repo:{' '}
+          <code>docs/DESIGN-DECISIONS.md</code>.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Decisión</th>
+              <th>Beneficio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>CAS</strong> <code>…/cas/sha256/…</code> por instancia
+              </td>
+              <td>Menos costo de storage; forwards/stickers no multiplican objetos</td>
+            </tr>
+            <tr>
+              <td>Rehydrate si el objeto desaparece</td>
+              <td>Media recuperable sin re-parear; 404 solo si WA no entrega</td>
+            </tr>
+            <tr>
+              <td>302 + presign</td>
+              <td>La API no es middleman permanente de bandwidth</td>
+            </tr>
+            <tr>
+              <td>
+                Webhooks en 2 etapas (<code>meta</code> → <code>stored</code>)
+              </td>
+              <td>
+                El bot puede reaccionar pronto y bajar archivo estable en <code>message.media.stored</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Persist projection → claim <code>processed_events</code> → outbox
+              </td>
+              <td>Store consistente + side-effects sin doble entrega</td>
+            </tr>
+            <tr>
+              <td>SSE app / WS solo VoIP</td>
+              <td>Contrato simple; softphone sin poll REST</td>
+            </tr>
+            <tr>
+              <td>Auth por header preferida</td>
+              <td>Key fuera de access log / Referer</td>
+            </tr>
+            <tr>
+              <td>Cola serial por sesión</td>
+              <td>Sin carreras en upsert/ack/presencia</td>
+            </tr>
+            <tr>
+              <td>
+                <code>lid_map</code> + reconcile
+              </td>
+              <td>Identidad moderna de WA sin hilos duplicados</td>
+            </tr>
+            <tr>
+              <td>
+                <code>listen</code> antes del boot WA largo
+              </td>
+              <td>Healthcheck Docker/Swarm verde durante reconnect/reconcile</td>
+            </tr>
+          </tbody>
+        </table>
 
         <h2 id="voip-arch">VoIP en dos canales</h2>
         <table>
@@ -586,7 +676,7 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
 
   media: {
     title: 'Media y storage',
-    description: 'Descarga, storage S3/local y API de download.',
+    description: 'CAS con dedup, descarga S3/local y rehydrate de WhatsApp.',
     body: (
       <>
         <h2 id="config">Config</h2>
@@ -598,9 +688,36 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
             <code>MEDIA_AUTO_DOWNLOAD</code> — descargar media inbound automáticamente
           </li>
           <li>
-            S3/MinIO: bucket, endpoint, <code>S3_PUBLIC_URL</code>
+            S3/MinIO/R2: bucket, endpoint, <code>S3_PUBLIC_URL</code> (URL browser-facing para presign)
           </li>
         </ul>
+
+        <h2 id="cas">Content-addressed storage (CAS) — menos bytes</h2>
+        <p>
+          Los objetos usan clave por <strong>SHA-256 del contenido</strong> en el ámbito de la instancia:
+        </p>
+        <CodeBlock language="text" code={`{instanceName}/cas/sha256/{hash}{ext}`} />
+        <ul>
+          <li>
+            <strong>Dedup</strong> — el mismo payload (forward, sticker, reenvío) se guarda <em>una vez</em>; put
+            devuelve <code>deduped: true</code> sin reescribir
+          </li>
+          <li>
+            <strong>Aislamiento</strong> — las instancias no comparten objetos; borrar la instancia solo elimina{' '}
+            <code>{'{name}'}/…</code>
+          </li>
+          <li>
+            <strong>Extensión de tipo</strong> en la key (mime/filename), no el nombre original — la URL directa abre
+            con el tipo correcto; el nombre de visualización vive en la fila del mensaje
+          </li>
+          <li>
+            Avatars usan <code>putAt</code> (clave fija), sin CAS
+          </li>
+        </ul>
+        <Callout title="Por qué importa">
+          En multi-session con alto volumen, la media repetida es una gran parte del bucket. CAS reduce costo sin
+          cambiar el contrato de la API de mensajes.
+        </Callout>
 
         <h2 id="download">Descarga</h2>
         <CodeBlock
@@ -614,13 +731,31 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
  -H "X-Api-Key: $KEY" -H "content-type: application/json" \\
  -d '{"messageId":"3EB0ABC"}'`}
         />
+        <p>
+          Preferencia: <strong>302</strong> al storage (presign S3 o base pública local). La API no necesita
+          retransmitir cada byte.
+        </p>
 
-        <h2 id="fallback">Orden de resolución</h2>
+        <h2 id="fallback">Orden de resolución (rehydrate)</h2>
         <ol>
-          <li>Objeto ya en storage</li>
+          <li>Objeto ya en storage (CAS)</li>
           <li>Si falta → redescarga de WhatsApp y vuelve a guardar</li>
           <li>404 solo si WhatsApp ya no puede entregar la media</li>
         </ol>
+
+        <h2 id="two-stage">Webhooks en dos etapas</h2>
+        <ol>
+          <li>
+            <code>message</code> con <code>mediaStage: "meta"</code> — llegada temprana (URL WA o placeholder)
+          </li>
+          <li>
+            <code>message.media.stored</code> — tras CAS; URL/storage estables · o <code>message.media.failed</code>
+          </li>
+        </ol>
+        <p>
+          Bots que solo quieren archivo permanente: suscríbete a <code>message.media.stored</code> (o{' '}
+          <code>message</code>, que también coincide con stage-2).
+        </p>
       </>
     ),
   },
@@ -724,7 +859,7 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
 
   webhooks: {
     title: 'Webhooks',
-    description: 'Multi-config, envelope, HMAC y retries.',
+    description: 'Multi-config, outbox durable, HMAC y retries.',
     body: (
       <>
         <h2 id="multi">Multi-config</h2>
@@ -733,6 +868,25 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           enabled. También hay webhook legado en campos de la instance (<code>webhookUrl</code> /{' '}
           <code>webhookEvents</code>).
         </p>
+        <Callout title="Garantías (por diseño)">
+          <ul>
+            <li>
+              <strong>Proyección primero</strong> — mensaje/chat upsertados antes de encolar el webhook
+            </li>
+            <li>
+              <strong>Outbox Postgres</strong> — claim atómico, retry/backoff; receptor offline no pierde el evento
+            </li>
+            <li>
+              <strong>
+                <code>processed_events</code>
+              </strong>{' '}
+              — el side-effect no dispara dos veces si el protocolo reentrega
+            </li>
+            <li>
+              <strong>HMAC-SHA512</strong> — verifica autenticidad en tu endpoint
+            </li>
+          </ul>
+        </Callout>
 
         <h2 id="envelope">Envelope</h2>
         <CodeBlock
@@ -767,10 +921,11 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
         </ul>
 
-        <h2 id="hmac">HMAC</h2>
+        <h2 id="hmac">HMAC y retries</h2>
         <p>
-          Cuando está configurado, header de firma en el POST outbound (outbox worker). Retries: policy
-          linear/exponential/constant + attempts + delaySeconds.
+          Cuando está configurado, el worker firma el POST (<code>X-Webhook-Hmac</code> /{' '}
+          <code>X-Webhook-Hmac-Sha512</code>). Retries: policy linear/exponential/constant + attempts + delaySeconds. El
+          secret es write-only en la API (nunca se re-eco en GET).
         </p>
       </>
     ),

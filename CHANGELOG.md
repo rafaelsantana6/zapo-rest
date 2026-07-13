@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   https://rafaelsantana6.github.io/zapo-rest/ and static Scalar OpenAPI at
   https://rafaelsantana6.github.io/zapo-rest/docs/ (workflow `docs-pages.yml`;
   `DOCS_BASE` for project-site path; guide header links to GitHub + Scalar).
+- Documented production-facing design choices (CAS media dedup, webhook
+  outbox, SSE vs VoIP WS, LID map, …) in `docs/DESIGN-DECISIONS.md`, README,
+  and the product guide architecture/media/webhooks pages.
+- Track `docs/*.md` in git (removed accidental root `.gitignore` entry `docs`
+  that hid DESIGN-DECISIONS, PRODUCTION-CONSISTENCY, coverage notes, etc.).
 
 ## [0.1.4] - 2026-07-13
 

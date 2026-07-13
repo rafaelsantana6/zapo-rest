@@ -51,6 +51,8 @@ CI: `.github/workflows/docs-pages.yml` builds with `DOCS_BASE=/zapo-rest/`, copi
 | `src/content/extras.ts` | Routes missing from OpenAPI export |
 | `src/content/nav.ts` | Sidebar structure |
 
+Engineering “why” (CAS, outbox, SSE/WS, LID) for visitors: architecture + media pages; canonical repo doc: [`docs/DESIGN-DECISIONS.md`](../docs/DESIGN-DECISIONS.md).
+
 Regenerate endpoint stubs after OpenAPI changes:
 
 ```bash

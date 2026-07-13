@@ -15,7 +15,8 @@ Multi-session **WhatsApp gateway** over [`zapo-js`](https://github.com/vinikjkkj
 
 **Do not** reimplement Noise/Signal/stanza here — fix upstream zapo-js, then bump the dependency.
 
-Inventory: `docs/API-COVERAGE.md`, `docs/FEATURE-MAP-FULL.md`. Coverage notes: `docs/TEST-COVERAGE.md`.
+Inventory: `docs/API-COVERAGE.md`, `docs/FEATURE-MAP-FULL.md`. Coverage notes: `docs/TEST-COVERAGE.md`.  
+**Why these shapes exist** (CAS, outbox, projections, SSE/WS split): [`docs/DESIGN-DECISIONS.md`](./docs/DESIGN-DECISIONS.md).
 
 ---
 
