@@ -164,8 +164,17 @@ Release flow:
  git push && git push origin "v$(node -p "require('./package.json').version")"
  ```
 
-4. GitHub Actions (`.github/workflows/release.yml`) builds multi-arch
- Docker images and creates a GitHub Release from the tag.
+4. GitHub Actions (`.github/workflows/release.yml`) creates a GitHub Release
+   and builds/pushes the container image to:
+   - **Docker Hub** — `rafaelsantana6/zapo-rest` (needs repo secrets
+     `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN`)
+   - **GHCR** — `ghcr.io/rafaelsantana6/zapo-rest` (uses `GITHUB_TOKEN`)
+
+   To re-publish an existing tag after fixing secrets/workflow:
+
+   ```bash
+   gh workflow run release.yml -f tag=v0.1.0
+   ```
 
 PR titles should follow
 [Conventional Commits](https://www.conventionalcommits.org/):
