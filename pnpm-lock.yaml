@@ -43,13 +43,13 @@ importers:
         version: 1.62.5
       '@zapo-js/media-utils':
         specifier: ^1.0.0
-        version: 1.0.0(file-type@19.6.0)(sharp@0.34.5)(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
+        version: 1.0.0(file-type@19.6.0)(sharp@0.34.5)(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
       '@zapo-js/store-postgres':
         specifier: ^1.0.2
-        version: 1.0.2(pg@8.22.0)(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
+        version: 1.0.2(pg@8.22.0)(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
       '@zapo-js/voip':
         specifier: ^1.0.0
-        version: 1.0.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
+        version: 1.0.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
       fastify:
         specifier: ^5.5.0
         version: 5.10.0
@@ -84,8 +84,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       zapo-js:
-        specifier: ^1.4.0
-        version: 1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
+        specifier: ^1.5.0
+        version: 1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -107,7 +107,7 @@ importers:
         version: 3.2.7(vitest@3.2.7(@types/node@22.20.1)(tsx@4.23.0)(yaml@2.9.0))
       '@zapo-js/fake-server':
         specifier: ^1.0.0
-        version: 1.0.0(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
+        version: 1.0.0(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))
       tsc-alias:
         specifier: ^1.8.16
         version: 1.9.0
@@ -2014,8 +2014,8 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
-  zapo-js@1.4.0:
-    resolution: {integrity: sha512-VKa7BAPvVKgY+mD/jDvnmIIFH4aEe0qxTLECVQrIiM2/amMuQS6a/DCFjFqBuurQbBlSaokhrWfEy3kQIgn9Vw==}
+  zapo-js@1.5.0:
+    resolution: {integrity: sha512-tAFu/oPsiZuIqjohvRiYYMDREblOLYYDiE6K5w9qNAtqachD0ggj2lQEgTuf24MnvqfkqaI4hN1tnECNjSSuew==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       argo-codec: ^0.2.1
@@ -2864,31 +2864,31 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@zapo-js/fake-server@1.0.0(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
+  '@zapo-js/fake-server@1.0.0(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
     dependencies:
       ws: 8.21.0
-      zapo-js: 1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
+      zapo-js: 1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@zapo-js/media-utils@1.0.0(file-type@19.6.0)(sharp@0.34.5)(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
+  '@zapo-js/media-utils@1.0.0(file-type@19.6.0)(sharp@0.34.5)(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
     dependencies:
       sharp: 0.34.5
-      zapo-js: 1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
+      zapo-js: 1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
     optionalDependencies:
       file-type: 19.6.0
 
-  '@zapo-js/store-postgres@1.0.2(pg@8.22.0)(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
+  '@zapo-js/store-postgres@1.0.2(pg@8.22.0)(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
     dependencies:
       pg: 8.22.0
-      zapo-js: 1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
+      zapo-js: 1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
 
-  '@zapo-js/voip@1.0.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
+  '@zapo-js/voip@1.0.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0))':
     dependencies:
       '@roamhq/wrtc': 0.10.0
       libmlow-wasm: 0.1.1
-      zapo-js: 1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
+      zapo-js: 1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0)
 
   abstract-logging@2.0.1: {}
 
@@ -3914,7 +3914,7 @@ snapshots:
 
   yaml@2.9.0: {}
 
-  zapo-js@1.4.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0):
+  zapo-js@1.5.0(pino-pretty@13.1.3)(pino@9.14.0)(ws@8.21.0):
     optionalDependencies:
       pino: 9.14.0
       pino-pretty: 13.1.3

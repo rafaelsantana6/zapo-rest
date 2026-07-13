@@ -87,7 +87,7 @@
     "pino-pretty": "^13.0.0",
     "sharp": "^0.34.2",
     "ulid": "^3.0.2",
-    "zapo-js": "^1.4.0",
+    "zapo-js": "^1.5.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
