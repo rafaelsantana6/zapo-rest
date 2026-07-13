@@ -14,12 +14,14 @@ const CRITICAL_INDEXES = ['instances_api_key_hash_idx'] as const
 export async function migrate(pool: pg.Pool): Promise<void> {
   const log = getLogger({ component: 'migrate' })
   const { sql, source } = await loadSchema()
-  log.warn(
-    { source },
-    source === 'inline'
-      ? 'schema.sql not found on disk — applying embedded INLINE_SCHEMA fallback (keep it in sync with src/db/schema.sql)'
-      : 'applying schema from disk',
-  )
+  if (source === 'inline') {
+    log.warn(
+      { source },
+      'schema.sql not found on disk — applying embedded INLINE_SCHEMA fallback (keep it in sync with src/db/schema.sql)',
+    )
+  } else {
+    log.info({ source }, 'applying schema from disk')
+  }
   await pool.query(sql)
   await assertCriticalIndexes(pool, log)
   log.info({ source }, 'database schema ensured')

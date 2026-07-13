@@ -435,12 +435,14 @@ export class EventProcessor {
 
   // biome-ignore lint/suspicious/noExplicitAny: zapo mailbox contact store
   private async importZapoContacts(instanceName: string, contactStore: any): Promise<void> {
-    if (!contactStore?.list()) return
-    const contacts = await contactStore.list()
-    for (const c of contacts ?? []) {
+    // WaContactStore (zapo-js / store-postgres) has getByJid/upsert — no list().
+    // Older fakes and some backends may expose list(); otherwise read mailbox SQL.
+    const contacts = await this.loadZapoMailboxContacts(instanceName, contactStore)
+    for (const c of contacts) {
+      if (!c?.jid) continue
       await this.deps.contacts.upsert({
         instanceName,
-        jid: c.jid,
+        jid: String(c.jid),
         displayName: c.displayName ?? null,
         pushName: c.pushName ?? null,
         lid: c.lid ?? null,
@@ -449,6 +451,52 @@ export class EventProcessor {
         raw: c,
       })
       await this.recordContactLidPn(instanceName, c)
+    }
+  }
+
+  /**
+   * Load mailbox contacts for history import.
+   * Prefer store.list when present; fall back to `mailbox_contacts` via pool.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: zapo mailbox contact store
+  private async loadZapoMailboxContacts(instanceName: string, contactStore: any): Promise<any[]> {
+    if (typeof contactStore?.list === 'function') {
+      const rows = await contactStore.list()
+      return Array.isArray(rows) ? rows : []
+    }
+    if (!this.deps.pool) {
+      this.log.debug({ instanceName }, 'contact store has no list() and no pool — skip contact import')
+      return []
+    }
+    try {
+      // Table name from @zapo-js/store-postgres (empty tablePrefix default).
+      const { rows } = await this.deps.pool.query<{
+        jid: string
+        display_name: string | null
+        push_name: string | null
+        lid: string | null
+        phone_number: string | null
+        last_updated_ms: string | number | null
+      }>(
+        `SELECT jid, display_name, push_name, lid, phone_number, last_updated_ms
+         FROM mailbox_contacts
+         WHERE session_id = $1
+         ORDER BY last_updated_ms DESC NULLS LAST
+         LIMIT 5000`,
+        [instanceName],
+      )
+      return rows.map((r) => ({
+        jid: r.jid,
+        displayName: r.display_name,
+        pushName: r.push_name,
+        lid: r.lid,
+        phoneNumber: r.phone_number,
+        lastUpdatedMs: r.last_updated_ms == null ? null : Number(r.last_updated_ms),
+      }))
+    } catch (err) {
+      // Table may not exist yet on brand-new DB before first mailbox migrate.
+      this.log.debug({ err, instanceName }, 'mailbox_contacts query failed — skip contact import')
+      return []
     }
   }
 
@@ -476,7 +524,8 @@ export class EventProcessor {
     // biome-ignore lint/suspicious/noExplicitAny: zapo message store
     messageStore: any,
   ): Promise<{ chats: number; messages: number }> {
-    if (!threadStore?.list()) return { chats: 0, messages: 0 }
+    // WaThreadStore.list exists; don't call it as a truthiness probe (that double-fires).
+    if (typeof threadStore?.list !== 'function') return { chats: 0, messages: 0 }
     const threads = await threadStore.list()
     let chats = 0
     let messages = 0
