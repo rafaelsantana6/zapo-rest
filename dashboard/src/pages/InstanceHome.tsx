@@ -211,7 +211,7 @@ export function InstanceHomePage({ onLogout }: Props) {
         <div className="meta-strip">
           <div>
             <span className="muted">API Key</span>
-            <code className="mono">{instance.apiKey}</code>
+            <code className="mono">{instance.apiKey ?? '— (só no create/rotate)'}</code>
           </div>
           <div>
             <span className="muted">meJid</span>

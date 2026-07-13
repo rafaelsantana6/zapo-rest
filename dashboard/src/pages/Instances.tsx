@@ -250,7 +250,9 @@ export function InstancesPage({ onLogout }: Props) {
   )
 }
 
-function maskKey(key: string): string {
+/** Mask a plaintext key when present; list/get omit apiKey so show an em dash. */
+function maskKey(key: string | undefined): string {
+  if (!key) return '—'
   if (key.length <= 10) return key
   return `${key.slice(0, 6)}…${key.slice(-4)}`
 }

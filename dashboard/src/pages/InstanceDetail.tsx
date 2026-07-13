@@ -225,7 +225,7 @@ export function InstanceDetailPage({ session, onLogout }: Props) {
               </div>
               <div>
                 <dt>API key</dt>
-                <dd className="mono">{instance.apiKey}</dd>
+                <dd className="mono">{instance.apiKey ?? '— (só no create/rotate)'}</dd>
               </div>
               <div>
                 <dt>Legacy webhook</dt>
