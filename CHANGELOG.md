@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- History import: `WaContactStore` has no `list()` (zapo-js / store-postgres) —
+  import no longer throws `contactStore?.list is not a function`; falls back to
+  reading `mailbox_contacts` via the shared Postgres pool.
+- Thread import: stop using `threadStore.list()` as a truthiness probe (double
+  call); check `typeof list === 'function'` first.
+- Boot: pre-run `@zapo-js/store-postgres` migrations serially so concurrent
+  first writes do not race `CREATE TABLE IF NOT EXISTS` →
+  `pg_type_typname_nsp_index` write-behind errors.
+- Migrate log: applying schema from disk is `info` (warn only for inline
+  fallback).
+
 ## [0.1.2] - 2026-07-13
 
 ### Fixed

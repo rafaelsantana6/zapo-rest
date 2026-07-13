@@ -1,9 +1,24 @@
 import { createMediaProcessor } from '@zapo-js/media-utils'
-import { createPostgresStore } from '@zapo-js/store-postgres'
+import { createPostgresStore, ensurePgMigrations, type WaPgMigrationDomain } from '@zapo-js/store-postgres'
 import { voipPlugin } from '@zapo-js/voip'
 import type { Pool } from 'pg'
 import { createPinoLogger, createStore, type Logger, WaClient, type WaClientOptions, type WaStore } from 'zapo-js'
 import type { Env } from '~/config/env'
+import { getLogger } from '~/lib/logger'
+
+/** All domains used by createPostgresStore + caches — warm once at boot to avoid concurrent CREATE TABLE races. */
+const PG_MIGRATION_DOMAINS: readonly WaPgMigrationDomain[] = [
+  'auth',
+  'signal',
+  'senderKey',
+  'appState',
+  'retry',
+  'mailbox',
+  'participants',
+  'deviceList',
+  'privacyToken',
+  'messageSecret',
+] as const
 
 export type TestClientHooks = {
   chatSocketUrls?: string[]
@@ -41,6 +56,16 @@ export async function createSharedRuntime(opts: ClientFactoryOptions): Promise<S
       // memory-only store for fake-server e2e
       store = createStore({})
     } else {
+      // Serial migration before any session write-behind can race CREATE TABLE
+      // (Postgres: concurrent IF NOT EXISTS → pg_type_typname_nsp_index errors).
+      const log = getLogger({ component: 'zapo-store-pg' })
+      try {
+        await ensurePgMigrations(opts.pool, [...PG_MIGRATION_DOMAINS], '')
+        log.info({ domains: PG_MIGRATION_DOMAINS.length }, 'postgres store migrations ensured')
+      } catch (err) {
+        log.warn({ err }, 'postgres store pre-migrate failed — sessions may retry via ensureReady')
+      }
+
       store = createStore({
         backends: {
           postgres: createPostgresStore({ pool: opts.pool }),

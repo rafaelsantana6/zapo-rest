@@ -365,4 +365,86 @@ describe('EventProcessor', () => {
     expect(result.chats).toBeGreaterThanOrEqual(1)
     expect(await messages.get('sales-1', 'ZM1')).toBeTruthy()
   })
+
+  it('importFromZapoStore does not throw when contact store has no list() (real WaContactStore)', async () => {
+    // Mirrors production: @zapo-js/store-postgres WaContactStore has getByJid/upsert only.
+    const client = {
+      store: {
+        session: () => ({
+          contacts: {
+            getByJid: async () => null,
+            upsert: async () => undefined,
+          },
+          threads: {
+            list: async () => [],
+          },
+          messages: {
+            listByThread: async () => [],
+          },
+        }),
+      },
+    } as never
+
+    await expect(processor.importFromZapoStore('sales-1', client)).resolves.toEqual({
+      chats: 0,
+      messages: 0,
+    })
+  })
+
+  it('importFromZapoStore loads contacts from mailbox_contacts when list() is absent', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rows: [
+          {
+            jid: '5511666666666@s.whatsapp.net',
+            display_name: 'FromSQL',
+            push_name: 'SQL',
+            lid: '777@lid',
+            phone_number: '5511666666666',
+            last_updated_ms: 1_700_000_000,
+          },
+        ],
+      })),
+    }
+
+    const withPool = new EventProcessor({
+      env: makeEnv({ MEDIA_AUTO_DOWNLOAD: false }),
+      // @ts-expect-error memory repo
+      instanceRepo: repo,
+      // @ts-expect-error memory store
+      messages,
+      // @ts-expect-error memory store
+      chats,
+      // @ts-expect-error memory store
+      contacts,
+      // @ts-expect-error memory store
+      idempotency,
+      // @ts-expect-error mock dispatcher
+      webhooks,
+      mediaStorage,
+      // @ts-expect-error memory lid map
+      lidMap,
+      // @ts-expect-error pool mock
+      pool,
+    })
+
+    const client = {
+      store: {
+        session: () => ({
+          contacts: {
+            getByJid: async () => null,
+            upsert: async () => undefined,
+          },
+          threads: { list: async () => [] },
+          messages: { listByThread: async () => [] },
+        }),
+      },
+    } as never
+
+    await withPool.importFromZapoStore('sales-1', client)
+    expect(pool.query).toHaveBeenCalled()
+    expect(contacts.byKey.size).toBeGreaterThanOrEqual(1)
+    const stored = [...contacts.byKey.values()].find((c) => c.jid.includes('5511666666666'))
+    expect(stored?.displayName).toBe('FromSQL')
+  })
 })
