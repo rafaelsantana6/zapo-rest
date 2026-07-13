@@ -97,7 +97,9 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             </tr>
             <tr>
               <td>Media</td>
-              <td>Local o S3/MinIO/R2 con <strong>CAS</strong> (dedup SHA-256 por instancia)</td>
+              <td>
+                Local o S3/MinIO/R2 con <strong>CAS</strong> (dedup SHA-256 por instancia)
+              </td>
             </tr>
             <tr>
               <td>UI</td>
@@ -157,8 +159,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
 
   why: {
     title: 'Ventajas de diseño',
-    description:
-      'Resumen de decisiones que bajan costo y riesgo en producción — legible sin abrir el repositorio.',
+    description: 'Resumen de decisiones que bajan costo y riesgo en producción — legible sin abrir el repositorio.',
     body: (
       <>
         <p>

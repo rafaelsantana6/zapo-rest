@@ -99,7 +99,9 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             </tr>
             <tr>
               <td>Mídia</td>
-              <td>Local ou S3/MinIO/R2 com <strong>CAS</strong> (dedup SHA-256 por instância)</td>
+              <td>
+                Local ou S3/MinIO/R2 com <strong>CAS</strong> (dedup SHA-256 por instância)
+              </td>
             </tr>
             <tr>
               <td>UI</td>
@@ -159,8 +161,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
 
   why: {
     title: 'Vantagens de design',
-    description:
-      'Resumo das decisões que baixam custo e risco em produção — legível sem abrir o repositório.',
+    description: 'Resumo das decisões que baixam custo e risco em produção — legível sem abrir o repositório.',
     body: (
       <>
         <p>
@@ -874,8 +875,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
         </ol>
         <p>
-          Bots que só querem arquivo permanente: assinem <code>message.media.stored</code> (ou <code>message</code>,
-          que também casa stage-2).
+          Bots que só querem arquivo permanente: assinem <code>message.media.stored</code> (ou <code>message</code>, que
+          também casa stage-2).
         </p>
       </>
     ),

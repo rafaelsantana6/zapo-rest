@@ -19,4 +19,3 @@ createRoot(root).render(
     </BrowserRouter>
   </StrictMode>,
 )
-

@@ -96,7 +96,9 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             </tr>
             <tr>
               <td>Media</td>
-              <td>Local or S3/MinIO/R2 with <strong>CAS</strong> (SHA-256 dedup per instance)</td>
+              <td>
+                Local or S3/MinIO/R2 with <strong>CAS</strong> (SHA-256 dedup per instance)
+              </td>
             </tr>
             <tr>
               <td>UI</td>
@@ -870,8 +872,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
         </ol>
         <p>
-          Bots that only want a permanent file: subscribe to <code>message.media.stored</code> (or <code>message</code>
-          , which also matches stage-2).
+          Bots that only want a permanent file: subscribe to <code>message.media.stored</code> (or <code>message</code>,
+          which also matches stage-2).
         </p>
       </>
     ),
