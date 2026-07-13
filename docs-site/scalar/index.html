@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="zapo-rest OpenAPI reference — multi-session WhatsApp gateway REST API"
+    />
+    <title>zapo-rest API Reference</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      #app {
+        height: 100vh;
+      }
+      .guide-link {
+        position: fixed;
+        z-index: 10000;
+        top: 0.75rem;
+        right: 0.75rem;
+        font: 600 0.8125rem/1.25 system-ui, sans-serif;
+        color: #fff;
+        background: rgb(37 99 235 / 0.92);
+        border-radius: 0.5rem;
+        padding: 0.45rem 0.75rem;
+        text-decoration: none;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+      }
+      .guide-link:hover {
+        background: rgb(29 78 216);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Relative ../ so it works under /zapo-rest/docs/ (Pages) and when copied elsewhere -->
+    <a class="guide-link" id="guide-link" href="../" style="right: 6.5rem">← Guide</a>
+    <a
+      class="guide-link"
+      href="https://github.com/rafaelsantana6/zapo-rest"
+      target="_blank"
+      rel="noreferrer"
+      style="background: rgb(24 24 27 / 0.92)"
+      >GitHub</a
+    >
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    <script>
+      // Same-origin OpenAPI next to this page (workflow copies openapi.json here).
+      Scalar.createApiReference('#app', {
+        url: './openapi.json',
+        theme: 'kepler',
+        layout: 'modern',
+        darkMode: true,
+        hideModels: false,
+        defaultHttpClient: {
+          targetKey: 'shell',
+          clientKey: 'curl',
+        },
+        metaData: {
+          title: 'zapo-rest API Reference',
+        },
+      })
+    </script>
+  </body>
+</html>

@@ -15,7 +15,8 @@ Multi-session **WhatsApp gateway** over [`zapo-js`](https://github.com/vinikjkkj
 
 **Do not** reimplement Noise/Signal/stanza here — fix upstream zapo-js, then bump the dependency.
 
-Inventory: `docs/API-COVERAGE.md`, `docs/FEATURE-MAP-FULL.md`. Coverage notes: `docs/TEST-COVERAGE.md`.
+Inventory: `docs/API-COVERAGE.md`, `docs/FEATURE-MAP-FULL.md`. Coverage notes: `docs/TEST-COVERAGE.md`.  
+**Why these shapes exist** (CAS, outbox, projections, SSE/WS split): [`docs/DESIGN-DECISIONS.md`](./docs/DESIGN-DECISIONS.md) · public summary in README + guide `/why`.
 
 ---
 
@@ -31,6 +32,34 @@ Inventory: `docs/API-COVERAGE.md`, `docs/FEATURE-MAP-FULL.md`. Coverage notes: `
 | `idempotent-sidefx` | Webhook side-effects claim via `processed_events`. |
 | `no-secret-logs` | Never log API keys, HMAC secrets, or Signal/auth material. |
 | `no-overengineering` | Direct Fastify routes + stores. No new frameworks. |
+| `design-surface-sync` | Product-relevant design wins (cost, reliability, security, contract) must be **highlighted in three places** — see [Design surface triad](#design-surface-triad). |
+
+---
+
+## Design surface triad
+
+When you ship a **material** design choice or production advantage (examples: CAS media, webhook outbox, media rehydrate, SSE vs WS split, LID reconcile, listen-before-boot, two-stage media events), **do not** leave it only in code comments or a single internal note.
+
+Update **all three** in the same change (or immediately after):
+
+| Surface | What to update | Audience |
+| ------- | -------------- | -------- |
+| 1. [`docs/DESIGN-DECISIONS.md`](./docs/DESIGN-DECISIONS.md) | Canonical write-up: decision + why + trade-off | Contributors / deep dive |
+| 2. **README** — section **Design advantages (summary)** | Short row or bullet the visitor sees without opening another file | GitHub / stars |
+| 3. **Guide** (`docs-site`) | Page **`why`** (full summary table) **and** the feature page when it applies (`media`, `webhooks`, `architecture`, `realtime`, …) — **pt / en / es** | Integrators on `/guide` & GitHub Pages |
+
+Also:
+
+- Bump [`CHANGELOG.md`](./CHANGELOG.md) when the behavior is user-facing.
+- Keep the **at a glance** bullets in README and the guide `why` page aligned with each other (same claims; wording may differ by locale).
+- Skip the triad for pure refactors, typo fixes, or internal renames with no operator/integrator benefit.
+
+**Checklist (relevant features):**
+
+- [ ] `docs/DESIGN-DECISIONS.md` — decision + benefit
+- [ ] README **Design advantages (summary)** — bullet and/or table row
+- [ ] Guide `why` page (all locales) + feature page if users hit that path
+- [ ] `CHANGELOG.md` when user-visible
 
 ---
 
@@ -165,6 +194,7 @@ Single package SemVer in root `package.json`. User-facing changes → `CHANGELOG
 - [ ] `pnpm format && pnpm lint && pnpm typecheck && pnpm test`
 - [ ] No secrets in logs or commits
 - [ ] README / guide / CHANGELOG consistent when user-facing
+- [ ] If a **design advantage** shipped: [Design surface triad](#design-surface-triad) (DESIGN-DECISIONS + README summary + guide `why` / feature pages)
 
 ---
 
