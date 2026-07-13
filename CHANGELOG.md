@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-13
+
 ### Fixed
 
 - VoIP call PCM stream auth: instance API keys were compared against the
@@ -16,6 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Softphone: reject when the audio WS closes before `ready` (no more hung
   Promise); accept signaling runs before opening the stream so the peer stops
   ringing even if audio setup is slow.
+- VoIP control WebSocket (`/v1/voip`): register `message` handlers
+  **synchronously** so client frames (`call:start`, `call:accept`, …) are not
+  dropped while auth/attach await (softphone timeouts with no server log).
+- Accept (REST + VoIP WS) no longer awaits full `acceptCall` / SCTP
+  `connectRelays` before ack — fire-and-forget after optimistic `connecting`
+  so the softphone does not hang on Atender.
+- Softphone: optimistic UI on Atender (connecting immediately), no phase
+  regression back to `incoming_ringing` from stale snapshots; longer
+  `call:start` timeout for usync + media init.
+- Dashboard static assets: `@fastify/static` wildcard + no SPA HTML fallback
+  for `.js`/`.css` (rebuilds without restart no longer get wrong MIME).
+- OpenAPI `CallInfo`: nullable duration/endReason and related fields so live
+  call snapshots validate; empty reject/end bodies coerce to `{}`.
+
+### Changed
+
+- Call recording starts only **after answer** (`connecting` / `active` /
+  `on_hold`). Ring/dial only writes history with `recording_status: none`
+  (no empty/ring WAVs for unanswered calls).
 
 ## [0.1.1] - 2026-07-13
 
@@ -117,6 +138,7 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rafaelsantana6/zapo-rest/releases/tag/v0.1.0

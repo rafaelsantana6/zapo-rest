@@ -1,6 +1,6 @@
 {
   "name": "zapo-rest",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
   "description": "Multi-session REST API for WhatsApp over zapo-js \u2014 instances, messages, webhooks, SSE events, VoIP, and dashboard",
