@@ -6,6 +6,7 @@ import {
   getCallRecordingSettings,
   getInstanceHint,
   getStoredKey,
+  acceptCall as httpAcceptCall,
   type LiveCall,
   listCallHistory,
   setCallRecording,
@@ -77,6 +78,11 @@ function mapServerStateToPhase(call: LiveCall, fallback: Phase): Phase {
   if (call.isEnded || st === 'ended') return 'ended'
   if (call.isActive || st === 'active' || st === 'on_hold') return 'active'
   if (st === 'connecting') return 'connecting'
+  // After the user hits Atender we stay on connecting/active even if a stale
+  // snapshot still says incoming_ringing (accept is fire-and-forget on the server).
+  if ((fallback === 'connecting' || fallback === 'active') && (call.canAccept || st === 'incoming_ringing')) {
+    return fallback
+  }
   if (call.canAccept || st === 'incoming_ringing') return 'incoming'
   if (st === 'ringing' || st === 'initiating') {
     return call.direction === 'incoming' ? 'incoming' : 'ringing'
@@ -451,37 +457,97 @@ export function Softphone() {
   }, [instanceName, phone, openStream, cleanupAudio])
 
   const onAccept = useCallback(async () => {
-    if (!instanceName) return
+    if (!instanceName) {
+      setError('Abra a página da instância (instances/…) antes de atender')
+      return
+    }
+    const wanted = callIdRef.current ?? activeCall?.callId
+    if (!wanted) {
+      setError('Nenhuma chamada para atender')
+      return
+    }
+    // Prefer server-side canAccept; only hard-block clear outbound cases.
+    if (
+      activeCall &&
+      activeCall.canAccept === false &&
+      activeCall.state !== 'incoming_ringing' &&
+      activeCall.direction !== 'incoming'
+    ) {
+      setError(`Não dá pra atender: estado="${activeCall.state}" direção=${activeCall.direction}. Só incoming_ringing.`)
+      return
+    }
+
+    // Optimistic UI immediately — never leave the user staring at Atender.
     setBusy(true)
     setError(null)
+    setIncomingFlash(false)
+    setPhase('connecting')
+    phaseRef.current = 'connecting'
+    callIdRef.current = wanted
+    setActiveCall((prev) =>
+      prev && sameId(prev.callId, wanted) ? { ...prev, state: 'connecting', canAccept: false, isRinging: false } : prev,
+    )
+
     try {
-      const wanted = callIdRef.current ?? activeCall?.callId
-      if (!wanted) throw new Error('Nenhuma chamada para atender')
-      if (activeCall && activeCall.canAccept === false) {
-        throw new Error(
-          `Não dá pra atender: estado="${activeCall.state}" direção=${activeCall.direction}. Só incoming_ringing.`,
-        )
+      let callId = wanted
+      let acceptErr: unknown = null
+
+      // Prefer VoIP WS when connected (push ack + call snapshot). HTTP fallback
+      // is non-blocking on the server (acceptCall runs after the response).
+      if (voipSocket.connection === 'connected') {
+        try {
+          const res = await voipSocket.acceptCall(wanted)
+          if (res.ok) {
+            const data = (res.data ?? {}) as { callId?: string; call?: LiveCall }
+            callId = data.callId ?? wanted
+            const accepted = data.call
+            if (accepted) {
+              setActiveCall((prev) => mergeCallSnapshot(prev, { ...accepted, canAccept: false }))
+              const ph = mapServerStateToPhase(accepted, 'connecting')
+              if (ph !== 'incoming') {
+                setPhase(ph)
+                phaseRef.current = ph
+              }
+            }
+          } else {
+            acceptErr = new Error(`${res.code ?? 'ERR'}: ${res.message}`)
+          }
+        } catch (wsErr) {
+          acceptErr = wsErr
+        }
+      } else {
+        acceptErr = new Error('VoIP WS offline')
       }
-      // Accept signaling FIRST so the peer stops ringing even if audio stream is slow.
-      // Server enables external audio mode before acceptCall; PCM stream opens next.
-      // (Opening stream before accept used to hang forever when stream auth failed.)
-      const res = await voipSocket.acceptCall(wanted)
-      if (!res.ok) throw new Error(res.message)
-      const data = (res.data ?? {}) as { callId?: string; call?: LiveCall }
-      const callId = data.callId ?? wanted
+
+      if (acceptErr) {
+        try {
+          await httpAcceptCall(instanceName, wanted)
+          acceptErr = null
+        } catch (httpErr) {
+          const wsMsg = acceptErr instanceof Error ? acceptErr.message : String(acceptErr)
+          const httpMsg = httpErr instanceof Error ? httpErr.message : String(httpErr)
+          throw new Error(`Atender falhou — ws: ${wsMsg} | http: ${httpMsg}`)
+        }
+      }
+
       callIdRef.current = callId
-      if (data.call) setActiveCall(data.call)
-      setPhase('connecting')
-      phaseRef.current = 'connecting'
-      setIncomingFlash(false)
       try {
         await openStream(callId)
       } catch (streamErr) {
-        // Call is already accepted — surface audio error without rolling back signaling
         setError(streamErr instanceof Error ? streamErr.message : 'Áudio falhou após atender')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao atender')
+      // Roll back only if we never left the offer (server rejected).
+      if (phaseRef.current === 'connecting') {
+        setPhase('incoming')
+        phaseRef.current = 'incoming'
+        setActiveCall((prev) =>
+          prev && sameId(prev.callId, wanted)
+            ? { ...prev, state: 'incoming_ringing', canAccept: true, isRinging: true }
+            : prev,
+        )
+      }
     } finally {
       setBusy(false)
     }
@@ -608,7 +674,7 @@ export function Softphone() {
                   ? 'VoIP online'
                   : voipConn === 'connecting'
                     ? 'VoIP conectando…'
-                    : 'VoIP offline'}
+                    : 'VoIP offline (API?)'}
                 {voipConn !== 'connected' && (
                   <button
                     type="button"
@@ -625,6 +691,11 @@ export function Softphone() {
                   </button>
                 )}
               </div>
+              {voipConn !== 'connected' && phase === 'incoming' && (
+                <p className="softphone-error" style={{ marginTop: 4, fontSize: 12 }}>
+                  Sinalização offline — a API pode ter caído. Reconecte antes de Atender.
+                </p>
+              )}
             </div>
             <div className="softphone-title-actions">
               <button type="button" className="icon-btn" onClick={() => setMinimized(true)} title="Minimizar">
@@ -679,7 +750,7 @@ export function Softphone() {
                   disabled={busy || activeCall.canAccept === false}
                   onClick={() => void onAccept()}
                 >
-                  Atender
+                  {busy ? 'Atendendo…' : 'Atender'}
                 </button>
               </div>
             </div>
