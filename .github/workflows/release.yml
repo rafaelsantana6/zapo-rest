@@ -103,6 +103,14 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ github.repository_owner }}/zapo-rest
+          labels: |
+            org.opencontainers.image.title=zapo-rest
+            org.opencontainers.image.description=Multi-session WhatsApp REST API over zapo-js — SSE, webhooks, VoIP, dashboard
+            org.opencontainers.image.url=https://hub.docker.com/r/${{ github.repository_owner }}/zapo-rest
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
           tags: |
             type=semver,pattern={{version}},value=${{ needs.github-release.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.github-release.outputs.tag }}
@@ -114,6 +122,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          labels: |
+            org.opencontainers.image.title=zapo-rest
+            org.opencontainers.image.description=Multi-session WhatsApp REST API over zapo-js — SSE, webhooks, VoIP, dashboard
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+            org.opencontainers.image.licenses=MIT
           tags: |
             type=semver,pattern={{version}},value=${{ needs.github-release.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.github-release.outputs.tag }}
@@ -134,6 +149,12 @@ jobs:
           sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Sync Docker Hub overview (README + links)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: bash scripts/sync-dockerhub-readme.sh
 
       # Secondary: GHCR best-effort. Primary publish is Docker Hub (required above).
       - name: Build and push GHCR

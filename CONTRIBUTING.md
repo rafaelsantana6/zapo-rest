@@ -176,6 +176,15 @@ Release flow:
    gh workflow run release.yml -f tag=v0.1.0
    ```
 
+   Docker Hub **Overview** text is maintained in
+   [`docker/DOCKERHUB.md`](docker/DOCKERHUB.md) and pushed by
+   [`scripts/sync-dockerhub-readme.sh`](scripts/sync-dockerhub-readme.sh)
+   (also runs in the release job). Manual refresh:
+
+   ```bash
+   DOCKERHUB_TOKEN=… ./scripts/sync-dockerhub-readme.sh
+   ```
+
 PR titles should follow
 [Conventional Commits](https://www.conventionalcommits.org/):
 `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`, `perf:`, `ci:`.

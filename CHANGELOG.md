@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Release workflow publishes container images to **Docker Hub**
   (`rafaelsantana6/zapo-rest`) in addition to GHCR; supports
   `workflow_dispatch` to re-publish an existing tag.
+- Docker Hub repository overview enriched with GitHub links, docs,
+  env notes, and OCI image labels; synced via
+  `scripts/sync-dockerhub-readme.sh` + `docker/DOCKERHUB.md` on each release.
 
 ## [0.1.0] - 2026-07-12
 
