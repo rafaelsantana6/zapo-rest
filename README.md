@@ -93,6 +93,23 @@ Do **not** treat that as a full production setup — still put a proxy, TLS, and
 
 ## Quick start (Docker)
 
+### Published images (releases)
+
+On each `v*.*.*` tag, CI publishes multi-arch-ready images to **Docker Hub** and **GHCR**:
+
+```bash
+# Docker Hub (recommended)
+docker pull rafaelsantana6/zapo-rest:0.1.0
+docker pull rafaelsantana6/zapo-rest:latest
+
+# GitHub Container Registry
+docker pull ghcr.io/rafaelsantana6/zapo-rest:0.1.0
+```
+
+Tags: `latest`, `X.Y.Z`, `X.Y`, `X` (no `latest` on pre-releases).
+
+### Compose (local build)
+
 Minimum path to a running stack (API + Postgres + Redis + MinIO).  
 **Local/demo only** — compose defaults are weak on purpose. See [Production checklist](#production-checklist) before any public host.
 
@@ -377,7 +394,10 @@ pnpm version patch # or minor / major
 git push && git push --tags
 ```
 
-CI builds on every PR; tagged releases can publish container images via GitHub Actions.
+CI builds on every PR. Tagged releases (`v*.*.*`) create a GitHub Release and push
+container images to **Docker Hub** (`rafaelsantana6/zapo-rest`) and **GHCR**
+(`ghcr.io/rafaelsantana6/zapo-rest`). Repo secrets required: `DOCKERHUB_USERNAME`,
+`DOCKERHUB_TOKEN` (Docker Hub access token).
 
 ---
 

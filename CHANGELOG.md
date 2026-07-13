@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Release workflow publishes container images to **Docker Hub**
+  (`rafaelsantana6/zapo-rest`) in addition to GHCR; supports
+  `workflow_dispatch` to re-publish an existing tag.
+
 ## [0.1.0] - 2026-07-12
 
 First public release of **zapo-rest**: multi-session WhatsApp gateway over

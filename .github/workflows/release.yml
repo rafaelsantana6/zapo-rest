@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  # Re-publish an existing tag (e.g. after adding Docker Hub secrets)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to release (e.g. v0.1.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,25 +20,43 @@ jobs:
   github-release:
     name: GitHub Release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Extract version
         id: ver
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          TAG="${TAG#refs/tags/}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
           name: v${{ steps.ver.outputs.version }}
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(steps.ver.outputs.tag, '-') }}
           body: |
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ steps.ver.outputs.tag }}/CHANGELOG.md) for details.
 
-            ## Quick pull (GHCR)
+            ## Docker images
+
+            **Docker Hub** (recommended):
+
+            ```bash
+            docker pull ${{ github.repository_owner }}/zapo-rest:${{ steps.ver.outputs.version }}
+            docker pull ${{ github.repository_owner }}/zapo-rest:latest
+            ```
+
+            **GHCR**:
 
             ```bash
             docker pull ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.version }}
@@ -43,6 +68,8 @@ jobs:
     needs: github-release
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.github-release.outputs.tag }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -57,16 +84,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          # Docker Hub + GHCR. Hub image: <owner>/zapo-rest
+          images: |
+            ${{ github.repository_owner }}/zapo-rest
+            ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{version}},value=${{ needs.github-release.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.github-release.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ needs.github-release.outputs.tag }}
+            type=raw,value=latest,enable=${{ !contains(needs.github-release.outputs.tag, '-') }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
