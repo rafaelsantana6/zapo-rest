@@ -4,6 +4,7 @@ import { ApiIndexPage, ApiTagPage } from './pages/ApiPage'
 import { GuidePage } from './pages/GuidePage'
 
 const GUIDE_SLUGS = [
+  'why',
   'quickstart',
   'architecture',
   'concepts',
