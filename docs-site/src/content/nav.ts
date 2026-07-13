@@ -6,6 +6,8 @@ export type NavItem = {
   href: string
   /** Match path prefix for active state */
   match?: string
+  /** Leave the SPA (Scalar, raw OpenAPI JSON) */
+  external?: boolean
 }
 
 export type NavGroup = {
@@ -177,12 +179,19 @@ export function getNav(locale: Locale): NavGroup[] {
     {
       title: c.tools,
       items: [
-        { id: 'swagger', title: tItem(c, 'swagger', 'Scalar'), href: '/docs', match: '/docs' },
+        {
+          id: 'swagger',
+          title: tItem(c, 'swagger', 'Scalar'),
+          href: '/docs',
+          match: '/docs',
+          external: true,
+        },
         {
           id: 'openapi-json',
           title: tItem(c, 'openapi-json', 'OpenAPI JSON'),
           href: '/docs/json',
           match: '/docs/json',
+          external: true,
         },
         { id: 'faq', title: tItem(c, 'faq', 'FAQ'), href: '/guide/faq' },
       ],

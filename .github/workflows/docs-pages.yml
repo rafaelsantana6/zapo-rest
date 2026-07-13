@@ -1,5 +1,7 @@
-# Publish docs-site (product guide SPA) to GitHub Pages.
-# Site: https://rafaelsantana6.github.io/zapo-rest/
+# Publish docs-site (product guide SPA) + static Scalar OpenAPI to GitHub Pages.
+# Site:
+#   Guide:  https://rafaelsantana6.github.io/zapo-rest/
+#   Scalar: https://rafaelsantana6.github.io/zapo-rest/docs/
 #
 # First-time: repo Settings → Pages → Source = GitHub Actions
 # (or run this workflow once after merge — GitHub creates the environment).
@@ -11,6 +13,7 @@ on:
     branches: [main]
     paths:
       - 'docs-site/**'
+      - 'openapi.json'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 
@@ -28,7 +31,7 @@ env:
 
 jobs:
   build:
-    name: Build guide SPA
+    name: Build guide + Scalar
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -46,12 +49,24 @@ jobs:
         working-directory: docs-site
         run: pnpm install --frozen-lockfile
 
-      - name: Build (GitHub Pages base)
+      - name: Build guide SPA (GitHub Pages base)
         working-directory: docs-site
         env:
           # Project Pages URL path: https://<user>.github.io/<repo>/
           DOCS_BASE: /zapo-rest/
         run: pnpm build
+
+      - name: Stage static Scalar OpenAPI
+        run: |
+          # Source lives in docs-site/scalar/ (not under a path named "docs" —
+          # root .gitignore has `docs` for the markdown folder).
+          test -f docs-site/scalar/index.html
+          test -f openapi.json
+          mkdir -p docs-site/dist/docs
+          cp docs-site/scalar/index.html docs-site/dist/docs/index.html
+          cp openapi.json docs-site/dist/docs/openapi.json
+          # URL parity with API `/docs/json` (raw JSON, same bytes)
+          cp openapi.json docs-site/dist/docs/json
 
       - name: SPA fallback for client routes
         run: cp docs-site/dist/index.html docs-site/dist/404.html

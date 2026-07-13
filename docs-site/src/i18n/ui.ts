@@ -7,9 +7,11 @@ export type UiStrings = {
   closeMenu: string
   searchNav: string
   openScalar: string
+  openGitHub: string
   footerDocs: string
   footerOpenApi: string
   footerJson: string
+  footerRepo: string
   language: string
   pageNotFound: string
   /** Full sentence with {link} placeholder around intro label */
@@ -38,9 +40,11 @@ const pt: UiStrings = {
   closeMenu: 'Fechar menu',
   searchNav: 'Buscar na navegação…',
   openScalar: 'Abrir Scalar',
+  openGitHub: 'GitHub',
   footerDocs: 'zapo-rest docs',
-  footerOpenApi: 'OpenAPI / Swagger',
+  footerOpenApi: 'OpenAPI / Scalar',
   footerJson: 'JSON',
+  footerRepo: 'Repositório',
   language: 'Idioma',
   pageNotFound: 'Página não encontrada',
   backToIntroBefore: 'Volte para a ',
@@ -68,9 +72,11 @@ const en: UiStrings = {
   closeMenu: 'Close menu',
   searchNav: 'Search navigation…',
   openScalar: 'Open Scalar',
+  openGitHub: 'GitHub',
   footerDocs: 'zapo-rest docs',
-  footerOpenApi: 'OpenAPI / Swagger',
+  footerOpenApi: 'OpenAPI / Scalar',
   footerJson: 'JSON',
+  footerRepo: 'Repository',
   language: 'Language',
   pageNotFound: 'Page not found',
   backToIntroBefore: 'Back to the ',
@@ -98,9 +104,11 @@ const es: UiStrings = {
   closeMenu: 'Cerrar menú',
   searchNav: 'Buscar en la navegación…',
   openScalar: 'Abrir Scalar',
+  openGitHub: 'GitHub',
   footerDocs: 'zapo-rest docs',
-  footerOpenApi: 'OpenAPI / Swagger',
+  footerOpenApi: 'OpenAPI / Scalar',
   footerJson: 'JSON',
+  footerRepo: 'Repositorio',
   language: 'Idioma',
   pageNotFound: 'Página no encontrada',
   backToIntroBefore: 'Vuelve a la ',

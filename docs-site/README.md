@@ -1,16 +1,17 @@
 # zapo-rest documentation site
 
-Rich integration guide (SPA):
+Rich integration guide (SPA) + static Scalar OpenAPI:
 
-| Host | URL |
-|------|-----|
-| **GitHub Pages** (public) | https://rafaelsantana6.github.io/zapo-rest/ |
-| API process (Docker) | `http://localhost:3000/guide/` |
+| Host | Guide | Scalar |
+|------|-------|--------|
+| **GitHub Pages** (public) | https://rafaelsantana6.github.io/zapo-rest/ | https://rafaelsantana6.github.io/zapo-rest/docs/ |
+| API process (Docker) | `http://localhost:3000/guide/` | `http://localhost:3000/docs` |
 
 - Narrative docs: architecture, auth, messages, webhooks, VoIP, FAQ
 - Full HTTP catalog from OpenAPI + routes not yet in the export
 - Dark / light mode (Tailwind v4)
-- Links to Scalar at **`/docs`** (when served by the API)
+- Header **Scalar** link resolves to the co-hosted UI on Pages, or `/docs` on the API
+- Static Scalar page: `scalar/index.html` (CDN) + root `openapi.json` staged into `dist/docs/` in CI
 
 ## Develop
 
@@ -30,11 +31,16 @@ pnpm build:docs
 
 # GitHub Pages project site (base `/zapo-rest/`)
 DOCS_BASE=/zapo-rest/ pnpm --dir docs-site build
+# then stage Scalar + OpenAPI:
+mkdir -p docs-site/dist/docs
+cp docs-site/scalar/index.html docs-site/dist/docs/index.html
+cp openapi.json docs-site/dist/docs/openapi.json
+cp openapi.json docs-site/dist/docs/json
 ```
 
 Output: `docs-site/dist`. The API (`src/app.ts`) mounts the default build at `/guide` when the dist exists.
 
-CI: `.github/workflows/docs-pages.yml` builds with `DOCS_BASE=/zapo-rest/` and deploys to GitHub Pages on pushes to `main` that touch `docs-site/`.
+CI: `.github/workflows/docs-pages.yml` builds with `DOCS_BASE=/zapo-rest/`, copies `openapi.json` into `dist/docs/`, and deploys to GitHub Pages on pushes to `main` that touch `docs-site/` or `openapi.json`.
 
 ## Content
 

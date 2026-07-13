@@ -28,6 +28,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <ExternalLink href="/docs">Scalar</ExternalLink> — interactive OpenAPI (Try it out) generated from Fastify
               + Zod routes. JSON at <ExternalLink href="/docs/json">/docs/json</ExternalLink>.
             </li>
+            <li>
+              <strong>Source</strong> —{' '}
+              <a href="https://github.com/rafaelsantana6/zapo-rest" target="_blank" rel="noreferrer">
+                github.com/rafaelsantana6/zapo-rest
+              </a>{' '}
+              (stars, issues, releases, Docker).
+            </li>
           </ul>
         </Callout>
 
@@ -108,6 +115,11 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           </li>
           <li>
             <a href="/guide/api">Full endpoint catalog</a>
+          </li>
+          <li>
+            <a href="https://github.com/rafaelsantana6/zapo-rest" target="_blank" rel="noreferrer">
+              GitHub repository
+            </a>
           </li>
           <li>
             <ExternalLink href="/docs">Open Scalar</ExternalLink>

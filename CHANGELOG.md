@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - GitHub Pages deploy for the product guide SPA (`docs-site`) at
-  https://rafaelsantana6.github.io/zapo-rest/ (workflow `docs-pages.yml`;
-  `DOCS_BASE` for project-site path).
+  https://rafaelsantana6.github.io/zapo-rest/ and static Scalar OpenAPI at
+  https://rafaelsantana6.github.io/zapo-rest/docs/ (workflow `docs-pages.yml`;
+  `DOCS_BASE` for project-site path; guide header links to GitHub + Scalar).
 
 ## [0.1.4] - 2026-07-13
 
