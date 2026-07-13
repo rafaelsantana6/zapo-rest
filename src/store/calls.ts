@@ -104,21 +104,18 @@ export class CallStore {
     state?: string | null
     recordingEnabled?: boolean
   }): Promise<AppCall> {
+    // History row only — recording_status stays 'none' until the call is answered
+    // (CallRecordingManager starts the PCM recorder on connecting/active).
     const { rows } = await this.pool.query<Row>(
       `INSERT INTO app_calls (
          instance_name, call_id, peer_jid, direction, media_type, state,
          recording_enabled, recording_status
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,'none')
        ON CONFLICT (instance_name, call_id) DO UPDATE SET
          peer_jid = COALESCE(EXCLUDED.peer_jid, app_calls.peer_jid),
          direction = COALESCE(EXCLUDED.direction, app_calls.direction),
          state = COALESCE(EXCLUDED.state, app_calls.state),
          recording_enabled = app_calls.recording_enabled OR EXCLUDED.recording_enabled,
-         recording_status = CASE
-           WHEN EXCLUDED.recording_enabled AND app_calls.recording_status = 'none'
-             THEN 'recording'
-           ELSE app_calls.recording_status
-         END,
          updated_at = now()
        RETURNING *`,
       [
@@ -129,12 +126,26 @@ export class CallStore {
         input.mediaType ?? 'audio',
         input.state ?? null,
         input.recordingEnabled ?? false,
-        input.recordingEnabled ? 'recording' : 'none',
       ],
     )
     const row = rows[0]
     if (!row) throw new Error('upsert returned no row')
     return mapRow(row)
+  }
+
+  /** Flip status to `recording` when PCM capture actually begins (post-answer). */
+  async markRecordingStarted(instanceName: string, callId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE app_calls SET
+         recording_status = CASE
+           WHEN recording_enabled THEN 'recording'
+           ELSE recording_status
+         END,
+         updated_at = now()
+       WHERE instance_name = $1 AND call_id = $2
+         AND recording_status IN ('none', 'disabled')`,
+      [instanceName, callId],
+    )
   }
 
   async updateState(

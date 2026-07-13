@@ -864,7 +864,8 @@ const dec = new TextDecoder
             por ringing
           </li>
           <li>
-            Gravação: <code>PUT.../settings/call-recording</code> + storage ready → WAV em <code>GET.../recording</code>
+            Gravação: <code>PUT.../settings/call-recording</code> + storage ready → PCM só após atender (
+            <code>connecting</code>/<code>active</code>) → WAV em <code>GET.../recording</code>
           </li>
         </ul>
       </>
