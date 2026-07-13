@@ -12,9 +12,12 @@ on:
         required: true
         type: string
 
+# Packages write is required for GHCR; contents write for GitHub Releases.
 permissions:
   contents: write
   packages: write
+  attestations: write
+  id-token: write
 
 jobs:
   github-release:
@@ -66,6 +69,11 @@ jobs:
     name: Publish container
     runs-on: ubuntu-latest
     needs: github-release
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,6 +85,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -84,33 +98,53 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Docker meta
-        id: meta
+      - name: Docker meta (Hub)
+        id: meta_hub
         uses: docker/metadata-action@v5
         with:
-          # Docker Hub + GHCR. Hub image: <owner>/zapo-rest
-          images: |
-            ${{ github.repository_owner }}/zapo-rest
-            ghcr.io/${{ github.repository }}
+          images: ${{ github.repository_owner }}/zapo-rest
           tags: |
             type=semver,pattern={{version}},value=${{ needs.github-release.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.github-release.outputs.tag }}
             type=semver,pattern={{major}},value=${{ needs.github-release.outputs.tag }}
             type=raw,value=latest,enable=${{ !contains(needs.github-release.outputs.tag, '-') }}
 
-      - name: Build and push
+      - name: Docker meta (GHCR)
+        id: meta_ghcr
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.github-release.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.github-release.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ needs.github-release.outputs.tag }}
+            type=raw,value=latest,enable=${{ !contains(needs.github-release.outputs.tag, '-') }}
+
+      # Primary: Docker Hub must succeed for the release job to pass.
+      - name: Build and push Docker Hub
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta_hub.outputs.tags }}
+          labels: ${{ steps.meta_hub.outputs.labels }}
+          # Avoid attestation packages (often trips GHCR/Hub permission edges)
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Secondary: GHCR — independent so Hub success is not rolled back by GHCR ACL issues
+      - name: Build and push GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta_ghcr.outputs.tags }}
+          labels: ${{ steps.meta_ghcr.outputs.labels }}
+          provenance: false
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
