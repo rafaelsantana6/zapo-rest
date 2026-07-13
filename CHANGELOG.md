@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Startup no longer awaits WA auto-connect + lid reconcile before
+  `app.listen()` — Docker Swarm healthchecks were killing the task as
+  unhealthy while `mailbox_contacts` reconcile ran for minutes (API never
+  bound `:3000`).
+- Lid map bootstrap uses batched `lid_map` multi-row upserts instead of
+  one `save()` per contact pair.
+
 ## [0.1.3] - 2026-07-13
 
 ### Fixed
