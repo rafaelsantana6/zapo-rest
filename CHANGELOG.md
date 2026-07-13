@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Optional WhatsApp Web **WAM** telemetry (`@zapo-js/wam`) on every session for
+  wire parity / anti-fingerprinting. **Enabled by default**; set
+  `WAM_ENABLED=false` to disable. Does not change REST/SSE/VoIP contracts.
+  Documented in README, `docs/DESIGN-DECISIONS.md`, and guide `/why` +
+  `/architecture` + FAQ (pt/en/es).
 - GitHub Pages deploy for the product guide SPA (`docs-site`) at
   https://rafaelsantana6.github.io/zapo-rest/ and static Scalar OpenAPI at
   https://rafaelsantana6.github.io/zapo-rest/docs/ (workflow `docs-pages.yml`;

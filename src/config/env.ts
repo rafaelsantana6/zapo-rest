@@ -76,6 +76,12 @@ const envSchema = z
     WEBHOOK_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
     VOIP_MAX_CONCURRENT_CALLS: z.coerce.number().int().positive().default(10),
     VOIP_END_CALL_ON_WS_CLOSE: boolFromString.default(false),
+    /**
+     * Emit WhatsApp Web WAM (`w:stats`) telemetry via `@zapo-js/wam` for wire
+     * parity / anti-fingerprinting. Off only when you explicitly want a quieter
+     * headless footprint. Does not affect messaging, media, or VoIP APIs.
+     */
+    WAM_ENABLED: boolFromString.default(true),
     MEDIA_TMP_DIR: z.string().default('/tmp/zapo-rest-media'),
 
     // History sync on first pair / reconnect

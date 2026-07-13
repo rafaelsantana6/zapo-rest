@@ -1,6 +1,7 @@
 import { createMediaProcessor } from '@zapo-js/media-utils'
 import { createPostgresStore, ensurePgMigrations, type WaPgMigrationDomain } from '@zapo-js/store-postgres'
 import { voipPlugin } from '@zapo-js/voip'
+import { wamPlugin } from '@zapo-js/wam'
 import type { Pool } from 'pg'
 import { createPinoLogger, createStore, type Logger, WaClient, type WaClientOptions, type WaStore } from 'zapo-js'
 import type { Env } from '~/config/env'
@@ -108,7 +109,11 @@ export function createWaClient(
       enabled: env.HISTORY_SYNC_ENABLED,
       requireFullSync: env.HISTORY_REQUIRE_FULL_SYNC,
     },
-    plugins: [voipPlugin({ maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS })],
+    plugins: [
+      voipPlugin({ maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS }),
+      // WAM = WA Web client-side analytics (`w:stats`). Default on for wire parity.
+      ...(env.WAM_ENABLED ? [wamPlugin()] : []),
+    ],
     media: {
       processor: runtime.mediaProcessor,
       generateThumbnail: true,

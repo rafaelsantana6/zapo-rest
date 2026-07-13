@@ -33,7 +33,32 @@ Not affiliated with WhatsApp/Meta.
 | **Per-session serial queue** | No races on message upsert, ack, and presence for a given instance |
 | **LID ↔ PN map + reconcile** | Modern WhatsApp identities without duplicate chat threads |
 | **Listen before WA boot** | Healthchecks stay green while reconnect/reconcile run in the background |
+| **WAM telemetry** (`@zapo-js/wam`, default on) | Wire parity with real WhatsApp Web analytics (`w:stats`) — better session fingerprint |
 | **Contract-first OpenAPI** | Scalar `/docs`, exportable `openapi.json`, guide SPA, GitHub Pages |
+
+---
+
+## Session wire parity: WAM telemetry
+
+**Decision:** every `WaClient` loads the optional plugin [`@zapo-js/wam`](https://zapo.to/pt-br/guides/wam) **by default**. It emits the client-side analytics batches (`w:stats`) that a real WhatsApp Web tab sends after login — protocol lifecycle events plus plausible synthetic UI telemetry.
+
+**Why**
+
+- Headless multi-session gateways look different on the wire without Web analytics traffic.
+- WAM is **not** app observability and does **not** change REST, SSE, media, or VoIP contracts.
+- Upstream covers auto-emit of real protocol events and optional synthetic UI; we keep plugin defaults (install-and-forget).
+
+**Disable**
+
+```bash
+WAM_ENABLED=false
+```
+
+Default is `true` when unset. Restart the API process after changing the env (plugins are attached when the session client is created).
+
+**Trade-off:** slightly more outbound traffic to WhatsApp analytics endpoints; disable only if you want a quieter footprint or are debugging plugin interaction.
+
+Env: `WAM_ENABLED`. Wired in `src/instances/client-factory.ts` next to `voipPlugin`.
 
 ---
 

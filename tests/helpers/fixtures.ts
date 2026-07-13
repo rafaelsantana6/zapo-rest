@@ -14,6 +14,7 @@ export function makeEnv(overrides: Partial<Env> = {}): Env {
     WEBHOOK_TIMEOUT_MS: 1000,
     VOIP_MAX_CONCURRENT_CALLS: 5,
     VOIP_END_CALL_ON_WS_CLOSE: false,
+    WAM_ENABLED: false,
     MEDIA_TMP_DIR: '/tmp/zapo-rest-test-media',
     HISTORY_SYNC_ENABLED: false,
     HISTORY_REQUIRE_FULL_SYNC: false,
