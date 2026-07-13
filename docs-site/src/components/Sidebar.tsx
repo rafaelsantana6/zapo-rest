@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { getNav } from '../content/nav'
 import { useLocale } from '../i18n/context'
+import { REPO_URL, resolveExternalDocsHref, scalarHref } from '../lib/api-docs'
 import { cn } from '../lib/cn'
 
 export function Sidebar({
@@ -36,7 +37,7 @@ export function Sidebar({
         )}
       >
         <div className="border-b border-zinc-100 px-4 py-4 dark:border-zinc-800">
-          <a href="/guide/" className="block">
+          <a href={import.meta.env.BASE_URL} className="block">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-600 dark:text-brand-400">
               zapo-rest
             </div>
@@ -68,12 +69,12 @@ export function Sidebar({
                 </div>
                 <ul className="space-y-0.5">
                   {items.map((item) => {
-                    const external = item.href.startsWith('/docs')
+                    const external = item.external === true
                     if (external) {
                       return (
                         <li key={item.id}>
                           <a
-                            href={item.href}
+                            href={resolveExternalDocsHref(item.href)}
                             className="block rounded-lg px-2 py-1.5 text-sm text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-white"
                             onClick={onClose}
                           >
@@ -110,9 +111,17 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="border-t border-zinc-100 p-3 text-xs text-zinc-500 dark:border-zinc-800">
-          <a href="/docs" className="font-medium text-brand-600 hover:underline dark:text-brand-400">
-            {t.openScalar}
+        <div className="flex flex-col gap-1.5 border-t border-zinc-100 p-3 text-xs text-zinc-500 dark:border-zinc-800">
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+          >
+            {t.openGitHub} ↗
+          </a>
+          <a href={scalarHref()} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+            {t.openScalar} ↗
           </a>
         </div>
       </aside>

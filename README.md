@@ -17,7 +17,9 @@
 </p>
 
 <p align="center">
- 📚 <a href="#documentation"><strong>Docs</strong></a>
+ 📚 <a href="https://rafaelsantana6.github.io/zapo-rest/"><strong>Guide (GitHub Pages)</strong></a>
+ · 📐 <a href="https://rafaelsantana6.github.io/zapo-rest/docs/"><strong>Scalar API</strong></a>
+ · 📖 <a href="#documentation"><strong>Docs</strong></a>
  · 🛠 <a href="CONTRIBUTING.md"><strong>Contributing</strong></a>
  · 🔐 <a href="SECURITY.md"><strong>Security</strong></a>
  · 💛 <a href="https://github.com/sponsors/vinikjkkj"><strong>Sponsor zapo</strong></a>
@@ -27,20 +29,49 @@
 
 ## Why zapo-rest?
 
-[zapo-js](https://github.com/vinikjkkj/zapo) is a high-performance TypeScript implementation of the WhatsApp Web protocol. **zapo-rest** wraps it as an HTTP product you can deploy:
+[zapo-js](https://github.com/vinikjkkj/zapo) is a high-performance TypeScript implementation of the WhatsApp Web protocol. **zapo-rest** wraps it as an HTTP product you can deploy — with choices aimed at **cost, reliability, and a clean multi-session contract**, not just “expose every method”.
 
 | You get | Details |
 | ------- | ------- |
 | Multi-session | Many WhatsApp numbers in one process, each with its own API key |
-| REST + OpenAPI | Fastify 5, Zod validation, Scalar at `/docs` |
-| Durable chat store | Upsert projections in Postgres, not a pure event ledger |
-| Reliable webhooks | Multi-URL configs, HMAC-SHA512, retries, outbox worker |
+| REST + OpenAPI | Fastify 5, Zod validation, Scalar at `/docs` (+ [public Pages](https://rafaelsantana6.github.io/zapo-rest/docs/)) |
+| Durable chat store | Upsert projections in Postgres (edits/acks/revokes on the same row) |
+| Reliable webhooks | Multi-URL configs, HMAC-SHA512, durable **outbox** + retries |
 | Live events | **SSE** `GET /v1/events` (server → client; prefer header auth) |
-| Voice calls | **WebSocket** control + live PCM stream (`@zapo-js/voip`) |
-| Media | Local disk or S3/MinIO/R2 with optional auto-download |
+| Voice calls | **WebSocket** control + live PCM stream (`@zapo-js/voip`) — not a second events bus |
+| Media | Local or S3/MinIO/R2 with **CAS dedup**, rehydrate-from-WA, optional auto-download |
 | Ops UI | Dashboard for QR, chat, send tester, webhooks, softphone |
 
 Not affiliated with WhatsApp/Meta. Independent gateway for engineering and interoperability.
+
+### Design advantages (summary)
+
+You do **not** need to open another file to see why this stack is shaped this way. Same summary lives in the
+[guide → Why zapo-rest](https://rafaelsantana6.github.io/zapo-rest/why) page. Longer narrative for operators:
+[`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md).
+
+**At a glance**
+
+- **Cheaper media** — CAS dedup (SHA-256 per instance); forwards/stickers do not multiply objects
+- **Recoverable media** — missing object re-downloads from WhatsApp, then re-stores
+- **Reliable webhooks** — persist chat first, outbox + retries, HMAC, no double-fire on redelivery
+- **Right realtime** — SSE for app events; WebSocket only for VoIP
+- **Modern WA identity** — LID ↔ PN map + reconcile (no split history)
+- **Ops-friendly boot** — HTTP listens before long reconnect/reconcile (healthchecks stay green)
+
+| Decision | Benefit |
+| -------- | ------- |
+| **Content-addressed media (CAS)** — `{instance}/cas/sha256/{hash}{ext}` | Same bytes inside one instance are stored **once**. Less object storage; stable identity. |
+| **Rehydrate from WhatsApp** if the object is missing | Media stays recoverable after storage loss; 404 only when WA itself cannot provide the file. |
+| **302 + presigned GET** | Clients download from S3/R2 directly; the API is not a permanent bandwidth middleman. |
+| **Two-stage media events** (`mediaStage: meta` → `stored`) | Fast “message arrived”, then permanent URL after CAS (`message.media.stored`). |
+| **Persist projections before webhooks** | Chat store stays consistent even if a receiver is down; outbox retries separately. |
+| **`processed_events` claim** | Protocol redelivery does not double-fire side-effects. |
+| **SSE for app events / WS for VoIP only** | Right tool per job; no fragile general events WebSocket. |
+| **Header API keys preferred** | Keys out of access logs, proxies, and `Referer`. |
+| **Per-session serial queue** | No races on message upsert, ack, and presence for a given instance. |
+| **LID ↔ PN map + reconcile** | Modern WhatsApp identities without split chat history. |
+| **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
 
 ---
 
@@ -244,10 +275,19 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 
 `HISTORY_SYNC_ENABLED=true` (default). zapo processes history notifications; we mirror mailbox → `app_*` and emit `history.sync` webhooks. On-demand: `POST.../chats/:chatId/history-sync`.
 
-### Media
+### Media (CAS + rehydrate)
 
-`MEDIA_STORAGE=local|s3` with standard S3 env vars. Auto-download inbound media when `MEDIA_AUTO_DOWNLOAD=true`.  
-Objects are **content-addressed per instance** (dedup by SHA-256). `GET .../messages/:id/media` prefers a **302** to storage; if the object is missing it **re-downloads from WhatsApp**, re-stores, then delivers (404 only if WA can no longer provide the file).
+`MEDIA_STORAGE=local|s3` with standard S3 env vars. Auto-download inbound media when `MEDIA_AUTO_DOWNLOAD=true`.
+
+| Behavior | Detail |
+| -------- | ------ |
+| **Dedup** | Content-addressed **per instance** (`…/cas/sha256/{hash}{ext}`). Identical payloads share one object. |
+| **Isolation** | Instances never share keys — delete instance removes `{name}/…` only. |
+| **Serve** | Prefer **302** to storage (presigned/public URL) instead of proxying every byte. |
+| **Missing object** | Re-download from WhatsApp, re-store, then deliver; 404 only if WA can no longer provide the file. |
+| **Webhooks** | Stage 1 `message` with `mediaStage: "meta"`; stage 2 `message.media.stored` / `.failed` after CAS. |
+
+See [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) and the [guide Media page](https://rafaelsantana6.github.io/zapo-rest/media).
 
 ### Redis
 
@@ -366,8 +406,12 @@ tests/ unit · integration · e2e
 
 | Resource | Description |
 | -------- | ----------- |
-| `/docs` | Interactive OpenAPI (Scalar) |
-| `/guide` | Narrative product guide (build `docs-site`) |
+| **[Guide (GitHub Pages)](https://rafaelsantana6.github.io/zapo-rest/)** | Public product guide (pt / en / es) — architecture, auth, webhooks, VoIP, FAQ |
+| **[Scalar (GitHub Pages)](https://rafaelsantana6.github.io/zapo-rest/docs/)** | Interactive OpenAPI reference (static; same contract as a running API) |
+| `/docs` | Interactive OpenAPI (Scalar) on a running API |
+| `/guide` | Same guide SPA when `docs-site` is built into the Docker image |
+| [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) | Deep dive on **why** (CAS, outbox, SSE, LID, …) |
+| **[Why / advantages (guide)](https://rafaelsantana6.github.io/zapo-rest/why)** | Same summary as README — no need to open the MD |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Setup, PR rules, SemVer |
 | [`AGENTS.md`](AGENTS.md) | Architecture contract for contributors & agents |
 | [`docs/API-COVERAGE.md`](docs/API-COVERAGE.md) | other multi-session APIs parity |

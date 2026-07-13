@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Pages deploy for the product guide SPA (`docs-site`) at
+  https://rafaelsantana6.github.io/zapo-rest/ and static Scalar OpenAPI at
+  https://rafaelsantana6.github.io/zapo-rest/docs/ (workflow `docs-pages.yml`;
+  `DOCS_BASE` for project-site path; guide header links to GitHub + Scalar).
+- Documented production-facing design choices (CAS media dedup, webhook
+  outbox, SSE vs VoIP WS, LID map, …) in `docs/DESIGN-DECISIONS.md`, README
+  **Design advantages (summary)**, and guide page `/why` (+ architecture/media/webhooks).
+- AGENTS.md *Design surface triad*: keep DESIGN-DECISIONS + README summary +
+  guide `why`/feature pages in sync when shipping material design wins.
+- Track `docs/*.md` in git (removed accidental root `.gitignore` entry `docs`
+  that hid DESIGN-DECISIONS, PRODUCTION-CONSISTENCY, coverage notes, etc.).
+
 ## [0.1.4] - 2026-07-13
 
 ### Fixed
