@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-13
+
 ### Added
 
 - Optional WhatsApp Web **WAM** telemetry (`@zapo-js/wam`) on every session for
@@ -190,7 +192,9 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.4...v0.2.0
+[0.1.4]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.0...v0.1.1
