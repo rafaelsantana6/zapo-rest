@@ -14,9 +14,8 @@
     "sourceMap": true,
     "outDir": "dist",
     "rootDir": ".",
-    "baseUrl": ".",
     "paths": {
-      "~/*": ["src/*"]
+      "~/*": ["./src/*"]
     },
     "types": ["node", "vitest/globals"],
     "noUncheckedIndexedAccess": true,

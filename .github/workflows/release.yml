@@ -30,7 +30,7 @@ jobs:
       version: ${{ steps.ver.outputs.version }}
       tag: ${{ steps.ver.outputs.tag }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ inputs.tag || github.ref }}
@@ -78,7 +78,7 @@ jobs:
       attestations: write
       id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.github-release.outputs.tag }}
 

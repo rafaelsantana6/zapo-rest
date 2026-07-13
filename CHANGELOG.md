@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Docker Hub repository overview enriched with GitHub links, docs,
   env notes, and OCI image labels; synced via
   `scripts/sync-dockerhub-readme.sh` + `docker/DOCKERHUB.md` on each release.
+- Consolidated dependency bumps (Dependabot batch): `zapo-js` 1.5,
+  Fastify plugins (`multipart`/`static`/`fastify-plugin`), `file-type` 22,
+  `sharp` 0.35, TypeScript 7 + `@types/node` 26, dashboard/docs-site Vite
+  stack, Actions `checkout@v7` / `pnpm/action-setup@v6`. docs-site now uses
+  pnpm lockfile. `tsconfig` paths updated for TypeScript 7 (no `baseUrl`).
 
 ## [0.1.0] - 2026-07-12
 
