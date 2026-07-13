@@ -1,9 +1,9 @@
 {
   "name": "zapo-rest",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
-  "description": "Multi-session REST API for WhatsApp over zapo-js — instances, messages, webhooks, SSE events, VoIP, and dashboard",
+  "description": "Multi-session REST API for WhatsApp over zapo-js \u2014 instances, messages, webhooks, SSE events, VoIP, and dashboard",
   "license": "MIT",
   "author": "Rafael Santana <rafael_santana10@hotmail.com>",
   "homepage": "https://github.com/rafaelsantana6/zapo-rest#readme",
@@ -59,7 +59,7 @@
     "version:minor": "pnpm version minor",
     "version:major": "pnpm version major",
     "preversion": "pnpm format && pnpm lint && pnpm typecheck && pnpm test",
-    "postversion": "echo \"Tagged v$npm_package_version — update CHANGELOG.md then: git push && git push --tags\""
+    "postversion": "echo \"Tagged v$npm_package_version \u2014 update CHANGELOG.md then: git push && git push --tags\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1085.0",

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-13
+
 ### Changed
 
 - Release workflow publishes container images to **Docker Hub**
@@ -20,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `sharp` 0.35, TypeScript 7 + `@types/node` 26, dashboard/docs-site Vite
   stack, Actions `checkout@v7` / `pnpm/action-setup@v6`. docs-site now uses
   pnpm lockfile. `tsconfig` paths updated for TypeScript 7 (no `baseUrl`).
+- CI Actions bumped to Node 24 runtimes (`build-push-action@v7`, etc.).
 
 ## [0.1.0] - 2026-07-12
 
@@ -104,5 +107,6 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rafaelsantana6/zapo-rest/releases/tag/v0.1.0
