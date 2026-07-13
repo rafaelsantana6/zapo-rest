@@ -23,18 +23,22 @@
  * { op: "pong", id, ts }
  *
  * Audio PCM stays on GET /v1/instances/:name/calls/:callId/stream (separate channel).
+ *
+ * IMPORTANT (@fastify/websocket): attach `socket.on('message')` **synchronously** in the
+ * route handler. Any `await` before that silently drops client frames.
  */
 
 import type { FastifyPluginAsync } from 'fastify'
 import type { WebSocket } from 'ws'
 import { type AuthDeps, resolveActor } from '~/auth/plugin'
-import { canAccessInstance, isAdmin } from '~/auth/types'
+import { type Actor, canAccessInstance, isAdmin } from '~/auth/types'
 import type { Env } from '~/config/env'
 import { type RealtimeEvent, realtimeBus } from '~/events/bus'
 import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
 import { asVoipClient } from '~/instances/wa-client'
 import { getLogger } from '~/lib/logger'
+import { toRecipientJid } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { CacheClient } from '~/redis/client'
 import { resolveLiveCall, type SerializedCall, serializeCallInfo } from '~/voip/call-serialize'
@@ -58,6 +62,15 @@ type ClientMsg = {
   contactName?: string
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, rej) => {
+      setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms)
+    }),
+  ])
+}
+
 export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) => {
   const { cache } = deps
   const log = getLogger({ component: 'voip-ws' })
@@ -77,8 +90,9 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           'PCM audio remains on `.../calls/:callId/stream`.',
       },
     },
+    // MUST be sync so on('message') is registered before any await (fastify/websocket docs).
     // biome-ignore lint/suspicious/noExplicitAny: fastify websocket
-    async (socket: WebSocket, request: any) => {
+    (socket: WebSocket, request: any) => {
       const q = request.query as { apiKey?: string; instance?: string }
       const apiKey =
         q.apiKey || (typeof request.headers['x-api-key'] === 'string' ? request.headers['x-api-key'] : null)
@@ -89,27 +103,10 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
         return
       }
 
-      const actor = await resolveActor(authDeps, apiKey)
-      if (!actor) {
-        socket.send(JSON.stringify({ op: 'error', code: 'UNAUTHORIZED', message: 'Invalid apiKey' }))
-        socket.close()
-        return
-      }
-
-      let attached: string | null =
-        actor.role === 'instance'
-          ? actor.instanceName
-          : q.instance && canAccessInstance(actor, q.instance)
-            ? q.instance
-            : null
-
-      if (attached && !canAccessInstance(actor, attached)) {
-        socket.send(JSON.stringify({ op: 'error', code: 'FORBIDDEN', message: 'Forbidden instance' }))
-        socket.close()
-        return
-      }
-
+      let actor: Actor | null = null
+      let attached: string | null = null
       let unsub: (() => void) | null = null
+      let closed = false
 
       const send = (payload: unknown) => {
         if (socket.readyState === socket.OPEN) {
@@ -184,39 +181,63 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
         })
       }
 
-      const doAttach = async (instanceName: string) => {
+      const doAttach = async (instanceName: string, role: Actor['role']) => {
+        if (!actor) throw new Error('UNAUTHORIZED')
         if (!canAccessInstance(actor, instanceName) && !isAdmin(actor)) {
           throw new Error('FORBIDDEN')
         }
-        // Instance-key actors can only attach their own instance
         if (actor.role === 'instance' && actor.instanceName !== instanceName) {
           throw new Error('FORBIDDEN')
         }
-        await manager.get(instanceName) // ensures exists
+        await manager.get(instanceName)
         attached = instanceName
         bindBus(instanceName)
         const calls = snapshotCalls(instanceName)
         const device = await deviceStatus(instanceName)
-        send({ op: 'ready', instance: instanceName, role: actor.role })
+        send({ op: 'ready', instance: instanceName, role })
         send({ op: 'device:status', ...device })
         send({ op: 'calls:snapshot', calls })
       }
 
-      // Auto-attach if instance known from query / instance key
-      if (attached) {
-        try {
-          await doAttach(attached)
-        } catch (err) {
-          send({
-            op: 'error',
-            code: 'ATTACH_FAILED',
-            message: err instanceof Error ? err.message : 'attach failed',
-          })
+      // Auth + optional auto-attach. Message handlers await this so early frames are not dropped.
+      const boot = (async () => {
+        const resolved = await resolveActor(authDeps, apiKey)
+        if (!resolved) {
+          send({ op: 'error', code: 'UNAUTHORIZED', message: 'Invalid apiKey' })
+          socket.close()
+          return
         }
-      } else {
-        send({ op: 'ready', instance: null, role: actor.role })
-      }
+        actor = resolved
 
+        const preferred: string | null =
+          actor.role === 'instance'
+            ? actor.instanceName
+            : q.instance && canAccessInstance(actor, q.instance)
+              ? q.instance
+              : null
+
+        if (preferred && !canAccessInstance(actor, preferred)) {
+          send({ op: 'error', code: 'FORBIDDEN', message: 'Forbidden instance' })
+          socket.close()
+          return
+        }
+
+        if (preferred) {
+          try {
+            await doAttach(preferred, actor.role)
+          } catch (err) {
+            send({
+              op: 'error',
+              code: 'ATTACH_FAILED',
+              message: err instanceof Error ? err.message : 'attach failed',
+            })
+          }
+        } else {
+          send({ op: 'ready', instance: null, role: actor.role })
+        }
+      })()
+
+      // CRITICAL: register before any await on this stack (boot is fire-and-forget).
       socket.on('message', (raw) => {
         void (async () => {
           let msg: ClientMsg
@@ -228,7 +249,12 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           const op = msg.op
           const id = msg.id
 
+          log.info({ op, id, attached }, 'voip-ws ← client')
+
           try {
+            await boot
+            if (closed || !actor) return
+
             if (op === 'ping') {
               send({ op: 'pong', id, ts: Date.now() })
               return
@@ -240,7 +266,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 ackErr(id, 'INVALID_PAYLOAD', 'instance required')
                 return
               }
-              await doAttach(inst)
+              await doAttach(inst, actor.role)
               ackOk(id, { instance: inst })
               return
             }
@@ -261,15 +287,36 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 ackErr(id, 'INVALID_PAYLOAD', 'phone required')
                 return
               }
+              log.info({ phone, instance: attached, id }, 'call:start — received')
               const client = asVoipClient(manager.requireRegisteredClient(attached))
-              const peerJid = await resolveRecipientJid(client, phone, cache)
-              const callId = await client.voip.startCall({ peerJid })
-              // Live mic path — enable before media_connected so capture never
-              // starts in "file/silence" mode while waiting for the PCM stream WS.
+
+              // Live calls fill the single concurrent slot — surface clearly instead of hanging.
+              const live = snapshotCalls(attached).filter((c) => !c.isEnded)
+              if (live.length > 0) {
+                const busy = live[0]
+                ackErr(
+                  id,
+                  'CALL_BUSY',
+                  `já existe chamada ativa (${busy?.callId ?? '?'} state=${busy?.state ?? '?'}); encerre/recuse antes de discar`,
+                )
+                return
+              }
+
+              let peerJid: string
+              try {
+                peerJid = await withTimeout(resolveRecipientJid(client, phone, cache), 5_000, 'resolveRecipientJid')
+              } catch (err) {
+                peerJid = toRecipientJid(phone)
+                log.warn({ err, phone, peerJid, instance: attached }, 'call:start — resolve timed out, using local JID')
+              }
+
+              log.info({ phone, peerJid, instance: attached }, 'call:start — placing offer')
+              const callId = await withTimeout(client.voip.startCall({ peerJid }), 15_000, 'startCall')
+
               try {
                 client.voip.setExternalAudioMode(callId, true)
-              } catch {
-                /* */
+              } catch (err) {
+                log.warn({ err, callId }, 'setExternalAudioMode after start failed')
               }
               if (callRecording) {
                 await callRecording.onCallStarted(attached, {
@@ -281,7 +328,6 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 })
               }
               const call = client.voip.getCall(callId)
-              // WA may flip peer to @lid immediately — keep dialed PN as display via mappedPn
               const serialized = call
                 ? serializeCallInfo(call, { mappedPn: peerJid })
                 : {
@@ -305,10 +351,12 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                   }
               ackOk(id, { callId, peerJid: serialized.peerJid ?? peerJid, call: serialized })
               send({ op: 'call:ringing', call: serialized })
+              log.info({ callId, peerJid }, 'call:start — acked softphone')
               return
             }
 
             if (op === 'call:accept') {
+              log.info({ callId: msg.callId, instance: attached, id }, 'call:accept — received')
               const callId = msg.callId
               if (!callId) {
                 ackErr(id, 'INVALID_PAYLOAD', 'callId required')
@@ -317,28 +365,69 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               const client = asVoipClient(manager.requireRegisteredClient(attached))
               const resolved = resolveLiveCall(client, callId)
               if (!resolved) {
+                const live = snapshotCalls(attached)
+                log.warn(
+                  { callId, liveIds: live.map((c) => c.callId), liveStates: live.map((c) => c.state) },
+                  'call:accept — call not found',
+                )
                 ackErr(id, 'CALL_NOT_FOUND', 'call not found')
                 return
               }
+              const snap = serializeCallInfo(resolved)
               if (!resolved.canAccept) {
+                log.warn(
+                  {
+                    callId: resolved.callId,
+                    state: snap.state,
+                    direction: snap.direction,
+                    canAccept: snap.canAccept,
+                    acceptBlocked: snap.acceptBlocked,
+                  },
+                  'call:accept — not acceptable',
+                )
                 ackErr(
                   id,
                   'CALL_NOT_ACCEPTABLE',
-                  `cannot accept in state ${resolved.stateData?.state ?? resolved.state} (direction=${resolved.direction})`,
+                  `cannot accept in state ${snap.state ?? '?'} (direction=${snap.direction}, acceptBlocked=${snap.acceptBlocked})`,
                 )
                 return
               }
-              // Enable live PCM feed before accept so media_connected starts external capture
+              if (!resolved.encryptionKey) {
+                log.error({ callId: resolved.callId }, 'call:accept — missing encryptionKey')
+                ackErr(
+                  id,
+                  'CALL_NO_KEY',
+                  'call encryption key missing (offer decrypt failed) — cannot complete accept; hang up and retry',
+                )
+                return
+              }
               try {
                 client.voip.setExternalAudioMode(resolved.callId, true)
-              } catch {
-                /* */
+              } catch (err) {
+                log.warn({ err, callId: resolved.callId }, 'setExternalAudioMode failed')
               }
-              await client.voip.acceptCall(resolved.callId)
-              const after = client.voip.getCall(resolved.callId)
-              const serialized = after ? serializeCallInfo(after) : serializeCallInfo(resolved)
-              ackOk(id, { callId: resolved.callId, call: serialized })
-              send({ op: 'call:accepted', call: serialized })
+              log.info({ callId: resolved.callId, peer: snap.peerJid }, 'call:accept — kicking off acceptCall')
+              const acceptCallId = resolved.callId
+              const optimistic = { ...snap, state: 'connecting', canAccept: false, isRinging: false }
+              ackOk(id, { callId: acceptCallId, call: optimistic })
+              send({ op: 'call:accepted', call: optimistic })
+              log.info({ callId: acceptCallId, state: 'connecting' }, 'call:accept — acked softphone')
+              setImmediate(() => {
+                try {
+                  const acceptP = client.voip.acceptCall(acceptCallId)
+                  void acceptP
+                    .then(() => {
+                      log.info({ callId: acceptCallId }, 'acceptCall finished (relays connected)')
+                      const after = client.voip.getCall(acceptCallId)
+                      if (after) send({ op: 'call:state', call: serializeCallInfo(after) })
+                    })
+                    .catch((err: unknown) => {
+                      log.error({ err, callId: acceptCallId }, 'acceptCall background failed')
+                    })
+                } catch (err) {
+                  log.error({ err, callId: acceptCallId }, 'acceptCall threw synchronously')
+                }
+              })
               return
             }
 
@@ -372,7 +461,6 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               const client = asVoipClient(manager.requireRegisteredClient(attached))
               const resolved = resolveLiveCall(client, callId)
               if (!resolved) {
-                // already gone — treat as success
                 ackOk(id, { callId })
                 return
               }
@@ -406,13 +494,15 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               ackErr(id, 'CALL_FAILED', message)
             }
           }
-        })
+        })()
       })
 
       socket.on('close', () => {
+        closed = true
         unsub?.()
       })
       socket.on('error', () => {
+        closed = true
         unsub?.()
       })
 
@@ -427,6 +517,16 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
       }, 30_000)
       ping.unref?.()
       socket.on('close', () => clearInterval(ping))
+
+      // Kick boot (auth + auto-attach) without blocking message registration.
+      void boot.catch((err) => {
+        log.error({ err }, 'voip-ws boot failed')
+        try {
+          socket.close()
+        } catch {
+          /* */
+        }
+      })
     },
   )
 }

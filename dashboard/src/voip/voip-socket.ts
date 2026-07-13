@@ -415,11 +415,13 @@ export class VoipControlSocket {
   }
 
   async startCall(phone: string) {
-    return this.command('call:start', { phone })
+    // Server may resolve usync + initMedia; keep above that path (15s) + network cushion.
+    return this.command('call:start', { phone }, 25_000)
   }
 
   async acceptCall(callId: string) {
-    return this.command('call:accept', { callId })
+    // Server acks within ~2.5s even if relay connect is slow; keep a cushion.
+    return this.command('call:accept', { callId }, 20_000)
   }
 
   async rejectCall(callId: string) {

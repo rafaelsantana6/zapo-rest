@@ -9,6 +9,14 @@ export type InstanceCallConfig = {
   callRecordingEnabled: boolean
 }
 
+/** States where the peer (or we) has answered — media path is live or connecting. */
+export function isAnsweredCallState(state: string | null | undefined): boolean {
+  const s = String(state ?? '')
+    .toLowerCase()
+    .replace(/-/g, '_')
+  return s === 'connecting' || s === 'active' || s === 'on_hold' || s === 'onhold'
+}
+
 export class CallRecordingManager {
   private readonly log = getLogger({ component: 'call-recording' })
   private readonly active = new Map<string, CallPcmRecorder>()
@@ -54,6 +62,10 @@ export class CallRecordingManager {
     return `${instanceName}::${callId}`
   }
 
+  /**
+   * Call offer / dial — persist history only.
+   * Does **not** start PCM capture (ringing is not recorded).
+   */
   async onCallStarted(
     instanceName: string,
     call: {
@@ -75,9 +87,53 @@ export class CallRecordingManager {
       recordingEnabled,
     })
 
+    // If the start event already carries an answered state (rare race), start now.
+    if (isAnsweredCallState(call.state)) {
+      await this.startRecorderIfNeeded(instanceName, call)
+    }
+  }
+
+  async onCallState(
+    instanceName: string,
+    call: { callId: string; state?: string | null; peerJid?: string | null; direction?: string },
+  ): Promise<void> {
+    await this.calls.updateState(instanceName, call.callId, { state: call.state ?? null })
+    if (isAnsweredCallState(call.state)) {
+      await this.startRecorderIfNeeded(instanceName, call)
+    }
+  }
+
+  /**
+   * Begin dual-channel PCM capture only after the call is answered
+   * (`connecting` / `active` / `on_hold`). Ringing never creates a recorder.
+   */
+  private async startRecorderIfNeeded(
+    instanceName: string,
+    call: {
+      callId: string
+      peerJid?: string | null
+      direction?: string
+      mediaType?: string
+      state?: string | null
+    },
+  ): Promise<void> {
+    const recordingEnabled = await this.isRecordingEnabled(instanceName)
     if (!recordingEnabled || !this.storage) return
+
     const k = this.key(instanceName, call.callId)
     if (this.active.has(k)) return
+
+    // Ensure history row exists (outbound start may race with first state event).
+    await this.calls.upsertStart({
+      instanceName,
+      callId: call.callId,
+      peerJid: call.peerJid,
+      direction: call.direction,
+      mediaType: call.mediaType,
+      state: call.state,
+      recordingEnabled: true,
+    })
+
     this.active.set(
       k,
       new CallPcmRecorder(
@@ -90,24 +146,8 @@ export class CallRecordingManager {
         this._env.CALL_RECORDING_MAX_SECONDS,
       ),
     )
-    this.log.info({ instanceName, callId: call.callId }, 'recording started')
-  }
-
-  async onCallState(
-    instanceName: string,
-    call: { callId: string; state?: string | null; peerJid?: string | null; direction?: string },
-  ): Promise<void> {
-    await this.calls.updateState(instanceName, call.callId, { state: call.state ?? null })
-    // Ensure recorder if call becomes active after start
-    if (call.state && !['ended', 'failed', 'rejected'].includes(String(call.state))) {
-      const enabled = await this.isRecordingEnabled(instanceName)
-      if (enabled && this.storage) {
-        const k = this.key(instanceName, call.callId)
-        if (!this.active.has(k)) {
-          await this.onCallStarted(instanceName, call)
-        }
-      }
-    }
+    await this.calls.markRecordingStarted(instanceName, call.callId)
+    this.log.info({ instanceName, callId: call.callId, state: call.state }, 'recording started (answered)')
   }
 
   appendLocal(instanceName: string, callId: string, pcm: Float32Array): void {
@@ -133,6 +173,7 @@ export class CallRecordingManager {
     })
 
     if (!rec || !this.storage) {
+      // Never answered (or recording off): leave status as none — not a failure.
       const row = await this.calls.get(instanceName, call.callId)
       if (row?.recordingEnabled && row.recordingStatus === 'recording') {
         await this.calls.setRecordingResult(instanceName, call.callId, {

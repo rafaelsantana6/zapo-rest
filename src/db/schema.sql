@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS app_calls (
  duration_secs INT,
  recording_enabled BOOLEAN NOT NULL DEFAULT false,
  recording_status TEXT NOT NULL DEFAULT 'none',
- -- none | recording | ready | failed | disabled
+ -- none (ringing / not answered yet) | recording (answered, capturing) | ready | failed | disabled
  recording_storage_key TEXT,
  recording_url TEXT,
  recording_mime TEXT,

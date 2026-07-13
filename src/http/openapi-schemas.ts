@@ -488,18 +488,27 @@ export const StartCallBodySchema = z
 export const CallInfoSchema = z
   .object({
     callId: z.string().meta({ description: 'Id for control routes and PCM stream', example: EXAMPLES.callInfo.callId }),
-    peerJid: z.string().optional().meta({ example: EXAMPLES.callInfo.peerJid }),
-    direction: z.string().optional().meta({ description: 'outgoing | incoming', example: 'outgoing' }),
-    mediaType: z.string().optional().meta({ description: 'audio', example: 'audio' }),
-    createdAt: JsonAny.optional(),
-    state: z.string().optional().meta({ description: 'ringing | connecting | active | ended | …', example: 'active' }),
+    peerJid: z.string().nullable().optional().meta({ example: EXAMPLES.callInfo.peerJid }),
+    peerJidRaw: z.string().nullable().optional(),
+    peerLid: z.string().nullable().optional(),
+    callerPn: z.string().nullable().optional(),
+    direction: z.string().nullable().optional().meta({ description: 'outgoing | incoming', example: 'outgoing' }),
+    mediaType: z.string().nullable().optional().meta({ description: 'audio', example: 'audio' }),
+    createdAt: JsonAny.optional().nullable(),
+    state: z
+      .string()
+      .nullable()
+      .optional()
+      .meta({ description: 'ringing | connecting | active | ended | …', example: 'active' }),
     isActive: z.boolean().optional(),
     isRinging: z.boolean().optional(),
     isEnded: z.boolean().optional(),
     canAccept: z.boolean().optional(),
-    audioMuted: z.boolean().optional(),
-    durationSecs: z.number().optional(),
-    endReason: z.string().optional(),
+    acceptBlocked: z.boolean().optional(),
+    audioMuted: z.boolean().optional().nullable(),
+    // Live calls often have null duration/endReason until hangup — must allow null (not just optional)
+    durationSecs: z.number().nullable().optional(),
+    endReason: z.string().nullable().optional(),
   })
   .meta({
     description: 'In-memory VoIP call snapshot',
@@ -537,6 +546,9 @@ export const CallReasonBodySchema = z
     reason: z.string().optional().meta({ description: 'Optional reject/end reason', example: 'busy' }),
   })
   .meta({ example: { reason: 'busy' } })
+
+/** Empty POST bodies arrive as `null` — coerce so reject/end without body still work. */
+export const CallReasonBodyOptionalSchema = z.preprocess((v) => (v == null || v === '' ? {} : v), CallReasonBodySchema)
 
 export const MeResponseSchema = z
   .union([

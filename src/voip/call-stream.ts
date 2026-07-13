@@ -1,10 +1,11 @@
 import type { WebSocket } from 'ws'
+import { type AuthDeps, resolveActor } from '~/auth/plugin'
+import { canAccessInstance } from '~/auth/types'
 import type { Env } from '~/config/env'
 import { getEnv } from '~/config/env'
 import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
 import { asVoipClient } from '~/instances/wa-client'
-import { safeEqual } from '~/lib/crypto-keys'
 import { getLogger } from '~/lib/logger'
 
 export type AttachCallStreamOpts = {
@@ -14,8 +15,8 @@ export type AttachCallStreamOpts = {
   instanceName: string
   callId: string
   apiKey: string
-  /** Optional repo for auth when actor not on request */
-  instanceRepo?: InstanceRepo
+  /** Required for instance-key auth (keys are hashed — never compare to masked apiKey). */
+  instanceRepo: InstanceRepo
   callRecording?: import('~/voip/recording-manager').CallRecordingManager
 }
 
@@ -29,22 +30,15 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
     instance: opts.instanceName,
     callId: opts.callId,
   })
-  const { socket, manager, env, instanceName, callId, apiKey, callRecording } = opts
+  const { socket, manager, env, instanceName, callId, apiKey, instanceRepo, callRecording } = opts
 
-  // Authorize
-  const adminOk = safeEqual(apiKey, env.ADMIN_API_KEY)
-  if (!adminOk) {
-    // Instance key must match this instance (plaintext key on GET instance)
-    try {
-      const inst = await manager.get(instanceName)
-      if (!safeEqual(apiKey, inst.apiKey)) {
-        socket.close(4403, 'forbidden')
-        return
-      }
-    } catch {
-      socket.close(4404, 'instance not found')
-      return
-    }
+  // Authorize like the rest of /v1 — admin env key or instance key via hash lookup.
+  // NEVER compare the query key to instance.apiKey from GET (that field is masked "***").
+  const authDeps: AuthDeps = { env, instanceRepo }
+  const actor = await resolveActor(authDeps, apiKey)
+  if (!actor || !canAccessInstance(actor, instanceName)) {
+    socket.close(4403, 'forbidden')
+    return
   }
 
   let client: ReturnType<typeof asVoipClient>

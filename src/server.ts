@@ -107,6 +107,14 @@ async function main() {
     log.fatal({ err }, 'uncaughtException')
     setTimeout(() => hardExit(1, 'uncaughtException'), 50)
   })
+  // Log unexpected process death (native wrtc segfaults will NOT hit this — they SIGSEGV)
+  process.on('exit', (code) => {
+    // stderr only — pino may already be flushed/closed
+    console.error(`[exit] process exiting code=${code}`)
+  })
+  process.on('SIGUSR2', () => {
+    log.warn('SIGUSR2 received (diagnostic)')
+  })
 
   const pool = createPool(env)
   await migrate(pool)

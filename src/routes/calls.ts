@@ -6,7 +6,8 @@ import {
   CallGetResponseSchema,
   CallListResponseSchema,
   CallParamsSchema,
-  CallReasonBodySchema,
+  CallReasonBodyOptionalSchema,
+  type CallReasonBodySchema,
   ErrorBodySchema,
   EXAMPLES,
   InstanceNameParams,
@@ -17,6 +18,7 @@ import {
   StreamQuerySchema,
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
+import type { InstanceRepo } from '~/instances/repo'
 import { asVoipClient } from '~/instances/wa-client'
 import { badRequest, notFound } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
@@ -31,6 +33,7 @@ import type { CallRecordingManager } from '~/voip/recording-manager'
 export type CallRoutesDeps = {
   manager: InstanceManager
   env: Env
+  instanceRepo: InstanceRepo
   calls?: CallStore
   callRecording?: CallRecordingManager
   mediaStorage?: MediaStorage
@@ -41,7 +44,7 @@ type InstanceParams = { Params: z.infer<typeof InstanceNameParams> }
 type CallParams = { Params: z.infer<typeof CallParamsSchema> }
 
 export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) => {
-  const { manager, env, calls, callRecording, mediaStorage, cache } = deps
+  const { manager, env, instanceRepo, calls, callRecording, mediaStorage, cache } = deps
 
   app.post<InstanceParams & { Body: z.infer<typeof StartCallBodySchema> }>(
     '/v1/instances/:name/calls',
@@ -261,15 +264,18 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
+      const log = request.log.child({ component: 'calls', op: 'accept' })
       requireInstanceAccess(request, params.name)
       const client = asVoipClient(manager.requireRegisteredClient(params.name))
       const resolved = resolveLiveCall(client, params.callId)
       if (!resolved) {
+        log.warn({ callId: params.callId }, 'accept — call not found')
         throw notFound(`call ${params.callId} not found (not ringing anymore?)`)
       }
       const snap = serializeCallInfo(resolved)
       // canAccept is only true for state === incoming_ringing (not outbound "ringing")
       if (!snap.canAccept) {
+        log.warn({ callId: resolved.callId, state: snap.state, direction: snap.direction }, 'accept — not acceptable')
         throw badRequest(
           `cannot accept call in state "${snap.state}" (direction=${snap.direction}). ` +
             `Only incoming calls in "incoming_ringing" can be accepted. ` +
@@ -277,12 +283,39 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           snap,
         )
       }
+      // Without encryption key the plugin skips the accept stanza — peer keeps ringing
+      if (!resolved.encryptionKey) {
+        log.error({ callId: resolved.callId }, 'accept — missing encryptionKey')
+        throw badRequest(
+          'call encryption key missing (offer decrypt failed) — cannot complete accept; hang up and retry',
+          snap,
+        )
+      }
       try {
         client.voip.setExternalAudioMode(resolved.callId, true)
-      } catch {
-        /* */
+      } catch (err) {
+        log.warn({ err, callId: resolved.callId }, 'setExternalAudioMode failed')
       }
-      await client.voip.acceptCall(resolved.callId)
+      log.info({ callId: resolved.callId, peer: snap.peerJid }, 'accept — kicking off acceptCall')
+      // Do not await acceptCall: it blocks on SCTP relay connect (10–60s+).
+      // Defer to setImmediate so this HTTP response flushes first even if the
+      // sync prelude of acceptCall is heavy (SRTP keying / native).
+      const callId = resolved.callId
+      setImmediate(() => {
+        try {
+          const acceptP = client.voip.acceptCall(callId)
+          void acceptP
+            .then(() => {
+              log.info({ callId }, 'acceptCall finished (relays connected)')
+            })
+            .catch((err: unknown) => {
+              log.error({ err, callId }, 'acceptCall background failed')
+            })
+        } catch (err) {
+          log.error({ err, callId }, 'acceptCall threw synchronously')
+        }
+      })
+      // Response shape stays OkSchema ({ ok: true }); softphone uses WS ack for call state.
       return { ok: true as const }
     },
   )
@@ -296,7 +329,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         description: 'Rejects a ringing inbound call. Optional body `{ "reason": "..." }`.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: CallParamsSchema,
-        body: CallReasonBodySchema,
+        body: CallReasonBodyOptionalSchema,
         response: {
           200: OkSchema,
           401: ErrorBodySchema,
@@ -324,7 +357,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         description: 'Hangs up an active/connecting call. Optional body `{ "reason": "..." }`.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: CallParamsSchema,
-        body: CallReasonBodySchema,
+        body: CallReasonBodyOptionalSchema,
         response: {
           200: OkSchema,
           401: ErrorBodySchema,
@@ -452,6 +485,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         instanceName: params.name,
         callId: params.callId,
         apiKey,
+        instanceRepo,
         callRecording,
       })
     },

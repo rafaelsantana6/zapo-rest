@@ -145,6 +145,7 @@ export async function buildApp(deps: BuildAppDeps) {
   await app.register(callRoutes, {
     manager: deps.manager,
     env: deps.env,
+    instanceRepo: deps.instanceRepo,
     calls: deps.calls,
     callRecording: deps.callRecording,
     mediaStorage: deps.mediaStorage,
@@ -209,8 +210,9 @@ export async function buildApp(deps: BuildAppDeps) {
   if (hasGuide) {
     await app.register(fastifyStatic, {
       root: guideDir,
+      // wildcard:true so rebuilds without process restart still serve new hashed assets
       prefix: '/guide/',
-      wildcard: false,
+      wildcard: true,
       decorateReply: false,
     })
     app.get('/guide', async (_request, reply) => reply.redirect('/guide/'))
@@ -222,8 +224,11 @@ export async function buildApp(deps: BuildAppDeps) {
   if (hasDash) {
     await app.register(fastifyStatic, {
       root: dashDir,
+      // Must use wildcard:true — with false, @fastify/static globs files once at boot.
+      // Dashboard rebuilds (new content-hash names) then 404 → SPA HTML for .js → MIME error.
       prefix: '/',
-      wildcard: false,
+      wildcard: true,
+      index: ['index.html'],
     })
   }
 
@@ -242,7 +247,15 @@ export async function buildApp(deps: BuildAppDeps) {
         error: { code: 'NOT_FOUND', message: 'Not found' },
       })
     }
-    // SPA fallback for docs guide / dashboard when built
+    // Never SPA-fallback for static asset paths (would poison MIME as text/html)
+    if (
+      path.startsWith('/assets/') ||
+      path.startsWith('/guide/assets/') ||
+      /\.(js|css|map|svg|png|jpe?g|webp|ico|woff2?|ttf|eot)$/i.test(path)
+    ) {
+      return reply.status(404).type('text/plain').send('Not found')
+    }
+    // SPA fallback for docs guide / dashboard client routes when built
     if (hasGuide && (path === '/guide' || path.startsWith('/guide/'))) {
       return reply.type('text/html').send(readFileSync(join(guideDir, 'index.html')))
     }
