@@ -321,10 +321,12 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         summary: 'Get profile picture (durable storage + TTL revalidation)',
         description:
           'Returns contact avatar with **bytes in object storage** (deterministic key, overwrite on change).\n\n' +
+          '- Query `type`: `preview` (default, compact) or `image` (full resolution) — independent per request.\n' +
           '- Within TTL: serve our stored file **without** hitting WhatsApp.\n' +
           '- After TTL (or `refresh=true`): revalidate via IQ; compare `id`/sha256; download+overwrite only if changed.\n' +
           '- Privacy / no pic: delete stored object (no orphans).\n' +
           '- Binary stream: `GET.../profile-picture/file`.\n' +
+          '- Background auto-fetch (own profile + picture push) uses env `AVATAR_FETCH_TYPES` (`both`|`image`|`preview`).\n' +
           'Do not spam `refresh` (WhatsApp rate-overlimit).',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: ProfilePictureParamsSchema,

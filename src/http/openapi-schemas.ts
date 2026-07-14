@@ -248,7 +248,7 @@ const instanceBaseShape = z.object({
   }),
   avatarUrl: z.string().nullable().meta({
     description:
-      'Profile picture URL when durable storage has the own-account avatar (public storage URL or authenticated `.../contacts/{phone}/profile-picture` path)',
+      'Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.',
     example: EXAMPLES.instance.avatarUrl,
   }),
   pairPhone: z.string().nullable().meta({ description: 'Optional phone hint for pairing-code flows', example: null }),
@@ -445,7 +445,13 @@ export const ProfilePictureQuerySchema = z.object({
   type: z
     .enum(['preview', 'image'])
     .default('preview')
-    .meta({ description: 'preview = compact; image = high resolution', example: 'preview' }),
+    .meta({
+      description:
+        'Which size to resolve/store for **this** request. `preview` = compact (default, cheap for lists); ' +
+        '`image` = full resolution. Own-profile auto-sync and picture notifications follow env `AVATAR_FETCH_TYPES` ' +
+        '(default `both`: image first, preview fallback). Instance `avatarUrl` prefers stored full-res when present.',
+      example: 'preview',
+    }),
   /**
    * multi-config: force live fetch from WhatsApp and refresh cache.
    * Default false — serve Redis/memory cache (24h TTL). Do not spam refresh (rate-overlimit).

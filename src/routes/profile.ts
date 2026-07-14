@@ -108,10 +108,15 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
         } catch {
           // About may be empty / rate-limited — not fatal
         }
+        // Prefer full-res IQ; fall back to preview (same as durable resolve policy)
         try {
-          picture = await client.profile.getProfilePicture(bareJid, 'preview')
+          picture = await client.profile.getProfilePicture(bareJid, 'image')
         } catch {
-          // Privacy / missing pic — fall through to durable avatarUrl
+          try {
+            picture = await client.profile.getProfilePicture(bareJid, 'preview')
+          } catch {
+            // Privacy / missing pic — fall through to durable avatarUrl
+          }
         }
       }
 
