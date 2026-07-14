@@ -375,8 +375,11 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       ...(env ? { preValidation: mediaPreValidation(env) } : {}),
       schema: {
         tags: ['Groups'],
-        summary: 'Set group picture (JPEG via URL, base64, or multipart file)',
-        description: 'Provide `mediaUrl`, `mediaBase64`, or multipart field `file`. Max size: MEDIA_UPLOAD_MAX_BYTES.',
+        summary: 'Set group picture (URL, base64, or multipart file)',
+        description:
+          'JPEG group avatar. JSON: `mediaUrl` or `mediaBase64`. Multipart: field `file` (aliases `media`/`image`). ' +
+          'Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\n' +
+          '```bash\ncurl -s -X PUT "$BASE/v1/groups/$GID/picture" -H "X-Api-Key: $KEY" -F file=@./group.jpg\n```',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: GroupParams,
         body: z.object({

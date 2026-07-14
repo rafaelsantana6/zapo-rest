@@ -869,8 +869,19 @@ curl -s -X PUT "$BASE/v1/profile/image" \\
   -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
   -d '{"mediaUrl":"https://cdn.example.com/avatar.jpg"}'
 
+# Avatar — subida multipart (campo file)
+curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
+  -F file=@./avatar.jpg
+
 # Alias: /profile/picture · quitar: DELETE /v1/profile/image`}
         />
+        <Callout title="Medios: URL · base64 · multipart">
+          Avatar, mensajes de media, status y blast aceptan <strong>una</strong> fuente: <code>mediaUrl</code>,{' '}
+          <code>mediaBase64</code> (JSON) o subida <code>multipart/form-data</code> en el campo <code>file</code>{' '}
+          (alias: <code>media</code>, <code>audio</code>, …). Límite: env <code>MEDIA_UPLOAD_MAX_BYTES</code> (por
+          defecto 100&nbsp;MiB). En Scalar (<code>/docs</code>), elige content-type <code>multipart/form-data</code>{' '}
+          para el selector de archivo.
+        </Callout>
         <h2 id="send-types">Tipos de envío</h2>
         <table>
           <thead>
@@ -896,7 +907,9 @@ curl -s -X PUT "$BASE/v1/profile/image" \\
               <td>
                 <code>.../messages/image|video|audio|document|sticker</code>
               </td>
-              <td>mediaUrl o mediaBase64</td>
+              <td>
+                <code>mediaUrl</code> · <code>mediaBase64</code> · multipart <code>file</code>
+              </td>
             </tr>
             <tr>
               <td>

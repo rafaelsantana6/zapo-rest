@@ -365,10 +365,10 @@ GET  /v1/instance/qr
 POST /v1/instances/:name/messages/{text,reply,image,…}
 POST /v1/messages/{text,reply,image,…}          # instance key
 
-# Own profile (push name + avatar)
-PUT /v1/instances/:name/profile/name            # or PUT /v1/profile/name
-PUT /v1/instances/:name/profile/image           # or PUT /v1/profile/image (+ /picture alias)
-DELETE /v1/instances/:name/profile/image        # or DELETE /v1/profile/image
+# Own profile (push name + avatar) — instance key + short paths
+PUT /v1/profile/name
+PUT /v1/profile/image                           # JSON mediaUrl|mediaBase64 OR multipart -F file=@…
+DELETE /v1/profile/image                        # alias: /profile/picture
 
 # Chats / history — named or short
 GET /v1/instances/:name/chats
@@ -388,6 +388,18 @@ X-Api-Key: …
 ```
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.
+
+### Media inputs (URL · base64 · multipart)
+
+Avatar, message media (`image|video|audio|document|sticker`), status, group picture, and call blast accept **one** of:
+
+| Input | How |
+| ----- | --- |
+| Public HTTPS URL | JSON `mediaUrl` (blast: `audioUrl`) |
+| Base64 | JSON `mediaBase64` |
+| File upload | `multipart/form-data` field `file` (aliases: `media`, `audio`, …) |
+
+Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB). In Scalar `/docs`, select content-type **multipart/form-data** to get the file picker.
 
 ### Webhooks (multi-config)
 
