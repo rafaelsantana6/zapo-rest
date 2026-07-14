@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { notFound } from '~/lib/errors'
@@ -18,7 +18,7 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
   const { manager, lids } = deps
 
   app.get<InstanceParams & { Querystring: { limit?: number; offset?: number } }>(
-    '/v1/instances/:name/lids',
+    scopedInstancePaths('/lids'),
     {
       schema: {
         tags: ['Lids'],
@@ -35,8 +35,7 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name)
       const q = request.query
       const rows = await lids.list(name, { limit: q.limit, offset: q.offset })
@@ -54,7 +53,7 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
   )
 
   app.get<InstanceParams>(
-    '/v1/instances/:name/lids/count',
+    scopedInstancePaths('/lids/count'),
     {
       schema: {
         tags: ['Lids'],
@@ -64,8 +63,7 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name)
       const count = await lids.count(name)
       return { count }
@@ -74,7 +72,7 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
 
   // Register static path segments before :lid param
   app.get<{ Params: z.infer<typeof InstanceNameParams> & { phone: string } }>(
-    '/v1/instances/:name/lids/pn/:phone',
+    scopedInstancePaths('/lids/pn/:phone'),
     {
       schema: {
         tags: ['Lids'],
@@ -85,15 +83,15 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const lid = await lids.findLidByPn(params.name, params.phone)
+      const name = resolveInstanceName(request, params.name)
+      const lid = await lids.findLidByPn(name, params.phone)
       if (!lid) throw notFound(`no lid for phone ${digitsOnly(params.phone)}`)
       return { phone: digitsOnly(params.phone), lid }
     },
   )
 
   app.get<{ Params: z.infer<typeof InstanceNameParams> & { lid: string } }>(
-    '/v1/instances/:name/lids/:lid',
+    scopedInstancePaths('/lids/:lid'),
     {
       schema: {
         tags: ['Lids'],
@@ -105,11 +103,11 @@ export const lidRoutes: FastifyPluginAsync<LidRoutesDeps> = async (app, deps) =>
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       if (params.lid === 'count' || params.lid === 'pn') {
         throw notFound('not found')
       }
-      const row = await lids.findByLid(params.name, params.lid)
+      const row = await lids.findByLid(name, params.lid)
       if (!row) throw notFound(`lid "${params.lid}" not found`)
       return {
         lid: row.lid,

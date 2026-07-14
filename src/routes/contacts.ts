@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import type { Pool } from 'pg'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import { getEnv } from '~/config/env'
 import {
@@ -58,7 +58,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   const avatars = pool ? new AvatarStore(pool) : null
 
   app.get(
-    '/v1/instances/:name/contacts',
+    scopedInstancePaths('/contacts'),
     {
       schema: {
         tags: ['Contacts'],
@@ -72,8 +72,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const q = request.query
       if (!contacts) return { contacts: [] }
       const rows = await contacts.list(name, { limit: q.limit, offset: q.offset })
@@ -86,7 +85,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
    * including BR 9th digit / MX-AR prefixes.
    */
   app.post(
-    '/v1/instances/:name/contacts/jid',
+    scopedInstancePaths('/contacts/jid'),
     {
       schema: {
         tags: ['Contacts'],
@@ -103,8 +102,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name)
       const body = request.body
       return {
@@ -127,7 +125,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
    * Single batched usync via zapo getLidsByPhoneNumbers.
    */
   app.post(
-    '/v1/instances/:name/contacts/resolve',
+    scopedInstancePaths('/contacts/resolve'),
     {
       schema: {
         tags: ['Contacts'],
@@ -144,8 +142,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const results = await resolveWhatsAppNumbers(client, body.numbers, {
@@ -190,7 +187,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/contacts/check',
+    scopedInstancePaths('/contacts/check'),
     {
       schema: {
         tags: ['Contacts'],
@@ -209,8 +206,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const resolved = await resolveWhatsAppNumbers(client, body.phones, {
@@ -234,7 +230,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
 
   /** multi-config single-number check */
   app.get(
-    '/v1/instances/:name/contacts/check',
+    scopedInstancePaths('/contacts/check'),
     {
       schema: {
         tags: ['Contacts'],
@@ -248,8 +244,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const q = request.query
       const client = manager.requireRegisteredClient(name)
       const [r] = await resolveWhatsAppNumbers(client, [q.phone], {
@@ -271,7 +266,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
 
   // Legacy alias path used by some clients
   app.post(
-    '/v1/instances/:name/contacts/whatsapp-numbers',
+    scopedInstancePaths('/contacts/whatsapp-numbers'),
     {
       schema: {
         tags: ['Contacts'],
@@ -283,8 +278,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const results = await resolveWhatsAppNumbers(client, body.numbers, {
@@ -306,7 +300,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   )
 
   app.get(
-    '/v1/instances/:name/contacts/:jid',
+    scopedInstancePaths('/contacts/:jid'),
     {
       schema: {
         tags: ['Contacts'],
@@ -317,17 +311,17 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       if (!contacts) return { contact: null }
-      const client = manager.tryGetClient(params.name)
+      const client = manager.tryGetClient(name)
       const jid = await resolveRecipientJid(client, params.jid, cache)
-      const row = await contacts.get(params.name, jid)
+      const row = await contacts.get(name, jid)
       return { contact: row ? toPublicContact(row) : null }
     },
   )
 
   app.get(
-    '/v1/instances/:name/contacts/:phone/profile-picture',
+    scopedInstancePaths('/contacts/:phone/profile-picture'),
     {
       schema: {
         tags: ['Contacts'],
@@ -351,17 +345,17 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const query = request.query
       const picType = (query.type ?? 'preview') as ProfilePictureType
       const refresh = Boolean(query.refresh)
-      const client = manager.requireRegisteredClient(params.name)
+      const client = manager.requireRegisteredClient(name)
       const [resolved] = await resolveWhatsAppNumbers(client, [params.phone], { cache })
       const jid = resolved?.exists ? resolved.jid : toRecipientJid(params.phone)
 
       if (avatars && mediaStorage) {
         const result = await resolveContactAvatar({
-          instanceName: params.name,
+          instanceName: name,
           jid,
           picType,
           refresh,
@@ -411,7 +405,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
 
   /** Stream durable avatar bytes (auth required). */
   app.get(
-    '/v1/instances/:name/contacts/:phone/profile-picture/file',
+    scopedInstancePaths('/contacts/:phone/profile-picture/file'),
     {
       schema: {
         tags: ['Contacts'],
@@ -426,16 +420,16 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request, reply) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       if (!avatars || !mediaStorage) throw notFound('avatar storage not configured')
       const query = request.query
       const picType = (query.type ?? 'preview') as ProfilePictureType
-      const client = manager.requireRegisteredClient(params.name)
+      const client = manager.requireRegisteredClient(name)
       const [resolved] = await resolveWhatsAppNumbers(client, [params.phone], { cache })
       const jid = resolved?.exists ? resolved.jid : toRecipientJid(params.phone)
 
       const result = await resolveContactAvatar({
-        instanceName: params.name,
+        instanceName: name,
         jid,
         picType,
         refresh: Boolean(query.refresh),
@@ -463,7 +457,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   )
 
   app.get(
-    '/v1/instances/:name/contacts/:phone/about',
+    scopedInstancePaths('/contacts/:phone/about'),
     {
       schema: {
         tags: ['Contacts'],
@@ -474,8 +468,8 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const client = manager.requireRegisteredClient(params.name)
+      const name = resolveInstanceName(request, params.name)
+      const client = manager.requireRegisteredClient(name)
       const [resolved] = await resolveWhatsAppNumbers(client, [params.phone], { cache })
       const jid = resolved?.exists ? resolved.jid : toRecipientJid(params.phone)
       try {
@@ -496,7 +490,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/contacts/block',
+    scopedInstancePaths('/contacts/block'),
     {
       schema: {
         tags: ['Contacts'],
@@ -507,8 +501,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, body.jid, cache)
@@ -519,7 +512,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/contacts/unblock',
+    scopedInstancePaths('/contacts/unblock'),
     {
       schema: {
         tags: ['Contacts'],
@@ -530,8 +523,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, body.jid, cache)
@@ -542,7 +534,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
   )
 
   app.get(
-    '/v1/instances/:name/blocklist',
+    scopedInstancePaths('/blocklist'),
     {
       schema: {
         tags: ['Contacts'],
@@ -552,8 +544,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const client = manager.requireRegisteredClient(name)
       const result = await client.privacy.getBlocklist()
       return { blocklist: result }

@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 type MigrateLogger = ReturnType<typeof getLogger>
 
 /** Indexes auth / hot paths depend on. Missing them is a warning, not a crash. */
-const CRITICAL_INDEXES = ['instances_api_key_hash_idx'] as const
+const CRITICAL_INDEXES = ['instances_api_key_idx'] as const
 
 export async function migrate(pool: pg.Pool): Promise<void> {
   const log = getLogger({ component: 'migrate' })
@@ -63,11 +63,12 @@ async function assertCriticalIndexes(pool: pg.Pool, log: MigrateLogger): Promise
 const INLINE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS instances (
   name TEXT PRIMARY KEY,
-  api_key_hash TEXT NOT NULL,
+  api_key TEXT NOT NULL,
   webhook_url TEXT,
   webhook_events TEXT[] NOT NULL DEFAULT '{}',
   status TEXT NOT NULL DEFAULT 'created',
   me_jid TEXT,
+  push_name TEXT,
   pair_phone TEXT,
   last_qr TEXT,
   last_qr_at TIMESTAMPTZ,
@@ -75,15 +76,17 @@ CREATE TABLE IF NOT EXISTS instances (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- Retrofit columns on a pre-existing instances table (CREATE above is a no-op then).
--- api_key_hash must be added BEFORE its unique index below; nullable so legacy rows
--- survive and re-key via POST .../keys/rotate.
-ALTER TABLE instances ADD COLUMN IF NOT EXISTS api_key_hash TEXT;
+ALTER TABLE instances ADD COLUMN IF NOT EXISTS api_key TEXT;
+ALTER TABLE instances ADD COLUMN IF NOT EXISTS push_name TEXT;
 ALTER TABLE instances ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}'::jsonb;
--- Drop the legacy plaintext key column: its NOT NULL constraint would reject
--- inserts that only populate api_key_hash.
-ALTER TABLE instances DROP COLUMN IF EXISTS api_key;
-CREATE UNIQUE INDEX IF NOT EXISTS instances_api_key_hash_idx ON instances (api_key_hash);
+ALTER TABLE instances DROP COLUMN IF EXISTS api_key_hash;
+DROP INDEX IF EXISTS instances_api_key_hash_idx;
+UPDATE instances
+SET api_key = 'zr_mig_' || replace(gen_random_uuid()::text, '-', '')
+WHERE api_key IS NULL OR btrim(api_key) = '';
+ALTER TABLE instances ALTER COLUMN api_key SET NOT NULL;
+DROP INDEX IF EXISTS instances_api_key_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS instances_api_key_idx ON instances (api_key);
 CREATE INDEX IF NOT EXISTS instances_status_idx ON instances (status);
 
 CREATE TABLE IF NOT EXISTS instance_webhooks (

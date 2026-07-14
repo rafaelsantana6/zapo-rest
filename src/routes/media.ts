@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync, FastifyReply } from 'fastify'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
@@ -173,7 +173,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
   }
 
   app.get(
-    '/v1/instances/:name/messages/:messageId/media',
+    scopedInstancePaths('/messages/:messageId/media'),
     {
       schema: {
         tags: ['Media'],
@@ -220,11 +220,11 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
             .transform((v) => v === true || v === 'true' || v === '1'),
         })
         .parse(request.query ?? {})
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
 
       const preferRedirect = deps.env.MEDIA_REDIRECT_DOWNLOADS !== false && !q.proxy
       // Ensure object exists (storage hit, or rehydrate from WA if deleted)
-      const ensured = await ensureStoredMedia(params.name, params.messageId)
+      const ensured = await ensureStoredMedia(name, params.messageId)
       return deliverMedia(reply, ensured, {
         preferRedirect,
         download: q.download,
@@ -249,12 +249,12 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
     },
     async (request, reply) => {
       const params = z.object({ instance: z.string(), key: z.string() }).parse(request.params)
-      requireInstanceAccess(request, params.instance)
+      const name = resolveInstanceName(request, params.instance)
       // Fastify already URL-decodes path params; a 2nd decode would smuggle traversal.
       if (!/^[a-zA-Z0-9._/-]+$/.test(params.key) || params.key.includes('..')) {
         throw badRequest(`invalid media key: ${params.key}`)
       }
-      const storageKey = `${params.instance}/${params.key}`
+      const storageKey = `${name}/${params.key}`
       try {
         const stream = await mediaStorage.getStream(storageKey)
         return reply.send(stream)
@@ -270,7 +270,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
    * Returns base64 + mimetype (and stores media if not yet stored).
    */
   app.post(
-    '/v1/instances/:name/media/getBase64FromMediaMessage',
+    scopedInstancePaths('/media/getBase64FromMediaMessage'),
     {
       schema: {
         tags: ['Media'],
@@ -295,7 +295,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = z
         .object({
           messageId: z.string().optional(),
@@ -308,13 +308,13 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
 
       const messageId = body.messageId ?? body.message?.key?.id
       if (!messageId) throw notFound('messageId required')
-      return resolveBase64(params.name, messageId, body.message)
+      return resolveBase64(name, messageId, body.message)
     },
   )
 
   // legacy path alias: chat/getBase64FromMediaMessage
   app.post(
-    '/v1/instances/:name/chat/getBase64FromMediaMessage',
+    scopedInstancePaths('/chat/getBase64FromMediaMessage'),
     {
       schema: {
         tags: ['Media'],
@@ -332,7 +332,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = z
         .object({
           messageId: z.string().optional(),
@@ -344,7 +344,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
         .parse(request.body ?? {})
       const messageId = body.messageId ?? body.message?.key?.id
       if (!messageId) throw notFound('messageId required')
-      return resolveBase64(params.name, messageId, body.message)
+      return resolveBase64(name, messageId, body.message)
     },
   )
 }

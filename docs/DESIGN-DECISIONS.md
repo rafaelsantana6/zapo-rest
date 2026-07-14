@@ -30,11 +30,40 @@ Not affiliated with WhatsApp/Meta.
 | **Webhook outbox** + HMAC-SHA512 | At-least-once delivery, durable retries, multi-URL configs, verifiable payloads |
 | **SSE for app events / WS for VoIP only** | Right transport: one-way live feed vs bidirectional audio |
 | **Header auth preferred** | Keys stay out of access logs, proxies, and `Referer` |
+| **Instance inferred from API key** (dual routes) | Instance-key clients omit `:name` in the URL; admin always names the target |
 | **Per-session serial queue** | No races on message upsert, ack, and presence for a given instance |
 | **LID ↔ PN map + reconcile** | Modern WhatsApp identities without duplicate chat threads |
 | **Listen before WA boot** | Healthchecks stay green while reconnect/reconcile run in the background |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Wire parity with real WhatsApp Web analytics (`w:stats`) — better session fingerprint |
 | **Contract-first OpenAPI** | Scalar `/docs`, exportable `openapi.json`, guide SPA, GitHub Pages |
+
+---
+
+## Instance scope: dual paths + key inference
+
+**Decision:** every instance-scoped REST route is mounted **twice**:
+
+| Form | Example | Who |
+| ---- | ------- | --- |
+| **Named** | `/v1/instances/:name/messages/text` | Admin (required) and instance key (optional explicit) |
+| **Short resource** | `/v1/messages/text` | Instance key only (name inferred from the key) |
+| **Short lifecycle** | `/v1/instance`, `/v1/instance/connect` | Instance key only (singular `instance` so it never collides with collection `/v1/instances`) |
+
+Resolution is centralized in `resolveInstanceName(request, nameFromParams?)`:
+
+1. Path has `name` → `requireInstanceAccess` (instance key may only hit its own name).
+2. Path has no `name` + **instance** actor → use `actor.instanceName`.
+3. Path has no `name` + **admin** → **400** (`Instance name is required when using the admin API key…`).
+
+**Why**
+
+- Integrators with a single session should not repeat the instance name on every URL once they already hold that instance’s API key.
+- Admins manage many sessions: forcing `:name` avoids accidental cross-tenant operations and keeps multi-tenant scripts explicit.
+- Keeping the named path forever preserves backward compatibility (dashboard, OpenAPI samples, existing clients).
+
+**Trade-off:** OpenAPI lists both URLs for the same handler (slightly larger surface). Lifecycle short form uses singular `/v1/instance` on purpose — not `/v1/instances` without a name.
+
+**Code:** `src/auth/plugin.ts` (`resolveInstanceName`, `scopedInstancePaths`, `scopedSelfPaths`); multi-URL expansion at bootstrap in `src/app.ts` (`enableMultiUrlRoutes` — Fastify 5 only accepts one string URL per registration).
 
 ---
 

@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { notFound } from '~/lib/errors'
@@ -85,7 +85,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
   }
 
   r.get(
-    '/v1/instances/:name/chats',
+    scopedInstancePaths('/chats'),
     {
       schema: {
         tags: ['Chats'],
@@ -103,8 +103,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const q = request.query
       const rows = await chats.list(name, {
         limit: q.limit,
@@ -117,7 +116,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
   )
 
   r.post(
-    '/v1/instances/:name/chats/reconcile-lids',
+    scopedInstancePaths('/chats/reconcile-lids'),
     {
       schema: {
         tags: ['Chats'],
@@ -128,8 +127,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       if (!lidMap) throw notFound('lid map not available')
       const { reconcileLidChats } = await import('~/store/chat-reconcile')
       const result = await reconcileLidChats(chats.pool, name, { lidMap, chats, messages })
@@ -138,7 +136,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
   )
 
   r.get(
-    '/v1/instances/:name/chats/:chatId',
+    scopedInstancePaths('/chats/:chatId'),
     {
       schema: {
         tags: ['Chats'],
@@ -153,15 +151,15 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
-      let chat = await chats.get(params.name, jid)
+      const name = resolveInstanceName(request, params.name)
+      const jid = await resolveChatId(name, params.chatId)
+      let chat = await chats.get(name, jid)
       // Fallback: try original lid form
       if (!chat && isLidJid(params.chatId)) {
-        chat = await chats.get(params.name, bareUserJid(params.chatId))
+        chat = await chats.get(name, bareUserJid(params.chatId))
       }
       if (!chat) throw notFound(`chat "${jid}" not found`)
-      const altJids = lidMap ? await lidMap.expandAliases(params.name, chat.chatJid) : []
+      const altJids = lidMap ? await lidMap.expandAliases(name, chat.chatJid) : []
       return {
         chat: toPublicChat({
           ...chat,
@@ -172,7 +170,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
   )
 
   r.get(
-    '/v1/instances/:name/chats/:chatId/messages',
+    scopedInstancePaths('/chats/:chatId/messages'),
     {
       schema: {
         tags: ['Chats'],
@@ -188,18 +186,18 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const q = request.query
-      const jid = await resolveChatId(params.name, params.chatId)
-      const aliases = lidMap ? await lidMap.expandAliases(params.name, jid) : [jid]
-      const rows = await messages.listByChat(params.name, jid, {
+      const jid = await resolveChatId(name, params.chatId)
+      const aliases = lidMap ? await lidMap.expandAliases(name, jid) : [jid]
+      const rows = await messages.listByChat(name, jid, {
         limit: q.limit,
         beforeTs: q.before,
         afterTs: q.after,
         chatJids: aliases,
       })
       return {
-        messages: rows.map((m) => toPublicMessage(m, { instanceName: params.name })),
+        messages: rows.map((m) => toPublicMessage(m, { instanceName: name })),
         chatId: jid,
         aliases,
       }
@@ -207,7 +205,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
   )
 
   r.get(
-    '/v1/instances/:name/chats/:chatId/messages/:messageId',
+    scopedInstancePaths('/chats/:chatId/messages/:messageId'),
     {
       schema: {
         tags: ['Chats'],
@@ -222,15 +220,15 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const msg = await messages.get(params.name, params.messageId)
+      const name = resolveInstanceName(request, params.name)
+      const msg = await messages.get(name, params.messageId)
       if (!msg) throw notFound('message not found')
-      return { message: toPublicMessage(msg, { instanceName: params.name }) }
+      return { message: toPublicMessage(msg, { instanceName: name }) }
     },
   )
 
   r.post(
-    '/v1/instances/:name/chats/:chatId/messages/read',
+    scopedInstancePaths('/chats/:chatId/messages/read'),
     {
       schema: {
         tags: ['Chats'],
@@ -245,18 +243,18 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = request.body
-      const client = manager.requireRegisteredClient(params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
+      const client = manager.requireRegisteredClient(name)
+      const jid = await resolveChatId(name, params.chatId)
       await client.message.sendReceipt(jid, body.messageIds, { type: 'read' })
-      await chats.setUnread(params.name, jid, 0)
+      await chats.setUnread(name, jid, 0)
       return { ok: true as const }
     },
   )
 
   r.post(
-    '/v1/instances/:name/chats/:chatId/archive',
+    scopedInstancePaths('/chats/:chatId/archive'),
     {
       schema: {
         tags: ['Chats'],
@@ -267,21 +265,21 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
+      const name = resolveInstanceName(request, params.name)
+      const jid = await resolveChatId(name, params.chatId)
       try {
-        const client = manager.requireRegisteredClient(params.name)
+        const client = manager.requireRegisteredClient(name)
         await client.chat.setChatArchive(jid, true)
       } catch {
         // projection-only fallback
       }
-      const row = await chats.setArchived(params.name, jid, true)
+      const row = await chats.setArchived(name, jid, true)
       return { chat: row ? toPublicChat(row) : { id: jid, archived: true } }
     },
   )
 
   r.post(
-    '/v1/instances/:name/chats/:chatId/unarchive',
+    scopedInstancePaths('/chats/:chatId/unarchive'),
     {
       schema: {
         tags: ['Chats'],
@@ -292,21 +290,21 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
+      const name = resolveInstanceName(request, params.name)
+      const jid = await resolveChatId(name, params.chatId)
       try {
-        const client = manager.requireRegisteredClient(params.name)
+        const client = manager.requireRegisteredClient(name)
         await client.chat.setChatArchive(jid, false)
       } catch {
         // ignore
       }
-      const row = await chats.setArchived(params.name, jid, false)
+      const row = await chats.setArchived(name, jid, false)
       return { chat: row ? toPublicChat(row) : { id: jid, archived: false } }
     },
   )
 
   r.post(
-    '/v1/instances/:name/chats/:chatId/unread',
+    scopedInstancePaths('/chats/:chatId/unread'),
     {
       schema: {
         tags: ['Chats'],
@@ -317,17 +315,17 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
-      const client = manager.requireRegisteredClient(params.name)
+      const name = resolveInstanceName(request, params.name)
+      const jid = await resolveChatId(name, params.chatId)
+      const client = manager.requireRegisteredClient(name)
       await client.chat.setChatRead(jid, false)
-      await chats.setUnread(params.name, jid, 1)
+      await chats.setUnread(name, jid, 1)
       return { ok: true as const, chatId: jid, unread: true }
     },
   )
 
   r.delete(
-    '/v1/instances/:name/chats/:chatId',
+    scopedInstancePaths('/chats/:chatId'),
     {
       schema: {
         tags: ['Chats'],
@@ -338,15 +336,15 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
-      await chats.delete(params.name, jid)
+      const name = resolveInstanceName(request, params.name)
+      const jid = await resolveChatId(name, params.chatId)
+      await chats.delete(name, jid)
       return { ok: true as const }
     },
   )
 
   r.post(
-    '/v1/instances/:name/chats/:chatId/history-sync',
+    scopedInstancePaths('/chats/:chatId/history-sync'),
     {
       schema: {
         tags: ['Chats'],
@@ -367,10 +365,10 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = request.body ?? {}
-      const client = manager.requireRegisteredClient(params.name)
-      const jid = await resolveChatId(params.name, params.chatId)
+      const client = manager.requireRegisteredClient(name)
+      const jid = await resolveChatId(name, params.chatId)
       const result = await client.message.requestHistorySync({
         chatJid: jid,
         count: body.count,

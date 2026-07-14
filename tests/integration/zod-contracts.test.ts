@@ -57,8 +57,9 @@ describe('HTTP Zod contracts (dryRun app)', () => {
     expect(parsed.role).toBe('instance')
     if (parsed.role === 'instance') {
       expect(parsed.instance.name).toBe(instanceName)
-      // /v1/me is a read: it identifies the caller's instance but never echoes the (hashed) key.
-      expect(parsed.instance).not.toHaveProperty('apiKey')
+      expect(parsed.instance.apiKey).toBe(instanceKey)
+      expect(parsed.instance).toHaveProperty('pushName')
+      expect(parsed.instance).toHaveProperty('avatarUrl')
       expect(parsed.instance).toHaveProperty('status')
       expect(parsed.instance).toHaveProperty('createdAt')
       expect(parsed.instance).toHaveProperty('updatedAt')
@@ -104,8 +105,10 @@ describe('HTTP Zod contracts (dryRun app)', () => {
     expect(list.instances.length).toBeGreaterThanOrEqual(1)
     for (const inst of list.instances) {
       expect(inst.name.length).toBeGreaterThan(0)
-      // The list is a read view — keys are never exposed here.
-      expect(inst).not.toHaveProperty('apiKey')
+      // List includes apiKey (and profile fields) for admin.
+      expect(inst).toHaveProperty('apiKey')
+      expect(inst).toHaveProperty('pushName')
+      expect(inst).toHaveProperty('avatarUrl')
       expect(inst.createdAt).toMatch(/^\d{4}-/)
     }
   })

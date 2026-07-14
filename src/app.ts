@@ -65,12 +65,37 @@ export type BuildAppDeps = {
   callRecording?: CallRecordingManager
 }
 
+/**
+ * Fastify 5 only accepts a string `url` per registration. Expand string[] so
+ * dual paths from `scopedInstancePaths` / `scopedSelfPaths` both mount.
+ */
+function enableMultiUrlRoutes(app: ReturnType<typeof Fastify>): void {
+  const methods = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'all'] as const
+  for (const method of methods) {
+    const original = (app as unknown as Record<string, (...args: unknown[]) => unknown>)[method]
+    if (typeof original !== 'function') continue
+    ;(app as unknown as Record<string, (...args: unknown[]) => unknown>)[method] = (
+      url: unknown,
+      ...rest: unknown[]
+    ) => {
+      if (Array.isArray(url)) {
+        for (const u of url) original.call(app, u, ...rest)
+        return app
+      }
+      return original.call(app, url, ...rest)
+    }
+  }
+}
+
 export async function buildApp(deps: BuildAppDeps) {
   const trustProxy = deps.env.TRUST_PROXY ? deps.env.TRUST_PROXY_HOPS : false
   const app = Fastify({
     logger: false,
     trustProxy,
   }).withTypeProvider<ZodTypeProvider>()
+
+  // Before any route plugins: allow scopedInstancePaths()/scopedSelfPaths() arrays.
+  enableMultiUrlRoutes(app)
 
   app.setValidatorCompiler(validatorCompiler)
   app.setSerializerCompiler(serializerCompiler)

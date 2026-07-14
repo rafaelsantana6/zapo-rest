@@ -43,7 +43,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
         <h2 id="capabilities">O que a API cobre</h2>
         <ul>
           <li>
-            <strong>Instâncias</strong> — create/connect/QR/pairing-code/restart/logout, API keys admin vs instance
+            <strong>Instâncias</strong> — create/connect/QR/pairing-code/restart/logout, API keys admin vs instance;
+            path dual (nomeado ou forma curta com instance key)
           </li>
           <li>
             <strong>Mensagens</strong> — text, reply, image, video, audio/PTT, document, sticker, location, poll, react,
@@ -194,6 +195,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>Paridade de wire do WA Web</strong> — telemetria WAM ligada por padrão; desligue com{' '}
             <code>WAM_ENABLED=false</code>
           </li>
+          <li>
+            <strong>Instância pela API key</strong> — com instance key o nome pode ser omitido na URL; admin sempre
+            indica <code>:name</code>
+          </li>
         </ul>
 
         <h2 id="table">Decisão → benefício</h2>
@@ -240,6 +245,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <tr>
               <td>Auth por header preferida</td>
               <td>Key fora de access log / Referer</td>
+            </tr>
+            <tr>
+              <td>Instância inferida da API key (rotas dual)</td>
+              <td>
+                Path nomeado sempre válido; forma curta <code>/v1/…</code> e <code>/v1/instance/…</code> com instance
+                key. Admin deve passar <code>:name</code>
+              </td>
             </tr>
             <tr>
               <td>Fila serial por sessão</td>
@@ -328,10 +340,20 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
         <h2 id="send">3. Enviar texto</h2>
         <CodeBlock
           language="bash"
-          code={`curl -s -X POST "$BASE/v1/instances/sales-1/messages/text" \\
- -H "X-Api-Key: $KEY" -H "content-type: application/json" \\
+          code={`# Admin ou multi-tenant: path com nome
+curl -s -X POST "$BASE/v1/instances/sales-1/messages/text" \\
+ -H "X-Api-Key: $ADMIN_API_KEY" -H "content-type: application/json" \\
+ -d '{"to":"5511999999999","text":"Olá via zapo-rest 👋"}'
+
+# Instance key: forma curta (nome inferido da key)
+curl -s -X POST "$BASE/v1/messages/text" \\
+ -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
  -d '{"to":"5511999999999","text":"Olá via zapo-rest 👋"}'`}
         />
+        <p>
+          Com <strong>instance key</strong> você pode omitir o nome na URL. Com a <strong>admin key</strong> o nome é
+          obrigatório. Detalhes em <a href="/guide/auth#scope">Autenticação → Escopo da instância</a>.
+        </p>
 
         <h2 id="listen">4. Ouvir eventos</h2>
         <ul>
@@ -477,6 +499,13 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
               <td>Key fora de access log / Referer</td>
             </tr>
             <tr>
+              <td>Instância inferida da API key (rotas dual)</td>
+              <td>
+                Path nomeado sempre válido; forma curta <code>/v1/…</code> e <code>/v1/instance/…</code> com instance
+                key. Admin deve passar <code>:name</code>
+              </td>
+            </tr>
+            <tr>
               <td>Fila serial por sessão</td>
               <td>Sem corrida em upsert/ack/presença</td>
             </tr>
@@ -616,7 +645,7 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
 
   auth: {
     title: 'Autenticação',
-    description: 'Admin key vs instance key, headers, SSE e WebSocket VoIP.',
+    description: 'Admin key vs instance key, paths dual, headers, SSE e WebSocket VoIP.',
     body: (
       <>
         <h2 id="keys">Dois tipos de chave</h2>
@@ -643,7 +672,7 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
                 <strong>Instance</strong>
               </td>
               <td>
-                campo <code>apiKey</code> da instância
+                campo <code>apiKey</code> da instância (sempre no GET)
               </td>
               <td>Somente a própria instância</td>
             </tr>
@@ -656,6 +685,73 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
           Rotas <code>/v1/*</code> exigem chave. Públicos: <code>GET /health</code>, <code>GET /ready</code>, UI OpenAPI
           em <code>/docs</code>, este guia em <code>/guide</code>.
         </p>
+
+        <h2 id="scope">Escopo da instância (dual path)</h2>
+        <p>
+          Rotas de uma sessão WhatsApp aceitam <strong>duas formas</strong>. A resolução está em{' '}
+          <code>resolveInstanceName</code>: se o nome vier no path, valida o acesso; se omitido, a instance key amarra a
+          própria instância; admin sem nome → <code>400</code>.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Quem</th>
+              <th>Path</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <strong>Admin</strong>
+              </td>
+              <td>
+                <strong>Sempre</strong> com nome: <code>/v1/instances/:name/...</code> (omitir o nome → 400)
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <strong>Instance key</strong>
+              </td>
+              <td>
+                Nomeado <strong>ou</strong> forma curta — a instância é inferida da API key
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          <strong>Forma curta</strong> (só instance key):
+        </p>
+        <ul>
+          <li>
+            Recursos: <code>/v1/messages/text</code>, <code>/v1/chats</code>, <code>/v1/contacts</code>, … (equivalente
+            a <code>/v1/instances/:name/...</code>)
+          </li>
+          <li>
+            Ciclo de vida: <code>/v1/instance</code>, <code>/v1/instance/connect</code>, <code>/v1/instance/qr</code>, …
+            — singular <code>instance</code> para não colidir com a coleção admin <code>/v1/instances</code>
+          </li>
+        </ul>
+        <CodeBlock
+          language="bash"
+          code={`# Admin — nome obrigatório
+curl -s -X POST "$BASE/v1/instances/sales-1/messages/text" \\
+  -H "X-Api-Key: $ADMIN_API_KEY" -H "content-type: application/json" \\
+  -d '{"to":"5511999999999","text":"oi"}'
+
+# Instance key — nomeado (ainda válido)
+curl -s -X POST "$BASE/v1/instances/sales-1/messages/text" \\
+  -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
+  -d '{"to":"5511999999999","text":"oi"}'
+
+# Instance key — forma curta
+curl -s -X POST "$BASE/v1/messages/text" \\
+  -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
+  -d '{"to":"5511999999999","text":"oi"}'
+
+# Lifecycle curto
+curl -s "$BASE/v1/instance" -H "X-Api-Key: $INSTANCE_API_KEY"
+curl -s -X POST "$BASE/v1/instance/connect" -H "X-Api-Key: $INSTANCE_API_KEY"`}
+        />
 
         <h2 id="stream-auth">SSE e WebSocket</h2>
         <ul>
@@ -724,6 +820,19 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
           atualizar.
         </p>
 
+        <h2 id="short-path">Forma curta (instance key)</h2>
+        <p>
+          Com a API key da própria instância você pode usar singular <code>/v1/instance/...</code> em vez de{' '}
+          <code>/v1/instances/:name/...</code> — o nome é inferido da key. Admin continua obrigado a passar o nome. Ver{' '}
+          <a href="/guide/auth#scope">Autenticação</a>.
+        </p>
+        <CodeBlock
+          language="bash"
+          code={`curl -s "$BASE/v1/instance" -H "X-Api-Key: $INSTANCE_API_KEY"
+curl -s -X POST "$BASE/v1/instance/connect" -H "X-Api-Key: $INSTANCE_API_KEY"
+curl -s "$BASE/v1/instance/qr" -H "X-Api-Key: $INSTANCE_API_KEY"`}
+        />
+
         <h2 id="endpoints">Endpoints</h2>
         <p>
           Ver referência: <a href="/guide/api/Instances">Instances</a>.
@@ -737,6 +846,29 @@ curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"`}
     description: 'Envio, tipos, acks e eventos inbound.',
     body: (
       <>
+        <Callout title="Path dual">
+          Paths abaixo usam <code>.../messages/…</code> de forma relativa. Prefixo completo:{' '}
+          <code>/v1/instances/:name/messages/…</code> (admin ou instance) ou, com instance key,{' '}
+          <code>/v1/messages/…</code>. Detalhes em <a href="/guide/auth#scope">Autenticação</a>.
+        </Callout>
+        <h2 id="own-profile">Nome e avatar (próprio perfil)</h2>
+        <p>
+          Para atualizar o <strong>push name</strong> e a <strong>foto de perfil</strong> da sessão no WhatsApp:
+        </p>
+        <CodeBlock
+          language="bash"
+          code={`# Display name (máx. 25 chars)
+curl -s -X PUT "$BASE/v1/profile/name" \\
+  -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
+  -d '{"name":"Loja Sales"}'
+
+# Avatar JPEG (URL pública ou base64)
+curl -s -X PUT "$BASE/v1/profile/image" \\
+  -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
+  -d '{"mediaUrl":"https://cdn.example.com/avatar.jpg"}'
+
+# Alias: /profile/picture · remover: DELETE /v1/profile/image`}
+        />
         <h2 id="send-types">Tipos de envio</h2>
         <table>
           <thead>
@@ -1400,6 +1532,14 @@ const dec = new TextDecoder
           não são métricas do zapo-rest. Fica <strong>ligado por padrão</strong> via <code>@zapo-js/wam</code>. Para
           desligar: <code>WAM_ENABLED=false</code> e reinicie o processo. Ver{' '}
           <a href="/guide/architecture#wam">Arquitetura</a>.
+        </p>
+
+        <h3 id="q-instance-path">Preciso colocar o nome da instância em toda URL?</h3>
+        <p>
+          Com a <strong>admin key</strong>, sim — use <code>/v1/instances/:name/...</code>. Com a{' '}
+          <strong>instance key</strong>, o nome pode ser omitido: recursos em <code>/v1/messages/...</code>,{' '}
+          <code>/v1/chats</code>, etc., e ciclo de vida em <code>/v1/instance/...</code> (singular). O path nomeado
+          continua válido. Ver <a href="/guide/auth#scope">Autenticação</a>.
         </p>
       </>
     ),

@@ -5,8 +5,9 @@ import type { EventProcessor } from '~/events/processor'
 import { applyPictureNotification } from '~/lib/avatar-resolve'
 import { badRequest, conflict, notFound, serviceUnavailable } from '~/lib/errors'
 import { toRecipientJid } from '~/lib/jid'
-import { isLidJid } from '~/lib/jid-canon'
+import { bareUserJid, isLidJid } from '~/lib/jid-canon'
 import { getLogger } from '~/lib/logger'
+import { digitsOnly } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { MediaStorage } from '~/media/storage'
 import type { CacheClient } from '~/redis/client'
@@ -16,7 +17,7 @@ import { asPhoneJid, serializeCallInfo } from '~/voip/call-serialize'
 import type { WebhookDispatcher } from '~/webhooks/dispatcher'
 import { createSharedRuntime, createWaClient, type SharedZapoRuntime, type TestClientHooks } from './client-factory'
 import type { InstanceRepo } from './repo'
-import type { CreateInstanceInput, InstanceRecord, InstanceStatus } from './types'
+import type { CreateInstanceInput, InstanceRecord, InstanceStatus, PublicInstance } from './types'
 import { toPublicInstance } from './types'
 import { asVoipClient } from './wa-client'
 import { wipeInstanceCompletely } from './wipe'
@@ -134,14 +135,64 @@ export class InstanceManager {
     await Promise.all(workers)
   }
 
-  async list() {
+  async list(): Promise<PublicInstance[]> {
     const rows = await this.opts.repo.list()
-    return rows.map(toPublicInstance)
+    return Promise.all(rows.map((row) => this.enrichPublicInstance(row)))
   }
 
-  async get(name: string) {
+  async get(name: string): Promise<PublicInstance> {
     const row = await this.requireRecord(name)
-    return toPublicInstance(row)
+    return this.enrichPublicInstance(row)
+  }
+
+  /** Persist WhatsApp push name after profile update (best-effort). */
+  async setStoredPushName(name: string, pushName: string): Promise<void> {
+    await this.opts.repo.updateStatus(name, { pushName })
+  }
+
+  /**
+   * Attach token + WhatsApp profile fields (push name, avatar) for list/get responses.
+   * Prefer live credentials when the session is open; fall back to DB columns.
+   */
+  private async enrichPublicInstance(row: InstanceRecord): Promise<PublicInstance> {
+    let pushName = row.pushName
+    const client = this.tryGetClient(row.name)
+    if (client) {
+      try {
+        const creds = client.getCredentials() as { pushName?: string; meJid?: string | null } | null
+        if (creds?.pushName && creds.pushName !== pushName) {
+          pushName = creds.pushName
+          void this.opts.repo.updateStatus(row.name, { pushName: creds.pushName }).catch(() => undefined)
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const avatarUrl = await this.resolveOwnAvatarUrl(row.name, row.meJid)
+    return toPublicInstance(row, { pushName, avatarUrl })
+  }
+
+  /** Durable avatar for the linked account (meJid), if stored. */
+  private async resolveOwnAvatarUrl(instanceName: string, meJid: string | null): Promise<string | null> {
+    if (!meJid || !this.avatars) return null
+    const jid = bareUserJid(meJid)
+    try {
+      const av =
+        (await this.avatars.get(instanceName, jid, 'preview')) ?? (await this.avatars.get(instanceName, jid, 'image'))
+      if (av?.status !== 'ok' || !av.storageKey) return null
+      const media = this.opts.mediaStorage
+      if (media?.publicUrl) {
+        const pub = media.publicUrl(av.storageKey)
+        if (pub) return pub
+      }
+      // Authenticated profile-picture endpoint (works without public storage URL)
+      const phone = digitsOnly(jid.split('@')[0] ?? '')
+      if (!phone) return null
+      return `/v1/instances/${encodeURIComponent(instanceName)}/contacts/${encodeURIComponent(phone)}/profile-picture`
+    } catch {
+      return null
+    }
   }
 
   async create(input: CreateInstanceInput) {
@@ -153,7 +204,7 @@ export class InstanceManager {
 
     const row = await this.opts.repo.create(input)
     this.log.info({ name: row.name }, 'instance created')
-    return toPublicInstance(row)
+    return toPublicInstance(row, { avatarUrl: null })
   }
 
   /**
@@ -219,9 +270,13 @@ export class InstanceManager {
     try {
       await session.client.connect()
       // If socket is already open (or creds restored) before the event is handled, reflect that now.
-      const creds = session.client.getCredentials()
+      const creds = session.client.getCredentials() as WaAuthCredentials | null
       if (creds?.meJid) {
-        await this.persistStatus(name, { status: 'open', meJid: creds.meJid })
+        await this.persistStatus(name, {
+          status: 'open',
+          meJid: creds.meJid,
+          pushName: creds.pushName ?? undefined,
+        })
       }
     } catch (err) {
       this.log.error({ err, name }, 'connect failed')
@@ -452,6 +507,7 @@ export class InstanceManager {
     const row = await this.persistStatus(name, {
       status: 'open',
       meJid: credentials.meJid ?? null,
+      pushName: credentials.pushName ?? undefined,
       lastQr: null,
     })
     session.reconnectAttempt = 0
@@ -482,10 +538,14 @@ export class InstanceManager {
     event: ConnectionOpenEvent,
   ): Promise<void> {
     session.reconnectAttempt = 0
-    const creds = client.getCredentials()
+    const creds = client.getCredentials() as WaAuthCredentials | null
     const registered = Boolean(creds?.meJid)
     const nextStatus: InstanceStatus = registered ? 'open' : 'qr'
-    const row = await this.persistStatus(name, { status: nextStatus, meJid: creds?.meJid ?? undefined })
+    const row = await this.persistStatus(name, {
+      status: nextStatus,
+      meJid: creds?.meJid ?? undefined,
+      pushName: creds?.pushName ?? undefined,
+    })
     if (row) {
       await this.opts.webhooks.emit(row, 'instance.connection', {
         status: event.status,

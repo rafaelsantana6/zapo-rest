@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { requireAdmin, requireInstanceAccess } from '~/auth/plugin'
+import { requireAdmin, resolveInstanceName, scopedSelfPaths } from '~/auth/plugin'
 import {
   CreateInstanceBodySchema,
   ErrorBodySchema,
@@ -90,15 +90,15 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
   )
 
   app.get(
-    '/v1/instances/:name',
+    scopedSelfPaths(),
     {
       schema: {
         tags: ['Instances'],
         summary: 'Get instance',
         description:
-          'Returns one instance. The **`apiKey` is not included** (shown only once at create/rotate).\n\n' +
+          'Returns one instance. Includes **`apiKey`**, **`pushName`**, and **`avatarUrl`** when known.\n\n' +
           '- **Admin** may read any instance\n' +
-          '- **Instance key** may only read its own `name` (otherwise `403`)\n\n' +
+          '- **Instance key** may only read its own `name` (otherwise `403`) — use this to refresh status/JID/avatar after pairing\n\n' +
           '```bash\n' +
           'curl -s "$BASE/v1/instances/sales-1" -H "X-Api-Key: $KEY"\n' +
           '```',
@@ -113,15 +113,14 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const instance = await manager.get(name)
       return { instance }
     },
   )
 
   app.post(
-    '/v1/instances/:name/connect',
+    scopedSelfPaths('/connect'),
     {
       schema: {
         tags: ['Instances'],
@@ -147,15 +146,14 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const instance = await manager.connect(name)
       return { instance }
     },
   )
 
   app.post(
-    '/v1/instances/:name/disconnect',
+    scopedSelfPaths('/disconnect'),
     {
       schema: {
         tags: ['Instances'],
@@ -175,15 +173,14 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const instance = await manager.disconnect(name)
       return { instance }
     },
   )
 
   app.post(
-    '/v1/instances/:name/restart',
+    scopedSelfPaths('/restart'),
     {
       schema: {
         tags: ['Instances'],
@@ -201,15 +198,14 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const instance = await manager.restart(name)
       return { instance }
     },
   )
 
   app.delete(
-    '/v1/instances/:name',
+    scopedSelfPaths(),
     {
       schema: {
         tags: ['Instances'],
@@ -229,14 +225,14 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
     },
     async (request) => {
       requireAdmin(request)
-      const { name } = InstanceNameParams.parse(request.params)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       await manager.delete(name)
       return { ok: true as const }
     },
   )
 
   app.get(
-    '/v1/instances/:name/qr',
+    scopedSelfPaths('/qr'),
     {
       schema: {
         tags: ['Instances'],
@@ -260,8 +256,7 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const instance = await manager.get(name)
       return {
         qr: instance.lastQr,
@@ -272,7 +267,7 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
   )
 
   app.post(
-    '/v1/instances/:name/pairing-code',
+    scopedSelfPaths('/pairing-code'),
     {
       schema: {
         tags: ['Instances'],
@@ -297,8 +292,7 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const body = PairingCodeBodySchema.parse(request.body)
       const client = manager.getClient(name)
       const phone = body.phone.replace(/\D/g, '')
@@ -308,7 +302,7 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
   )
 
   app.post(
-    '/v1/instances/:name/keys/rotate',
+    scopedSelfPaths('/keys/rotate'),
     {
       schema: {
         tags: ['Instances'],
@@ -328,7 +322,7 @@ export const instanceRoutes: FastifyPluginAsync<InstanceRoutesDeps> = async (app
     },
     async (request) => {
       requireAdmin(request)
-      const { name } = InstanceNameParams.parse(request.params)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       const instance = await manager.rotateKey(name)
       return { instance }
     },

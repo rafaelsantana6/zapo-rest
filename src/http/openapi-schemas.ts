@@ -22,9 +22,12 @@ export const EXAMPLES = {
     webhookEvents: ['message.inbound', 'instance.qr'],
     status: 'open' as const,
     meJid: '5511999999999:12@s.whatsapp.net',
+    pushName: 'Loja Sales',
+    avatarUrl: '/v1/instances/sales-1/contacts/5511999999999/profile-picture',
     pairPhone: null,
     lastQr: null,
     lastQrAt: null,
+    callRecordingEnabled: false,
     createdAt: '2026-07-11T12:00:00.000Z',
     updatedAt: '2026-07-11T12:05:00.000Z',
   },
@@ -156,9 +159,6 @@ export const EXAMPLES = {
   meAdmin: { role: 'admin' as const },
 } as const
 
-/** Read-view example: reads never expose `apiKey` (stored hashed). */
-const INSTANCE_READ_EXAMPLE = Object.fromEntries(Object.entries(EXAMPLES.instance).filter(([key]) => key !== 'apiKey'))
-
 export const ErrorBodySchema = z
   .object({
     error: z.object({
@@ -186,8 +186,18 @@ export const InstanceName = z
     example: 'sales-1',
   })
 
+/**
+ * Path params for instance-scoped routes.
+ * `name` is optional so the same handler can serve:
+ * - `/v1/instances/:name/...` (name present; required for admin keys)
+ * - short form without name (instance API key → inferred via `resolveInstanceName`)
+ */
 export const InstanceNameParams = z.object({
-  name: InstanceName,
+  name: InstanceName.optional().meta({
+    description:
+      'Instance name. Required on `/v1/instances/:name/...` (and always when using the admin API key). ' +
+      'Omitted on short `/v1/...` paths when authenticating with an instance API key.',
+  }),
 })
 
 export const InstanceStatusSchema = z
@@ -206,9 +216,21 @@ export const InstanceStatusSchema = z
     example: 'open',
   })
 
-/** Fields shared by read and create/rotate views; the API key is layered on separately. */
+/** Instance API key (plaintext) — always present on list/get/create/rotate; used for auth. */
+const InstanceApiKeySchema = z
+  .string()
+  .min(1)
+  .meta({
+    description:
+      'Instance API key (plaintext). **Always present** on create, rotate, list, and get — never null/omitted. ' +
+      'Scope: this instance only. Header `X-Api-Key` or `Authorization: Bearer`.',
+    example: EXAMPLES.instance.apiKey,
+  })
+
+/** Fields shared by all instance responses (list, get, create, connect, rotate). */
 const instanceBaseShape = z.object({
   name: z.string().meta({ description: 'Instance name / session id', example: EXAMPLES.instance.name }),
+  apiKey: InstanceApiKeySchema,
   webhookUrl: z
     .string()
     .url()
@@ -224,50 +246,50 @@ const instanceBaseShape = z.object({
     description: 'Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)',
     example: EXAMPLES.instance.meJid,
   }),
+  pushName: z.string().nullable().meta({
+    description: 'WhatsApp display / push name when known (from session credentials or profile update)',
+    example: EXAMPLES.instance.pushName,
+  }),
+  avatarUrl: z.string().nullable().meta({
+    description:
+      'Profile picture URL when durable storage has the own-account avatar (public storage URL or authenticated `.../contacts/{phone}/profile-picture` path)',
+    example: EXAMPLES.instance.avatarUrl,
+  }),
   pairPhone: z.string().nullable().meta({ description: 'Optional phone hint for pairing-code flows', example: null }),
   lastQr: z
     .string()
     .nullable()
     .meta({ description: 'Raw QR payload from last `auth_qr` event — render as QR image on clients', example: null }),
   lastQrAt: z.string().nullable().meta({ description: 'ISO-8601 time when lastQr was updated', example: null }),
+  callRecordingEnabled: z.boolean().optional().meta({
+    description: 'Whether call PCM recording is enabled for this instance',
+    example: false,
+  }),
   createdAt: z.string().meta({ description: 'ISO-8601 creation timestamp', example: EXAMPLES.instance.createdAt }),
   updatedAt: z.string().meta({ description: 'ISO-8601 last update timestamp', example: EXAMPLES.instance.updatedAt }),
 })
 
-/**
- * Instance API key (plaintext). Returned **once** on create/rotate and never again —
- * only the SHA-256 hash is stored, so reads cannot and do not expose it.
- */
-const InstanceApiKeySchema = z.string().meta({
-  description:
-    'Instance API key in plaintext. Returned only on create/rotate and shown once — store it immediately. ' +
-    'Scope: this instance only. Header `X-Api-Key` or `Authorization: Bearer`.',
-  example: EXAMPLES.instance.apiKey,
-})
-
-/** Read view of an instance — never carries the API key. */
+/** Instance payload for list/get/create/connect (includes apiKey, pushName, avatarUrl). */
 export const InstanceSchema = instanceBaseShape.meta({
-  description: 'WhatsApp multi-session instance (read view — API key omitted)',
-  example: INSTANCE_READ_EXAMPLE,
-})
-
-/** Create / rotate view — includes the freshly minted plaintext API key (shown once). */
-export const InstanceWithKeySchema = instanceBaseShape.extend({ apiKey: InstanceApiKeySchema }).meta({
-  description: 'WhatsApp instance plus its new API key (create / rotate response only)',
+  description:
+    'WhatsApp multi-session instance. Includes `apiKey` (token), `pushName`, and `avatarUrl` when available.',
   example: EXAMPLES.instance,
 })
 
+/** Alias: create/rotate use the same shape (key always present after mint). */
+export const InstanceWithKeySchema = InstanceSchema
+
 export const InstanceResponseSchema = z.object({ instance: InstanceSchema }).meta({
-  example: { instance: INSTANCE_READ_EXAMPLE },
+  example: { instance: EXAMPLES.instance },
 })
 
-/** Response envelope for create / rotate — the only responses carrying the plaintext key. */
+/** Response envelope for create / rotate (same shape as get). */
 export const InstanceWithKeyResponseSchema = z.object({ instance: InstanceWithKeySchema }).meta({
   example: { instance: EXAMPLES.instance },
 })
 
 export const InstanceListResponseSchema = z.object({ instances: z.array(InstanceSchema) }).meta({
-  example: { instances: [INSTANCE_READ_EXAMPLE] },
+  example: { instances: [EXAMPLES.instance] },
 })
 
 export const OkSchema = z
@@ -692,7 +714,7 @@ export const OPENAPI_TAGS = [
     description:
       'Authentication uses **two key types**:\n\n' +
       '1. **Admin** — `ADMIN_API_KEY` from environment. Full access: create/list/delete instances, rotate keys, act on any instance.\n' +
-      '2. **Instance** — per-instance `apiKey`, returned **once** on create/rotate (stored hashed, never shown again). Scoped to that instance only.\n\n' +
+      '2. **Instance** — per-instance `apiKey`, returned on create/rotate **and** on list/get. Scoped to that instance only.\n\n' +
       'Send the key as:\n- Header `X-Api-Key: <key>` **(preferred)**\n- or `Authorization: Bearer <key>`\n\n' +
       'Dashboard login uses the same keys via `GET /v1/me`.',
   },
@@ -700,10 +722,11 @@ export const OPENAPI_TAGS = [
     name: 'Instances',
     description:
       'Multi-session lifecycle. Each instance is one WhatsApp linked device (zapo `sessionId`).\n\n' +
+      'List/get include `apiKey`, `pushName`, and `avatarUrl` when known. Instance keys may `GET /v1/instances/{name}` for their own session.\n\n' +
       '**Typical flow:**\n1. `POST /v1/instances` (admin) → receive `apiKey`\n' +
       '2. `POST /v1/instances/{name}/connect`\n' +
       '3. `GET /v1/instances/{name}/qr` → scan with WhatsApp → Linked devices\n' +
-      '4. Status becomes `open` — send messages / receive webhooks\n\n' +
+      '4. Status becomes `open` — send messages / receive webhooks; poll get for meJid/avatar\n\n' +
       'Alternatively use pairing code: `POST.../pairing-code` after connect when status is `pairing`/`qr`.',
   },
   {
@@ -712,6 +735,15 @@ export const OPENAPI_TAGS = [
       'Send WhatsApp messages through a connected instance (`status: open`).\n\n' +
       'Supports **text**, **image**, **audio** (incl. PTT), and **document**. Video is not exposed in this API.\n\n' +
       '`to` accepts digits with country code or full JID. Media: provide `mediaUrl` (HTTPS) or `mediaBase64`.',
+  },
+  {
+    name: 'Profile',
+    description:
+      'Own WhatsApp profile for a session: get snapshot, set **push name**, set/delete **avatar**, set about status.\n\n' +
+      '- `PUT /v1/profile/name` — display name (`name` or `pushName`, max 25)\n' +
+      '- `PUT /v1/profile/image` — JPEG via `mediaUrl` or `mediaBase64` (alias: `/profile/picture`)\n' +
+      '- `DELETE /v1/profile/image` — remove avatar\n\n' +
+      'Named paths under `/v1/instances/:name/profile/...` work for admin; short form needs an instance key.',
   },
   {
     name: 'Contacts',

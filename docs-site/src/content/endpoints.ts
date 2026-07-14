@@ -72,6 +72,7 @@ const NOTES: Record<string, string[]> = {
     'Requer status: open.',
     'to aceita dígitos, PN JID, group @g.us ou LID @lid.',
     'Mensagem é upserted no store local (source: live).',
+    'Com instance key o path curto /v1/messages/text também funciona (nome inferido da key). Admin precisa de :name.',
   ],
   'POST /v1/instances/{name}/calls': [
     'Áudio live via WebSocket PCM — não há autoplay de arquivo.',

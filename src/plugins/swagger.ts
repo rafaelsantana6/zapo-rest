@@ -31,6 +31,18 @@ Authorization: Bearer <sua-chave>
 
 \`GET /health\` e \`GET /ready\` são públicos.
 
+## Escopo da instância (dual path)
+
+| Quem | Path |
+|------|------|
+| **Admin** | **Sempre** com nome: \`/v1/instances/:name/...\` (omitir o nome → 400) |
+| **Instance key** | Nomeado **ou** forma curta sem nome |
+
+Forma curta (só com instance key — a instância é inferida da API key):
+
+- Recursos: \`/v1/messages/text\`, \`/v1/chats\`, \`/v1/contacts\`, … (equivale a \`/v1/instances/:name/...\`)
+- Ciclo de vida: \`/v1/instance\`, \`/v1/instance/connect\`, \`/v1/instance/qr\`, … (singular \`instance\`, não colide com \`/v1/instances\`)
+
 ## Fluxo rápido (instância)
 
 \`\`\`bash
@@ -45,9 +57,14 @@ curl -s -X POST "$BASE/v1/instances/sales-1/connect" -H "X-Api-Key: $ADMIN_API_K
 # 3) QR
 curl -s "$BASE/v1/instances/sales-1/qr" -H "X-Api-Key: $ADMIN_API_KEY"
 
-# 4) Enviar texto (admin ou instance key)
+# 4) Enviar texto (admin: path com nome)
 curl -s -X POST "$BASE/v1/instances/sales-1/messages/text" \\
-  -H "X-Api-Key: $KEY" -H "content-type: application/json" \\
+  -H "X-Api-Key: $ADMIN_API_KEY" -H "content-type: application/json" \\
+  -d '${JSON.stringify(EXAMPLES.textMessage)}'
+
+# 4b) Enviar texto (instance key: forma curta sem nome)
+curl -s -X POST "$BASE/v1/messages/text" \\
+  -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\
   -d '${JSON.stringify(EXAMPLES.textMessage)}'
 \`\`\`
 

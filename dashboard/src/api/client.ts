@@ -3,12 +3,14 @@ const HINT_STORAGE = 'zapo_rest_instance_hint'
 
 export type Instance = {
   name: string
-  /** Present only on create/rotate responses; list/get omit the key (stored hashed). */
-  apiKey?: string
+  /** Plaintext instance API key — always present on list/get/create/rotate. */
+  apiKey: string
   webhookUrl: string | null
   webhookEvents: string[]
   status: string
   meJid: string | null
+  pushName?: string | null
+  avatarUrl?: string | null
   pairPhone: string | null
   lastQr: string | null
   lastQrAt: string | null

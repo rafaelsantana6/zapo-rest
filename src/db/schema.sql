@@ -2,12 +2,13 @@
 
 CREATE TABLE IF NOT EXISTS instances (
  name TEXT PRIMARY KEY,
- -- SHA-256 hex of the API key. Plaintext is returned once on create/rotate and never stored.
- api_key_hash TEXT NOT NULL,
+ -- Plaintext instance API key (auth + returned on list/get). Unique.
+ api_key TEXT NOT NULL,
  webhook_url TEXT,
  webhook_events TEXT[] NOT NULL DEFAULT '{}',
  status TEXT NOT NULL DEFAULT 'created',
  me_jid TEXT,
+ push_name TEXT,
  pair_phone TEXT,
  last_qr TEXT,
  last_qr_at TIMESTAMPTZ,
@@ -17,18 +18,23 @@ CREATE TABLE IF NOT EXISTS instances (
 );
 
 -- Safe upgrades when instances table already exists without newer columns.
--- Must run BEFORE the unique index below, which references api_key_hash: on a
--- pre-existing table the CREATE TABLE IF NOT EXISTS above is a no-op, so the
--- column is only added here. Nullable on purpose — legacy rows predate hashing
--- and must mint a new key via POST .../keys/rotate (old plaintext is unrecoverable).
-ALTER TABLE instances ADD COLUMN IF NOT EXISTS api_key_hash TEXT;
+ALTER TABLE instances ADD COLUMN IF NOT EXISTS api_key TEXT;
+ALTER TABLE instances ADD COLUMN IF NOT EXISTS push_name TEXT;
 ALTER TABLE instances ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}'::jsonb;
--- Drop the legacy plaintext key column: keys are hashed now, and its NOT NULL
--- constraint would otherwise reject inserts that only populate api_key_hash.
-ALTER TABLE instances DROP COLUMN IF EXISTS api_key;
+-- Drop hash-era column (auth is plaintext api_key only).
+ALTER TABLE instances DROP COLUMN IF EXISTS api_key_hash;
+DROP INDEX IF EXISTS instances_api_key_hash_idx;
 
--- Unique so auth can resolve an instance by hashed key in one indexed lookup.
-CREATE UNIQUE INDEX IF NOT EXISTS instances_api_key_hash_idx ON instances (api_key_hash);
+-- Legacy rows without plaintext key: mint a new key (old hash-only tokens are unrecoverable).
+UPDATE instances
+SET api_key = 'zr_mig_' || replace(gen_random_uuid()::text, '-', '')
+WHERE api_key IS NULL OR btrim(api_key) = '';
+
+ALTER TABLE instances ALTER COLUMN api_key SET NOT NULL;
+
+-- Unique so auth can resolve an instance by API key in one indexed lookup.
+DROP INDEX IF EXISTS instances_api_key_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS instances_api_key_idx ON instances (api_key);
 CREATE INDEX IF NOT EXISTS instances_status_idx ON instances (status);
 
 -- Multi-webhook config (multi-config): multiple URLs per instance with HMAC/retries/headers

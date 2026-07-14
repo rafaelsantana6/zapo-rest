@@ -53,6 +53,7 @@ export function makeInstance(overrides: Partial<InstanceRecord> = {}): InstanceR
     webhookEvents: [],
     status: 'open',
     meJid: '5511999999999:1@s.whatsapp.net',
+    pushName: null,
     pairPhone: null,
     lastQr: null,
     lastQrAt: null,

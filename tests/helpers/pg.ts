@@ -1,6 +1,5 @@
 import pg from 'pg'
 import { migrate } from '~/db/migrate'
-import { hashApiKey } from '~/lib/crypto-keys'
 
 /**
  * Real Postgres for store/repo integration tests.
@@ -57,12 +56,11 @@ export function uniqueName(prefix: string): string {
 }
 
 export async function seedInstance(pool: pg.Pool, name: string, apiKey = `zr_${name}`): Promise<void> {
-  // Keys are hashed at rest: the schema stores `api_key_hash`, never the plaintext.
   await pool.query(
-    `INSERT INTO instances (name, api_key_hash, status)
+    `INSERT INTO instances (name, api_key, status)
      VALUES ($1, $2, 'open')
-     ON CONFLICT (name) DO UPDATE SET api_key_hash = EXCLUDED.api_key_hash, status = 'open'`,
-    [name, hashApiKey(apiKey)],
+     ON CONFLICT (name) DO UPDATE SET api_key = EXCLUDED.api_key, status = 'open'`,
+    [name, apiKey],
   )
 }
 

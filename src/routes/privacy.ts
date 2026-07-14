@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { WA_PRIVACY_CATEGORY_TO_SETTING, WA_PRIVACY_SETTING_TO_CATEGORY, type WaPrivacySettingName } from 'zapo-js'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import { InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
@@ -75,7 +75,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
   const r = app.withTypeProvider<ZodTypeProvider>()
 
   r.get(
-    '/v1/instances/:name/privacy',
+    scopedInstancePaths('/privacy'),
     {
       schema: {
         tags: ['Privacy'],
@@ -85,8 +85,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const client = manager.requireRegisteredClient(name)
       const settings = await client.privacy.getPrivacySettings()
       return { settings }
@@ -94,7 +93,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
   )
 
   r.post(
-    '/v1/instances/:name/privacy',
+    scopedInstancePaths('/privacy'),
     {
       schema: {
         tags: ['Privacy'],
@@ -105,8 +104,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const setting = toPrivacySettingName(request.body.setting)
       if (!setting) throw badRequest(`unknown privacy setting "${request.body.setting}"`)
       const client = manager.requireRegisteredClient(name)
@@ -116,7 +114,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
   )
 
   r.post(
-    '/v1/instances/:name/business/profile',
+    scopedInstancePaths('/business/profile'),
     {
       schema: {
         tags: ['Business'],
@@ -127,8 +125,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const client = manager.requireRegisteredClient(name)
       const resolved: string[] = []
       for (const j of request.body.jids) {
@@ -140,7 +137,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
   )
 
   r.get(
-    '/v1/instances/:name/business/profile/:phone',
+    scopedInstancePaths('/business/profile/:phone'),
     {
       schema: {
         tags: ['Business'],
@@ -150,8 +147,8 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name, phone } = request.params
-      requireInstanceAccess(request, name)
+      const { phone } = request.params
+      const name = resolveInstanceName(request, request.params.name)
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, phone, cache)
       const profiles = await client.business.getBusinessProfile([jid])

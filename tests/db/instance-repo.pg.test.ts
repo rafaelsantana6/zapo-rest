@@ -29,9 +29,10 @@ describe.skipIf(!pool)('InstanceRepo (Postgres)', () => {
     })
     expect(created.apiKey).toMatch(/^zr_/)
     expect(created.status).toBe('created')
+    const createdKey = created.apiKey
 
     expect((await repo.getByName(name))?.name).toBe(name)
-    expect((await repo.getByApiKey(created.apiKey))?.name).toBe(name)
+    expect((await repo.getByApiKey(createdKey))?.name).toBe(name)
     expect((await repo.list()).some((r) => r.name === name)).toBe(true)
 
     const updated = await repo.updateStatus(name, {
@@ -48,13 +49,15 @@ describe.skipIf(!pool)('InstanceRepo (Postgres)', () => {
     const pub = toPublicInstance(updated)
     expect(pub.createdAt).toMatch(/^\d{4}-/)
     expect(pub.lastQrAt).toMatch(/^\d{4}-/)
-    // Reads are hashed at rest: a record sourced from a read/update masks the key.
-    // Only create/rotate surface the plaintext (asserted via `created.apiKey` above).
-    expect(pub.apiKey).toBe('***')
+    // Plaintext token is stored and returned on reads (create key still valid).
+    expect(pub.apiKey).toBe(created.apiKey)
+    expect((await repo.getByName(name))?.apiKey).toBe(created.apiKey)
 
     const rotated = await repo.rotateApiKey(name)
+    expect(rotated?.apiKey).toBeTruthy()
     expect(rotated?.apiKey).not.toBe(created.apiKey)
-    expect(await repo.getByApiKey(created.apiKey)).toBeNull()
+    expect(await repo.getByApiKey(created.apiKey as string)).toBeNull()
+    expect((await repo.getByName(name))?.apiKey).toBe(rotated?.apiKey)
 
     expect(await repo.delete(name)).toBe(true)
     expect(await repo.getByName(name)).toBeNull()

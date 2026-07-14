@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import { isAdmin } from '~/auth/types'
 import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
@@ -48,7 +48,7 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
   const metrics = new MetricsStore(pool)
 
   app.get<MetricsRoute>(
-    '/v1/instances/:name/metrics',
+    scopedInstancePaths('/metrics'),
     {
       schema: {
         tags: ['Metrics'],
@@ -62,8 +62,7 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name) // 404 if missing
       const q = request.query
       const { from, to } = parseRange(q)
@@ -72,7 +71,7 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
   )
 
   app.get<MetricsRoute>(
-    '/v1/instances/:name/metrics/timeseries',
+    scopedInstancePaths('/metrics/timeseries'),
     {
       schema: {
         tags: ['Metrics'],
@@ -85,8 +84,7 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name)
       const q = request.query
       const { from, to, bucket } = parseRange(q)
@@ -108,7 +106,7 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
   )
 
   app.get<InstanceParams>(
-    '/v1/instances/:name/metrics/resources',
+    scopedInstancePaths('/metrics/resources'),
     {
       schema: {
         tags: ['Metrics'],
@@ -122,8 +120,7 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name)
 
       const proc = sampleProcessResources()
