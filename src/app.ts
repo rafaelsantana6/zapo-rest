@@ -17,6 +17,7 @@ import { errorHandlerPlugin } from '~/plugins/error-handler'
 import { securityHeadersPlugin } from '~/plugins/security-headers'
 import { swaggerPlugin } from '~/plugins/swagger'
 import type { CacheClient } from '~/redis/client'
+import { blastRoutes } from '~/routes/blast'
 import { callRoutes } from '~/routes/calls'
 import { chatRoutes } from '~/routes/chats'
 import { contactRoutes } from '~/routes/contacts'
@@ -150,6 +151,14 @@ export async function buildApp(deps: BuildAppDeps) {
     callRecording: deps.callRecording,
     mediaStorage: deps.mediaStorage,
     cache: deps.cache,
+  })
+  await app.register(blastRoutes, {
+    manager: deps.manager,
+    env: deps.env,
+    instanceRepo: deps.instanceRepo,
+    mediaStorage: deps.mediaStorage,
+    cache: deps.cache,
+    calls: deps.calls,
   })
 
   if (deps.chats && deps.messages) {

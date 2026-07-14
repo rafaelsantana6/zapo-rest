@@ -349,6 +349,8 @@ X-Api-Key: …
 
 # VoIP remains WebSocket
 # /v1/voip · /v1/instances/:name/calls/:id/stream
+# POST /v1/instances/:name/calls/blast          # outbound play-WAV + optional STT
+# POST /v1/instances/:name/calls/:id/transcribe # STT on stored recording (STT_* env)
 ```
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.

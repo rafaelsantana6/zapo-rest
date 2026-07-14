@@ -38,6 +38,8 @@ export function makeEnv(overrides: Partial<Env> = {}): Env {
     HISTORY_IMPORT_DEBOUNCE_MS: 0,
     MEDIA_DOWNLOAD_CONCURRENCY: 4,
     CALL_RECORDING_MAX_SECONDS: 7200,
+    STT_ENABLED: false,
+    STT_TEMPERATURE: 0.5,
     ...overrides,
   } as Env
 }

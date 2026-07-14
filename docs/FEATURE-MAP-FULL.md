@@ -18,6 +18,7 @@ Last updated: 2026-07-12
 | Groups (full lifecycle) | ✅ |
 | Labels | ✅ |
 | Calls / VoIP (offer/accept/reject/end/mute/stream) | ✅ |
+| Audio blast + STT (`/calls/blast`, `/calls/:id/transcribe`) | ✅ |
 | WAM telemetry (`@zapo-js/wam`, `WAM_ENABLED` default on) | ✅ |
 | Profile / presence / privacy / status stories | ✅ |
 | Media local/S3 + stream + getBase64 | ✅ |

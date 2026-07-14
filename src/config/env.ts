@@ -5,6 +5,19 @@ const boolFromString = z.union([z.boolean(), z.string()]).transform((v) => {
   return ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())
 })
 
+/** Treat empty/whitespace env strings as unset (compose often injects `VAR:` → ""). */
+const emptyToUndefined = z.preprocess((v) => {
+  if (v == null) return undefined
+  if (typeof v === 'string' && v.trim() === '') return undefined
+  return v
+}, z.string().optional())
+
+const optionalUrl = z.preprocess((v) => {
+  if (v == null) return undefined
+  if (typeof v === 'string' && v.trim() === '') return undefined
+  return v
+}, z.string().url().optional())
+
 /** Well-known scaffold/placeholder admin keys that must never reach production. */
 const WEAK_ADMIN_KEYS = new Set([
   'change-me-admin-key',
@@ -165,6 +178,18 @@ const envSchema = z
 
     /** Max call PCM recording duration in seconds (default 2h). Further samples are dropped. */
     CALL_RECORDING_MAX_SECONDS: z.coerce.number().int().positive().default(7200),
+
+    /** Speech-to-text transcription (Groq Whisper or OpenAI-compatible API). */
+    STT_ENABLED: boolFromString.default(false),
+    /** Base URL e.g. https://api.groq.com/openai. Empty string (compose default) → unset. */
+    STT_API_URL: optionalUrl,
+    STT_API_KEY: emptyToUndefined,
+    /** Model name (defaults to whisper-large-v3 for Groq, whisper-1 for OpenAI). */
+    STT_MODEL: emptyToUndefined,
+    /** Language hint for STT (ISO 639-1, e.g. pt, en, es). Omit for auto-detect. */
+    STT_LANGUAGE: emptyToUndefined,
+    /** Sampling temperature (0–1). Default 0.5. */
+    STT_TEMPERATURE: z.coerce.number().min(0).max(1).optional().default(0.5),
   })
   .superRefine(assertStrongAdminKeyInProd)
 

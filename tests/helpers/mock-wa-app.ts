@@ -2,11 +2,14 @@ import type { FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { vi } from 'vitest'
 import { buildApp } from '~/app'
+import type { Env } from '~/config/env'
 import { InstanceManager } from '~/instances/manager'
 import { WebhookDispatcher } from '~/webhooks/dispatcher'
+import { createMockVoipBlastClient, type MockVoipBlastClient } from './blast-mocks'
 import { makeEnv } from './fixtures'
 import { MemoryInstanceRepo } from './memory-repo'
 import {
+  MemoryCallStore,
   MemoryChatStore,
   MemoryContactStore,
   MemoryLabelStore,
@@ -44,7 +47,6 @@ export function createMockWaClient(overrides: Record<string, unknown> = {}) {
       queryChatModification: vi.fn(async () => undefined),
     },
     group: {
-      // zapo-js contract: queryAllGroups is a method returning a Promise, not a Promise-valued property.
       queryAllGroups: vi.fn(async () => [{ id: '120363@g.us', subject: 'Test Group' }]),
       create: vi.fn(async () => ({ id: '120363new@g.us', subject: 'New' })),
     },
@@ -77,11 +79,20 @@ export type MockWaApp = {
   lids: MemoryLidStore
   lidMap: MemoryLidMapStore
   mediaStorage: MemoryMediaStorage
+  calls: MemoryCallStore
   repo: MemoryInstanceRepo
+  env: Env
 }
 
-export async function buildMockedWaApp(): Promise<MockWaApp> {
-  const env = makeEnv({ RATE_LIMIT_ENABLED: false, MEDIA_REDIRECT_DOWNLOADS: false })
+export type BuildMockedWaAppOpts = {
+  env?: Partial<Env>
+  /** Attach a VoIP-capable client for blast routes. */
+  withVoip?: boolean | MockVoipBlastClient
+  neverAnswer?: boolean
+}
+
+export async function buildMockedWaApp(opts: BuildMockedWaAppOpts = {}): Promise<MockWaApp> {
+  const env = makeEnv({ RATE_LIMIT_ENABLED: false, MEDIA_REDIRECT_DOWNLOADS: false, ...opts.env })
   const repo = new MemoryInstanceRepo()
   repo.seed({ name: INSTANCE, apiKey: INSTANCE_KEY, status: 'open' })
 
@@ -92,6 +103,7 @@ export async function buildMockedWaApp(): Promise<MockWaApp> {
   const lids = new MemoryLidStore()
   const lidMap = new MemoryLidMapStore()
   const mediaStorage = new MemoryMediaStorage()
+  const calls = new MemoryCallStore()
 
   const pool = { query: async () => ({ rows: [{ '?column?': 1 }], rowCount: 1 }) } as unknown as pg.Pool
   const webhooks = new WebhookDispatcher({ env })
@@ -105,8 +117,16 @@ export async function buildMockedWaApp(): Promise<MockWaApp> {
   })
   await manager.init()
 
-  const client = createMockWaClient()
+  let client: ReturnType<typeof createMockWaClient> | MockVoipBlastClient
+  if (opts.withVoip) {
+    client =
+      typeof opts.withVoip === 'object' ? opts.withVoip : createMockVoipBlastClient({ neverAnswer: opts.neverAnswer })
+  } else {
+    client = createMockWaClient()
+  }
+
   vi.spyOn(manager, 'requireRegisteredClient').mockReturnValue(client as never)
+  vi.spyOn(manager, 'requireOpenClient').mockResolvedValue(client as never)
   vi.spyOn(manager, 'tryGetClient').mockReturnValue(client as never)
 
   const app = await buildApp({
@@ -122,8 +142,23 @@ export async function buildMockedWaApp(): Promise<MockWaApp> {
     lids: lids as never,
     lidMap: lidMap as never,
     mediaStorage: mediaStorage as never,
+    calls: calls as never,
   })
   await app.ready()
 
-  return { app, manager, client, messages, chats, contacts, labels, lids, lidMap, mediaStorage, repo }
+  return {
+    app,
+    manager,
+    client: client as ReturnType<typeof createMockWaClient>,
+    messages,
+    chats,
+    contacts,
+    labels,
+    lids,
+    lidMap,
+    mediaStorage,
+    calls,
+    repo,
+    env,
+  }
 }

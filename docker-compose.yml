@@ -103,6 +103,13 @@ services:
       # Public URL for browsers / webhooks (host port map)
       S3_PUBLIC_URL: http://localhost:19000/zapo-media
       S3_PRESIGN_ENDPOINT: http://localhost:19000
+      # Speech-to-text (Groq Whisper)
+      STT_ENABLED: ${STT_ENABLED:-false}
+      STT_API_URL: ${STT_API_URL:-}
+      STT_API_KEY: ${STT_API_KEY:-}
+      STT_MODEL: ${STT_MODEL:-whisper-large-v3}
+      STT_LANGUAGE: ${STT_LANGUAGE:-}
+      STT_TEMPERATURE: ${STT_TEMPERATURE:-0.5}
     depends_on:
       postgres:
         condition: service_healthy

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Audio blast + STT**: `POST /v1/instances/:name/calls/blast` places an outbound
+  VoIP call, plays a WAV from `audioUrl`, optionally records the remote leg, and
+  can transcribe via Groq/OpenAI-compatible Whisper (`STT_*` env).  
+  `POST /v1/instances/:name/calls/:callId/transcribe` re-transcribes an existing
+  call recording. `audioUrl` is SSRF-guarded; empty compose `STT_API_URL` is safe.
+
 ## [0.2.0] - 2026-07-13
 
 ### Added
