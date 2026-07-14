@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-14
+
 ### Added
 
 - **Multipart media uploads** on POST/PUT media routes: profile/group avatar,
   messages (image/video/audio/document/sticker), status media, and call blast.
   Accept `mediaUrl`, `mediaBase64`, or `multipart/form-data` field `file` (aliases
-  `media` / `audio` / …). Cap via env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).
+  `media` / `audio` / …). Cap via env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB)
+  (#51).
 
 ## [0.6.0] - 2026-07-14
 
@@ -262,7 +265,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.3.0...v0.4.0
