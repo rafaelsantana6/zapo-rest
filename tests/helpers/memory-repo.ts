@@ -30,6 +30,7 @@ export class MemoryInstanceRepo {
       webhookEvents: input.webhookEvents ?? [],
       status: 'created',
       meJid: null,
+      pushName: null,
       pairPhone: input.pairPhone ?? null,
       lastQr: null,
       lastQrAt: null,
@@ -47,7 +48,7 @@ export class MemoryInstanceRepo {
 
   async updateStatus(
     name: string,
-    patch: Partial<Pick<InstanceRecord, 'status' | 'meJid' | 'lastQr' | 'lastQrAt' | 'pairPhone'>>,
+    patch: Partial<Pick<InstanceRecord, 'status' | 'meJid' | 'pushName' | 'lastQr' | 'lastQrAt' | 'pairPhone'>>,
   ): Promise<InstanceRecord | null> {
     const row = this.rows.get(name)
     if (!row) return null
@@ -71,6 +72,7 @@ export class MemoryInstanceRepo {
       webhookEvents: [],
       status: 'open',
       meJid: '5511999999999:1@s.whatsapp.net',
+      pushName: null,
       pairPhone: null,
       lastQr: null,
       lastQrAt: null,

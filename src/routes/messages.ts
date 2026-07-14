@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import {
   ErrorBodySchema,
@@ -110,7 +110,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   }
 
   app.post(
-    '/v1/instances/:name/messages/text',
+    scopedInstancePaths('/messages/text'),
     {
       schema: {
         tags: ['Messages'],
@@ -133,8 +133,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -158,7 +157,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/reply',
+    scopedInstancePaths('/messages/reply'),
     {
       schema: {
         tags: ['Messages'],
@@ -169,8 +168,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -203,7 +201,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/image',
+    scopedInstancePaths('/messages/image'),
     {
       schema: {
         tags: ['Messages'],
@@ -215,8 +213,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -250,7 +247,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/video',
+    scopedInstancePaths('/messages/video'),
     {
       schema: {
         tags: ['Messages'],
@@ -261,8 +258,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -292,7 +288,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/audio',
+    scopedInstancePaths('/messages/audio'),
     {
       schema: {
         tags: ['Messages'],
@@ -304,8 +300,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -334,7 +329,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/document',
+    scopedInstancePaths('/messages/document'),
     {
       schema: {
         tags: ['Messages'],
@@ -346,8 +341,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -379,7 +373,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/sticker',
+    scopedInstancePaths('/messages/sticker'),
     {
       schema: {
         tags: ['Messages'],
@@ -390,8 +384,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -419,7 +412,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/location',
+    scopedInstancePaths('/messages/location'),
     {
       schema: {
         tags: ['Messages'],
@@ -430,8 +423,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -456,7 +448,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/poll',
+    scopedInstancePaths('/messages/poll'),
     {
       schema: {
         tags: ['Messages'],
@@ -467,8 +459,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -491,7 +482,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/react',
+    scopedInstancePaths('/messages/react'),
     {
       schema: {
         tags: ['Messages'],
@@ -502,8 +493,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -522,7 +512,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/edit',
+    scopedInstancePaths('/messages/edit'),
     {
       schema: {
         tags: ['Messages'],
@@ -533,8 +523,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -551,7 +540,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/revoke',
+    scopedInstancePaths('/messages/revoke'),
     {
       schema: {
         tags: ['Messages'],
@@ -562,8 +551,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -579,7 +567,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/contact',
+    scopedInstancePaths('/messages/contact'),
     {
       schema: {
         tags: ['Messages'],
@@ -606,8 +594,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -648,7 +635,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/forward',
+    scopedInstancePaths('/messages/forward'),
     {
       schema: {
         tags: ['Messages'],
@@ -667,8 +654,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       if (!messages) throw badRequest('message store not available')
 
@@ -698,7 +684,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.post(
-    '/v1/instances/:name/messages/star',
+    scopedInstancePaths('/messages/star'),
     {
       schema: {
         tags: ['Messages'],
@@ -715,8 +701,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const chatJid = await recipientJid(name, body.chatId)
@@ -734,7 +719,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   )
 
   app.get(
-    '/v1/instances/:name/messages/:messageId',
+    scopedInstancePaths('/messages/:messageId'),
     {
       schema: {
         tags: ['Messages'],
@@ -745,10 +730,10 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       if (!messages) return { message: null }
-      const msg = await messages.get(params.name, params.messageId)
-      return { message: msg ? toPublicMessage(msg, { instanceName: params.name }) : null }
+      const msg = await messages.get(name, params.messageId)
+      return { message: msg ? toPublicMessage(msg, { instanceName: name }) : null }
     },
   )
 }

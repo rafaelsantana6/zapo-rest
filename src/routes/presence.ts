@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import {
   ChatstateBodySchema,
   ChatstateParamsSchema,
@@ -24,7 +24,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
   const { manager, cache } = deps
 
   app.post(
-    '/v1/instances/:name/presence',
+    scopedInstancePaths('/presence'),
     {
       schema: {
         tags: ['Presence'],
@@ -46,8 +46,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.presence.send(body.type)
@@ -56,7 +55,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
   )
 
   app.post(
-    '/v1/instances/:name/chats/:jid/chatstate',
+    scopedInstancePaths('/chats/:jid/chatstate'),
     {
       schema: {
         tags: ['Presence'],
@@ -88,9 +87,9 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = request.body
-      const client = manager.requireRegisteredClient(params.name)
+      const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, decodeURIComponent(params.jid), cache)
       const state = body.state === 'paused' ? 'paused' : 'composing'
       await client.presence.sendChatstate(jid, {
@@ -106,7 +105,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
    * Required before the dashboard receives `presence.update` / `chatstate` events.
    */
   app.post(
-    '/v1/instances/:name/presence/subscribe',
+    scopedInstancePaths('/presence/subscribe'),
     {
       schema: {
         tags: ['Presence'],
@@ -122,8 +121,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       // Subscribes PN + all LID aliases and marks us available (55 + nono dígito inside manager)
       const { jids } = await manager.subscribePresence(name, body.jid)

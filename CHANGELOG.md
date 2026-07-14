@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Profile push name + avatar**: `PUT /v1/profile/name` (and named path) updates
+  WhatsApp display name (`setPushName`); `PUT /v1/profile/image` (alias
+  `/profile/picture`) sets the avatar from `mediaUrl` or `mediaBase64`. Also
+  `DELETE /v1/profile/image|picture`. Short form works with instance API key.
+- **Instance inference from API key (dual routing)**: instance-scoped routes
+  accept both `/v1/instances/:name/...` (admin + explicit) and a short form
+  without the name (`/v1/...` for resources, `/v1/instance/...` for lifecycle).
+  With an **instance** API key the target is inferred from the key. With the
+  **admin** API key the name is **required** (short form without name → 400).
+  Documented in DESIGN-DECISIONS, README, guide `auth`/`why`/`quickstart`/`faq`
+  (pt/en/es), FEATURE-MAP, and OpenAPI description.
+
+### Changed
+
+- **Instance API keys are plaintext end-to-end**: stored as `instances.api_key`
+  (`NOT NULL`, unique), **always** returned on list/get/create/rotate (never
+  null/omitted), and used for auth via direct lookup (no `api_key_hash`).
+  Also returns `pushName` and `avatarUrl` when known. Upgrade mints new keys
+  for any row that still lacked plaintext after the hash-era drop.
+
 ## [0.3.0] - 2026-07-14
 
 ### Added

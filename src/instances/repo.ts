@@ -1,14 +1,15 @@
 import type pg from 'pg'
-import { generateApiKey, hashApiKey } from '~/lib/crypto-keys'
+import { generateApiKey } from '~/lib/crypto-keys'
 import type { CreateInstanceInput, InstanceRecord, InstanceStatus } from './types'
 
 type Row = {
   name: string
-  api_key_hash: string
+  api_key: string
   webhook_url: string | null
   webhook_events: string[] | null
   status: string
   me_jid: string | null
+  push_name: string | null
   pair_phone: string | null
   last_qr: string | null
   last_qr_at: Date | null
@@ -17,20 +18,18 @@ type Row = {
   updated_at: Date
 }
 
-/**
- * Placeholder returned in `apiKey` on reads: the plaintext key is hashed at rest
- * and unrecoverable. Only create/rotate override this with the real key (once).
- */
-const MASKED_API_KEY = '***'
-
 function mapRow(row: Row): InstanceRecord {
+  if (!row.api_key || !String(row.api_key).trim()) {
+    throw new Error(`instance "${row.name}" has empty api_key — run migrate / rotate keys`)
+  }
   return {
     name: row.name,
-    apiKey: MASKED_API_KEY,
+    apiKey: row.api_key,
     webhookUrl: row.webhook_url,
     webhookEvents: row.webhook_events ?? [],
     status: row.status as InstanceStatus,
     meJid: row.me_jid,
+    pushName: row.push_name ?? null,
     pairPhone: row.pair_phone,
     lastQr: row.last_qr,
     lastQrAt: row.last_qr_at,
@@ -54,9 +53,9 @@ export class InstanceRepo {
     return row ? mapRow(row) : null
   }
 
-  /** Resolve an instance by its plaintext key via the stored SHA-256 hash. */
+  /** Resolve an instance by its plaintext API key (unique index on `api_key`). */
   async getByApiKey(apiKey: string): Promise<InstanceRecord | null> {
-    const { rows } = await this.pool.query<Row>('SELECT * FROM instances WHERE api_key_hash = $1', [hashApiKey(apiKey)])
+    const { rows } = await this.pool.query<Row>('SELECT * FROM instances WHERE api_key = $1', [apiKey])
     const row = rows[0]
     return row ? mapRow(row) : null
   }
@@ -64,15 +63,14 @@ export class InstanceRepo {
   async create(input: CreateInstanceInput): Promise<InstanceRecord> {
     const apiKey = generateApiKey()
     const { rows } = await this.pool.query<Row>(
-      `INSERT INTO instances (name, api_key_hash, webhook_url, webhook_events, pair_phone)
+      `INSERT INTO instances (name, api_key, webhook_url, webhook_events, pair_phone)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [input.name, hashApiKey(apiKey), input.webhookUrl ?? null, input.webhookEvents ?? [], input.pairPhone ?? null],
+      [input.name, apiKey, input.webhookUrl ?? null, input.webhookEvents ?? [], input.pairPhone ?? null],
     )
     const row = rows[0]
     if (!row) throw new Error('insert returned no row')
-    // Surface the plaintext once — it cannot be recovered after this call.
-    return { ...mapRow(row), apiKey }
+    return mapRow(row)
   }
 
   async delete(name: string): Promise<boolean> {
@@ -85,6 +83,7 @@ export class InstanceRepo {
     patch: {
       status?: InstanceStatus
       meJid?: string | null
+      pushName?: string | null
       lastQr?: string | null
       lastQrAt?: Date | null
       pairPhone?: string | null
@@ -103,6 +102,7 @@ export class InstanceRepo {
 
     if (patch.status !== undefined) add('status', patch.status)
     if (patch.meJid !== undefined) add('me_jid', patch.meJid)
+    if (patch.pushName !== undefined) add('push_name', patch.pushName)
     if (patch.lastQr !== undefined) add('last_qr', patch.lastQr)
     if (patch.lastQrAt !== undefined) add('last_qr_at', patch.lastQrAt)
     if (patch.pairPhone !== undefined) add('pair_phone', patch.pairPhone)
@@ -121,12 +121,11 @@ export class InstanceRepo {
   async rotateApiKey(name: string): Promise<InstanceRecord | null> {
     const apiKey = generateApiKey()
     const { rows } = await this.pool.query<Row>(
-      `UPDATE instances SET api_key_hash = $1, updated_at = now() WHERE name = $2 RETURNING *`,
-      [hashApiKey(apiKey), name],
+      `UPDATE instances SET api_key = $1, updated_at = now() WHERE name = $2 RETURNING *`,
+      [apiKey, name],
     )
     const row = rows[0]
-    // Surface the plaintext once — the previous key is now invalid.
-    return row ? { ...mapRow(row), apiKey } : null
+    return row ? mapRow(row) : null
   }
 
   async getConfig(name: string): Promise<Record<string, unknown>> {

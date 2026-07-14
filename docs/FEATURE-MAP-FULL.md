@@ -1,6 +1,6 @@
 # Feature map — zapo-rest
 
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 **Legend:** ✅ implemented · 🟡 partial · ❌ not yet · N/A not applicable
 
@@ -11,6 +11,7 @@ Last updated: 2026-07-12
 | Area | Status |
 |------|--------|
 | Instances (create/connect/QR/pairing/restart/delete) | ✅ |
+| Dual instance paths (named `/v1/instances/:name/...` + short `/v1/...` / `/v1/instance/...`; admin must name) | ✅ |
 | Messages (text/media/sticker/location/contact/reaction/poll/status/star) | ✅ |
 | Interactive buttons/list/template Cloud | ❌ |
 | Chats (list/messages/read/archive/history-sync) | ✅ |
@@ -21,6 +22,7 @@ Last updated: 2026-07-12
 | Audio blast + STT (`/calls/blast`, `/calls/:id/transcribe`) | ✅ |
 | WAM telemetry (`@zapo-js/wam`, `WAM_ENABLED` default on) | ✅ |
 | Profile / presence / privacy / status stories | ✅ |
+| Profile set push name + avatar (`/profile/name`, `/profile/image`) | ✅ |
 | Media local/S3 + stream + getBase64 | ✅ |
 | Multi-webhook + HMAC + outbox | ✅ |
 | SSE `GET /v1/events` | ✅ |

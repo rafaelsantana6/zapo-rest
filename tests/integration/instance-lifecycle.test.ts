@@ -26,11 +26,12 @@ describe('instance lifecycle HTTP contracts', () => {
       headers: { 'x-api-key': created.apiKey },
     })
     expect(get.statusCode).toBe(200)
-    // Reads authenticate with the created key (200 above proves it works) but never echo it back:
-    // the key is hashed at rest and the read view omits it.
+    // GET with instance token returns full instance including apiKey, pushName, avatarUrl.
     const inst = InstanceResponseSchema.parse(get.json())
     expect(inst.instance.name).toBe('life-1')
-    expect(inst.instance).not.toHaveProperty('apiKey')
+    expect(inst.instance.apiKey).toBe(created.apiKey)
+    expect(inst.instance).toHaveProperty('pushName')
+    expect(inst.instance).toHaveProperty('avatarUrl')
 
     const rotate = await ctx.app.inject({
       method: 'POST',
@@ -38,9 +39,9 @@ describe('instance lifecycle HTTP contracts', () => {
       headers: { 'x-api-key': ADMIN_KEY },
     })
     if (rotate.statusCode === 200) {
-      // Rotate is one of the two responses (with create) that surface the plaintext key once.
       const rotated = InstanceWithKeyResponseSchema.parse(rotate.json())
       expect(rotated.instance.apiKey).not.toBe(created.apiKey)
+      expect(rotated.instance.apiKey).toBeTruthy()
       // old key must fail
       const old = await ctx.app.inject({
         method: 'GET',

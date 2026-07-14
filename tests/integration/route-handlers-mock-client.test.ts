@@ -371,4 +371,80 @@ describe('route handlers with mocked WA client', () => {
       expect(res.statusCode).toBe(200)
     })
   })
+
+  describe('profile name + image', () => {
+    it('PUT /profile/name (short) sets push name on WhatsApp', async () => {
+      const res = await ctx.app.inject({
+        method: 'PUT',
+        url: '/v1/profile/name',
+        headers: key,
+        payload: { name: 'Loja Sales' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json()).toMatchObject({ ok: true })
+      expect(ctx.client.profile.setPushName).toHaveBeenCalledWith('Loja Sales')
+    })
+
+    it('PUT /instances/:name/profile/name accepts pushName alias', async () => {
+      const res = await ctx.app.inject({
+        method: 'PUT',
+        url: `/v1/instances/${INSTANCE}/profile/name`,
+        headers: key,
+        payload: { pushName: 'Alias Name' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(ctx.client.profile.setPushName).toHaveBeenCalledWith('Alias Name')
+    })
+
+    it('PUT /profile/image (short) sets avatar from base64', async () => {
+      const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x00, 0x01]).toString('base64')
+      const res = await ctx.app.inject({
+        method: 'PUT',
+        url: '/v1/profile/image',
+        headers: key,
+        payload: { mediaBase64: jpegB64, mimetype: 'image/jpeg' },
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json() as { ok: boolean; pictureId?: string }
+      expect(body.ok).toBe(true)
+      expect(body.pictureId).toBe('pic-id-1')
+      expect(ctx.client.profile.setProfilePicture).toHaveBeenCalled()
+      const calls = ctx.client.profile.setProfilePicture.mock.calls as unknown as unknown[][]
+      const bytes = calls.at(-1)?.[0]
+      expect(Buffer.isBuffer(bytes)).toBe(true)
+      expect((bytes as Buffer).byteLength).toBeGreaterThan(0)
+    })
+
+    it('PUT /profile/picture is alias of /profile/image', async () => {
+      const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x02]).toString('base64')
+      const res = await ctx.app.inject({
+        method: 'PUT',
+        url: `/v1/instances/${INSTANCE}/profile/picture`,
+        headers: key,
+        payload: { mediaBase64: jpegB64 },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(ctx.client.profile.setProfilePicture).toHaveBeenCalled()
+    })
+
+    it('rejects image without media source', async () => {
+      const res = await ctx.app.inject({
+        method: 'PUT',
+        url: '/v1/profile/image',
+        headers: key,
+        payload: {},
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('DELETE /profile/image removes avatar', async () => {
+      const res = await ctx.app.inject({
+        method: 'DELETE',
+        url: '/v1/profile/image',
+        headers: key,
+      })
+      expect(res.statusCode).toBe(200)
+      expect(ctx.client.profile.deleteProfilePicture).toHaveBeenCalled()
+    })
+  })
 })

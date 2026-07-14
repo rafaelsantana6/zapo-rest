@@ -59,6 +59,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **Modern WA identity** — LID ↔ PN map + reconcile (no split history)
 - **Ops-friendly boot** — HTTP listens before long reconnect/reconcile (healthchecks stay green)
 - **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
+- **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
 
 | Decision | Benefit |
 | -------- | ------- |
@@ -70,6 +71,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **`processed_events` claim** | Protocol redelivery does not double-fire side-effects. |
 | **SSE for app events / WS for VoIP only** | Right tool per job; no fragile general events WebSocket. |
 | **Header API keys preferred** | Keys out of access logs, proxies, and `Referer`. |
+| **Instance inferred from API key** (dual routes) | Named `/v1/instances/:name/...` always works; short `/v1/...` and `/v1/instance/...` for instance keys. Admin must pass `:name`. |
 | **Per-session serial queue** | No races on message upsert, ack, and presence for a given instance. |
 | **LID ↔ PN map + reconcile** | Modern WhatsApp identities without split chat history. |
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
@@ -217,7 +219,7 @@ pnpm openapi:export
 | Key | Source | Scope |
 | --- | ------ | ----- |
 | Admin | `ADMIN_API_KEY` env (≥ 16 chars) | All instances |
-| Instance | `apiKey` returned on create | That instance only |
+| Instance | `apiKey` on list/get/create/rotate (plaintext) | That instance only |
 
 Headers (preferred):
 
@@ -228,6 +230,23 @@ Authorization: Bearer <key>
 ```
 
 Query `?apiKey=` is supported only as a **fallback** for native `EventSource` and some browser WebSocket clients. Prefer headers everywhere else (avoids keys in access logs / proxies / Referer).
+
+### Instance scope (dual paths)
+
+| Who | Path |
+| --- | ---- |
+| **Admin** | Always name the instance: `/v1/instances/:name/...` (short form without name → **400**) |
+| **Instance key** | Named **or** short form — target is inferred from the key |
+
+Short form examples (instance key):
+
+```http
+POST /v1/messages/text          # same as POST /v1/instances/:name/messages/text
+GET  /v1/instance               # same as GET  /v1/instances/:name
+POST /v1/instance/connect       # same as POST /v1/instances/:name/connect
+```
+
+Lifecycle short form uses singular `/v1/instance` so it never collides with the admin collection `/v1/instances`.
 
 ---
 
@@ -327,18 +346,33 @@ Parity matrices: [`docs/API-COVERAGE.md`](docs/API-COVERAGE.md), [`docs/FEATURE-
 
 ## Main endpoints
 
+Named paths work for **admin** and **instance** keys. With an **instance** key you may also drop the name (short form).
+
 ```http
-# Instances
+# Instances (admin collection)
 POST/GET /v1/instances
+
+# Instance lifecycle — named (admin must use this)
 GET/DELETE /v1/instances/:name
 POST /v1/instances/:name/connect|disconnect|restart
 GET /v1/instances/:name/qr
+# Instance lifecycle — short (instance key only)
+GET  /v1/instance
+POST /v1/instance/connect|disconnect|restart
+GET  /v1/instance/qr
 
-# Messages
-POST /v1/instances/:name/messages/{text,reply,image,video,audio,document,sticker,location,poll,react,edit,revoke}
+# Messages — named or short
+POST /v1/instances/:name/messages/{text,reply,image,…}
+POST /v1/messages/{text,reply,image,…}          # instance key
 
-# Chats / history
+# Own profile (push name + avatar)
+PUT /v1/instances/:name/profile/name            # or PUT /v1/profile/name
+PUT /v1/instances/:name/profile/image           # or PUT /v1/profile/image (+ /picture alias)
+DELETE /v1/instances/:name/profile/image        # or DELETE /v1/profile/image
+
+# Chats / history — named or short
 GET /v1/instances/:name/chats
+GET /v1/chats                                   # instance key
 GET /v1/instances/:name/chats/:chatId/messages
 POST /v1/instances/:name/chats/:chatId/messages/read
 POST /v1/instances/:name/chats/:chatId/history-sync
@@ -348,9 +382,9 @@ GET /v1/events?instance=optional
 X-Api-Key: …
 
 # VoIP remains WebSocket
-# /v1/voip · /v1/instances/:name/calls/:id/stream
-# POST /v1/instances/:name/calls/blast          # outbound play-WAV + optional STT
-# POST /v1/instances/:name/calls/:id/transcribe # STT on stored recording (STT_* env)
+# /v1/voip · /v1/instances/:name/calls/:id/stream  (or /v1/calls/:id/stream with instance key)
+# POST /v1/instances/:name/calls/blast
+# POST /v1/instances/:name/calls/:id/transcribe
 ```
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.

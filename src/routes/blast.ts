@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import {
   BlastBodySchema,
@@ -35,7 +35,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
   const { manager, mediaStorage, cache, env, calls } = deps
 
   app.post<InstanceParams & { Body: z.infer<typeof BlastBodySchema> }>(
-    '/v1/instances/:name/calls/blast',
+    scopedInstancePaths('/calls/blast'),
     {
       schema: {
         tags: ['Calls'],
@@ -74,8 +74,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
 
       const body = request.body
       if (!body.audioUrl) {
@@ -112,7 +111,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
   )
 
   app.post<CallParams>(
-    '/v1/instances/:name/calls/:callId/transcribe',
+    scopedInstancePaths('/calls/:callId/transcribe'),
     {
       schema: {
         tags: ['Calls'],
@@ -146,7 +145,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
 
       if (!env.STT_ENABLED || !env.STT_API_URL || !env.STT_API_KEY) {
         throw serviceUnavailable('STT not configured — set STT_ENABLED=true, STT_API_URL, and STT_API_KEY')
@@ -156,7 +155,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
         throw serviceUnavailable('call store or media storage unavailable')
       }
 
-      const row = await calls.get(params.name, params.callId)
+      const row = await calls.get(name, params.callId)
       if (!row) {
         throw notFound(`call ${params.callId} not found`)
       }

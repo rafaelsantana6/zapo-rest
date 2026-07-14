@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import { InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
@@ -46,7 +46,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
   const allowHttp = (deps.env?.NODE_ENV ?? process.env.NODE_ENV) !== 'production'
 
   app.get(
-    '/v1/instances/:name/webhooks',
+    scopedInstancePaths('/webhooks'),
     {
       schema: {
         tags: ['Webhooks'],
@@ -63,8 +63,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       await manager.get(name) // 404 if missing
       const rows = await webhookRepo.list(name)
       return {
@@ -75,7 +74,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
   )
 
   app.post(
-    '/v1/instances/:name/webhooks',
+    scopedInstancePaths('/webhooks'),
     {
       schema: {
         tags: ['Webhooks'],
@@ -86,8 +85,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const { name } = InstanceNameParams.parse(request.params)
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
       await manager.get(name)
       const body = WebhookBody.parse(request.body)
       await assertPublicUrl(body.url, { allowHttp })
@@ -104,7 +102,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
   )
 
   app.get(
-    '/v1/instances/:name/webhooks/:webhookId',
+    scopedInstancePaths('/webhooks/:webhookId'),
     {
       schema: {
         tags: ['Webhooks'],
@@ -115,15 +113,15 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
     },
     async (request) => {
       const params = WebhookIdParams.parse(request.params)
-      requireInstanceAccess(request, params.name)
-      const row = await webhookRepo.get(params.name, params.webhookId)
+      const name = resolveInstanceName(request, params.name)
+      const row = await webhookRepo.get(name, params.webhookId)
       if (!row) throw notFound('webhook not found')
       return { webhook: toPublicWebhook(row) }
     },
   )
 
   app.put(
-    '/v1/instances/:name/webhooks/:webhookId',
+    scopedInstancePaths('/webhooks/:webhookId'),
     {
       schema: {
         tags: ['Webhooks'],
@@ -135,10 +133,10 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
     },
     async (request) => {
       const params = WebhookIdParams.parse(request.params)
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = WebhookBody.partial().parse(request.body)
       if (body.url !== undefined) await assertPublicUrl(body.url, { allowHttp })
-      const row = await webhookRepo.update(params.name, params.webhookId, {
+      const row = await webhookRepo.update(name, params.webhookId, {
         url: body.url,
         events: body.events,
         hmacKey: body.hmac === null ? null : body.hmac?.key,
@@ -152,7 +150,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
   )
 
   app.delete(
-    '/v1/instances/:name/webhooks/:webhookId',
+    scopedInstancePaths('/webhooks/:webhookId'),
     {
       schema: {
         tags: ['Webhooks'],
@@ -163,8 +161,8 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
     },
     async (request) => {
       const params = WebhookIdParams.parse(request.params)
-      requireInstanceAccess(request, params.name)
-      const ok = await webhookRepo.delete(params.name, params.webhookId)
+      const name = resolveInstanceName(request, params.name)
+      const ok = await webhookRepo.delete(name, params.webhookId)
       if (!ok) throw notFound('webhook not found')
       return { ok: true as const }
     },

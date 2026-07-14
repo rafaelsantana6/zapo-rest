@@ -15,7 +15,7 @@ export type AttachCallStreamOpts = {
   instanceName: string
   callId: string
   apiKey: string
-  /** Required for instance-key auth (keys are hashed — never compare to masked apiKey). */
+  /** Required for instance-key auth (lookup by plaintext api_key). */
   instanceRepo: InstanceRepo
   callRecording?: import('~/voip/recording-manager').CallRecordingManager
 }

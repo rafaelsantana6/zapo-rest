@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import {
   CallGetResponseSchema,
@@ -47,7 +47,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   const { manager, env, instanceRepo, calls, callRecording, mediaStorage, cache } = deps
 
   app.post<InstanceParams & { Body: z.infer<typeof StartCallBodySchema> }>(
-    '/v1/instances/:name/calls',
+    scopedInstancePaths('/calls'),
     {
       schema: {
         tags: ['Calls'],
@@ -80,8 +80,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = asVoipClient(manager.requireRegisteredClient(name))
       // 55 + nono dígito via usync (e.g. 68981159096 → 556881159096@…)
@@ -107,7 +106,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
 
   // Static paths before :callId
   app.get<InstanceParams & { Querystring: { limit?: number; offset?: number; withRecording: boolean } }>(
-    '/v1/instances/:name/calls/history',
+    scopedInstancePaths('/calls/history'),
     {
       schema: {
         tags: ['Calls'],
@@ -127,8 +126,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       if (!calls) return { calls: [] }
       const q = request.query
       const rows = await calls.list(name, {
@@ -141,7 +139,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   )
 
   app.get<InstanceParams>(
-    '/v1/instances/:name/settings/call-recording',
+    scopedInstancePaths('/settings/call-recording'),
     {
       schema: {
         tags: ['Calls'],
@@ -151,8 +149,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       if (!callRecording) {
         return { callRecordingEnabled: false, storageReady: false }
       }
@@ -161,7 +158,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   )
 
   app.put<InstanceParams & { Body: { enabled: boolean } }>(
-    '/v1/instances/:name/settings/call-recording',
+    scopedInstancePaths('/settings/call-recording'),
     {
       schema: {
         tags: ['Calls'],
@@ -174,8 +171,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       if (!callRecording) throw badRequest('call recording not available')
       try {
@@ -187,7 +183,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   )
 
   app.get<InstanceParams>(
-    '/v1/instances/:name/calls',
+    scopedInstancePaths('/calls'),
     {
       schema: {
         tags: ['Calls'],
@@ -205,8 +201,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       const live = client.voip.getCalls()
       return { calls: live.map((c) => serializeCallInfo(c)) }
@@ -214,7 +209,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   )
 
   app.get<CallParams>(
-    '/v1/instances/:name/calls/:callId',
+    scopedInstancePaths('/calls/:callId'),
     {
       schema: {
         tags: ['Calls'],
@@ -233,8 +228,8 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const client = asVoipClient(manager.requireRegisteredClient(params.name))
+      const name = resolveInstanceName(request, params.name)
+      const client = asVoipClient(manager.requireRegisteredClient(name))
       const call = client.voip.getCall(params.callId)
       if (!call) {
         return { call: null }
@@ -244,7 +239,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   )
 
   app.post<CallParams>(
-    '/v1/instances/:name/calls/:callId/accept',
+    scopedInstancePaths('/calls/:callId/accept'),
     {
       schema: {
         tags: ['Calls'],
@@ -265,8 +260,8 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     async (request) => {
       const params = request.params
       const log = request.log.child({ component: 'calls', op: 'accept' })
-      requireInstanceAccess(request, params.name)
-      const client = asVoipClient(manager.requireRegisteredClient(params.name))
+      const name = resolveInstanceName(request, params.name)
+      const client = asVoipClient(manager.requireRegisteredClient(name))
       const resolved = resolveLiveCall(client, params.callId)
       if (!resolved) {
         log.warn({ callId: params.callId }, 'accept — call not found')
@@ -321,7 +316,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
   )
 
   app.post<CallParams & { Body: z.infer<typeof CallReasonBodySchema> }>(
-    '/v1/instances/:name/calls/:callId/reject',
+    scopedInstancePaths('/calls/:callId/reject'),
     {
       schema: {
         tags: ['Calls'],
@@ -341,15 +336,15 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const client = asVoipClient(manager.requireRegisteredClient(params.name))
+      const name = resolveInstanceName(request, params.name)
+      const client = asVoipClient(manager.requireRegisteredClient(name))
       await client.voip.rejectCall(params.callId)
       return { ok: true as const }
     },
   )
 
   app.post<CallParams & { Body: z.infer<typeof CallReasonBodySchema> }>(
-    '/v1/instances/:name/calls/:callId/end',
+    scopedInstancePaths('/calls/:callId/end'),
     {
       schema: {
         tags: ['Calls'],
@@ -369,15 +364,15 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const client = asVoipClient(manager.requireRegisteredClient(params.name))
+      const name = resolveInstanceName(request, params.name)
+      const client = asVoipClient(manager.requireRegisteredClient(name))
       await client.voip.endCall(params.callId)
       return { ok: true as const }
     },
   )
 
   app.post<CallParams & { Body: z.infer<typeof MuteBodySchema> }>(
-    '/v1/instances/:name/calls/:callId/mute',
+    scopedInstancePaths('/calls/:callId/mute'),
     {
       schema: {
         tags: ['Calls'],
@@ -398,16 +393,16 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = request.body
-      const client = asVoipClient(manager.requireRegisteredClient(params.name))
+      const client = asVoipClient(manager.requireRegisteredClient(name))
       client.voip.setMute(params.callId, body.muted)
       return { ok: true as const }
     },
   )
 
   app.get<CallParams>(
-    '/v1/instances/:name/calls/:callId/recording',
+    scopedInstancePaths('/calls/:callId/recording'),
     {
       schema: {
         tags: ['Calls'],
@@ -422,9 +417,9 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request, reply) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       if (!calls || !mediaStorage) throw notFound('recording store unavailable')
-      const row = await calls.get(params.name, params.callId)
+      const row = await calls.get(name, params.callId)
       if (!row?.recordingStorageKey || row.recordingStatus !== 'ready') {
         throw notFound('recording not available for this call')
       }
@@ -437,7 +432,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
 
   // WebSocket PCM stream — documented for OpenAPI (upgrade path)
   app.get(
-    '/v1/instances/:name/calls/:callId/stream',
+    scopedInstancePaths('/calls/:callId/stream'),
     {
       websocket: true,
       schema: {
@@ -478,11 +473,19 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         return
       }
 
+      let instanceName: string
+      try {
+        instanceName = resolveInstanceName(request, params.name)
+      } catch {
+        socket.close(4403, 'forbidden')
+        return
+      }
+
       void attachCallStream({
         socket,
         manager,
         env,
-        instanceName: params.name,
+        instanceName,
         callId: params.callId,
         apiKey,
         instanceRepo,

@@ -52,7 +52,17 @@ export function createMockWaClient(overrides: Record<string, unknown> = {}) {
     },
     profile: {
       getLidsByPhoneNumbers,
+      getStatus: vi.fn(async () => ({ status: 'Hey there!' })),
+      getProfilePicture: vi.fn(async () => ({ url: 'https://example.com/pic.jpg' })),
+      setPushName: vi.fn(async () => undefined),
+      setStatus: vi.fn(async () => undefined),
+      setProfilePicture: vi.fn(async () => 'pic-id-1'),
+      deleteProfilePicture: vi.fn(async () => undefined),
     },
+    getCredentials: vi.fn(() => ({
+      meJid: '5511999999999:1@s.whatsapp.net',
+      pushName: 'Test',
+    })),
     privacy: {
       getPrivacySettings: vi.fn(async () => ({ last: 'all', status: 'contacts' })),
       setPrivacySetting: vi.fn(async () => undefined),
@@ -64,6 +74,10 @@ export function createMockWaClient(overrides: Record<string, unknown> = {}) {
       subscribe: vi.fn(async () => undefined),
     },
     ...overrides,
+  }
+  // Deep-merge profile if caller overrides only part of it
+  if (overrides.profile && typeof overrides.profile === 'object') {
+    client.profile = { ...client.profile, ...(overrides.profile as object) }
   }
   return client
 }

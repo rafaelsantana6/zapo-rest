@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import { InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
@@ -34,7 +34,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
   const { manager, env, cache } = deps
 
   app.post(
-    '/v1/instances/:name/status/send',
+    scopedInstancePaths('/status/send'),
     {
       schema: {
         tags: ['Status'],
@@ -47,8 +47,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
 
@@ -111,7 +110,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
   )
 
   app.post(
-    '/v1/instances/:name/status/revoke',
+    scopedInstancePaths('/status/revoke'),
     {
       schema: {
         tags: ['Status'],
@@ -126,8 +125,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const recipients: string[] = []
@@ -144,7 +142,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
   )
 
   app.post(
-    '/v1/instances/:name/status/privacy',
+    scopedInstancePaths('/status/privacy'),
     {
       schema: {
         tags: ['Status'],
@@ -169,8 +167,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const userJids: string[] = []
@@ -199,7 +196,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
   )
 
   app.post(
-    '/v1/instances/:name/status/mute',
+    scopedInstancePaths('/status/mute'),
     {
       schema: {
         tags: ['Status'],
@@ -213,8 +210,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, body.jid, cache)

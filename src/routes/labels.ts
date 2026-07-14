@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
-import { requireInstanceAccess } from '~/auth/plugin'
+import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { notFound } from '~/lib/errors'
@@ -31,7 +31,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
   const r = app.withTypeProvider<ZodTypeProvider>()
 
   r.get(
-    '/v1/instances/:name/labels',
+    scopedInstancePaths('/labels'),
     {
       schema: {
         tags: ['Labels'],
@@ -42,8 +42,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       await manager.get(name)
       const rows = await labels.list(name)
       return { labels: rows.map(toPublicLabel) }
@@ -51,7 +50,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
   )
 
   r.post(
-    '/v1/instances/:name/labels',
+    scopedInstancePaths('/labels'),
     {
       schema: {
         tags: ['Labels'],
@@ -62,8 +61,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
       },
     },
     async (request) => {
-      const { name } = request.params
-      requireInstanceAccess(request, name)
+      const name = resolveInstanceName(request, request.params.name)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const row = await labels.upsert({
@@ -87,7 +85,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
   )
 
   r.put(
-    '/v1/instances/:name/labels/:labelId',
+    scopedInstancePaths('/labels/:labelId'),
     {
       schema: {
         tags: ['Labels'],
@@ -99,13 +97,13 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = request.body
-      const existing = await labels.get(params.name, params.labelId)
+      const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
-      const client = manager.requireRegisteredClient(params.name)
+      const client = manager.requireRegisteredClient(name)
       const row = await labels.upsert({
-        instanceName: params.name,
+        instanceName: name,
         labelId: params.labelId,
         name: body.name,
         color: body.color ?? existing.color,
@@ -125,7 +123,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
   )
 
   r.delete(
-    '/v1/instances/:name/labels/:labelId',
+    scopedInstancePaths('/labels/:labelId'),
     {
       schema: {
         tags: ['Labels'],
@@ -137,11 +135,11 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const existing = await labels.get(params.name, params.labelId)
+      const name = resolveInstanceName(request, params.name)
+      const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
       try {
-        const client = manager.requireRegisteredClient(params.name)
+        const client = manager.requireRegisteredClient(name)
         await client.chat.set({
           schema: 'LabelEdit',
           id: params.labelId,
@@ -155,13 +153,13 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
       } catch {
         // still delete local
       }
-      await labels.delete(params.name, params.labelId)
+      await labels.delete(name, params.labelId)
       return { ok: true as const }
     },
   )
 
   r.post(
-    '/v1/instances/:name/labels/:labelId/chats',
+    scopedInstancePaths('/labels/:labelId/chats'),
     {
       schema: {
         tags: ['Labels'],
@@ -176,11 +174,11 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
+      const name = resolveInstanceName(request, params.name)
       const body = request.body
-      const existing = await labels.get(params.name, params.labelId)
+      const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
-      const client = manager.requireRegisteredClient(params.name)
+      const client = manager.requireRegisteredClient(name)
       const chatJid = await resolveRecipientJid(client, body.chatId, cache)
       if (body.labeled) {
         await client.chat.set({
@@ -196,13 +194,13 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
           chatJid,
         } as never)
       }
-      await labels.setChatLabel(params.name, params.labelId, chatJid, body.labeled)
+      await labels.setChatLabel(name, params.labelId, chatJid, body.labeled)
       return { ok: true as const, labelId: params.labelId, chatId: chatJid, labeled: body.labeled }
     },
   )
 
   r.get(
-    '/v1/instances/:name/labels/:labelId/chats',
+    scopedInstancePaths('/labels/:labelId/chats'),
     {
       schema: {
         tags: ['Labels'],
@@ -213,16 +211,16 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const existing = await labels.get(params.name, params.labelId)
+      const name = resolveInstanceName(request, params.name)
+      const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
-      const chats = await labels.listChats(params.name, params.labelId)
+      const chats = await labels.listChats(name, params.labelId)
       return { chats }
     },
   )
 
   r.get(
-    '/v1/instances/:name/chats/:chatId/labels',
+    scopedInstancePaths('/chats/:chatId/labels'),
     {
       schema: {
         tags: ['Labels'],
@@ -233,10 +231,10 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      requireInstanceAccess(request, params.name)
-      const client = manager.tryGetClient(params.name)
+      const name = resolveInstanceName(request, params.name)
+      const client = manager.tryGetClient(name)
       const chatJid = await resolveRecipientJid(client, params.chatId, cache)
-      const rows = await labels.listLabelsForChat(params.name, chatJid)
+      const rows = await labels.listLabelsForChat(name, chatJid)
       return { labels: rows.map(toPublicLabel) }
     },
   )

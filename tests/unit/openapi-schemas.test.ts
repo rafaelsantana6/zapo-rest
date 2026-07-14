@@ -72,11 +72,16 @@ describe('OpenAPI Zod contracts — output shapes (integration safety)', () => {
   })
 
   it('rejects instance payloads that drop required fields (breaking clients)', () => {
-    // apiKey is intentionally absent from the read view (keys are hashed at rest), so dropping
-    // a genuinely required read field — name — is what must break clients here.
     const { name: _n, ...broken } = sampleInstance
     expect(() => InstanceSchema.parse(broken)).toThrow()
     expect(() => InstanceSchema.parse({ ...sampleInstance, status: 'flying' })).toThrow()
+  })
+
+  it('instance read shape includes apiKey, pushName, avatarUrl', () => {
+    const parsed = InstanceSchema.parse(sampleInstance)
+    expect(parsed.apiKey).toMatch(/^zr_/)
+    expect(parsed.pushName).toBe('Loja Sales')
+    expect(parsed.avatarUrl).toContain('profile-picture')
   })
 
   it('QrResponseSchema / Ok / Error envelopes', () => {

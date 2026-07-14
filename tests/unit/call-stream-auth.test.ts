@@ -2,7 +2,6 @@
  * attachCallStream auth / lifecycle without real WebRTC — mock socket + manager.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { hashApiKey } from '~/lib/crypto-keys'
 import { makeEnv } from '../helpers/fixtures'
 
 // Minimal WS stub
@@ -30,12 +29,10 @@ const PLAIN_INSTANCE_KEY = 'zr_instance_key_min16chars'
 const env = makeEnv()
 
 function repoForKey(instanceName: string, plaintextKey: string) {
-  const digest = hashApiKey(plaintextKey)
   return {
     getByApiKey: vi.fn(async (key: string) => {
-      if (hashApiKey(key) === digest) {
-        // apiKey field is always masked on reads — auth must NOT compare against it
-        return { name: instanceName, apiKey: '***' }
+      if (key === plaintextKey) {
+        return { name: instanceName, apiKey: plaintextKey }
       }
       return null
     }),
@@ -43,7 +40,7 @@ function repoForKey(instanceName: string, plaintextKey: string) {
 }
 
 describe('attachCallStream authorization', () => {
-  it('closes 4403 when instance key is unknown (hash miss)', async () => {
+  it('closes 4403 when instance key is unknown', async () => {
     const { attachCallStream } = await import('~/voip/call-stream')
     const socket = mockSocket()
     const manager = {
@@ -89,7 +86,7 @@ describe('attachCallStream authorization', () => {
     expect(manager.getClient).not.toHaveBeenCalled()
   })
 
-  it('accepts instance key even when record.apiKey is masked ***', async () => {
+  it('accepts valid instance API key', async () => {
     const { attachCallStream } = await import('~/voip/call-stream')
     const socket = mockSocket()
     const voip = {
