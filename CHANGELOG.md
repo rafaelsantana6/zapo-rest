@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-14
+
 ### Added
 
 - **Audio blast + STT**: `POST /v1/instances/:name/calls/blast` places an outbound
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   can transcribe via Groq/OpenAI-compatible Whisper (`STT_*` env).  
   `POST /v1/instances/:name/calls/:callId/transcribe` re-transcribes an existing
   call recording. `audioUrl` is SSRF-guarded; empty compose `STT_API_URL` is safe.
+  Guide VoIP/FAQ (pt/en/es), OpenAPI/Scalar, unit/integration/e2e tests (#43).
 
 ## [0.2.0] - 2026-07-13
 
@@ -200,7 +203,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.2...v0.1.3
