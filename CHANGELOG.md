@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Avatars prefer full-res**: own-profile sync and picture notifications follow
+  env `AVATAR_FETCH_TYPES` (`both` default = download `image` then `preview`;
+  also `image` / `preview` only). Instance/`GET /profile` `avatarUrl` prefers
+  stored full-res over preview. On-demand still uses
+  `GET .../profile-picture?type=preview|image` (default `preview` for lists).
+
 ## [0.5.0] - 2026-07-14
 
 ### Changed

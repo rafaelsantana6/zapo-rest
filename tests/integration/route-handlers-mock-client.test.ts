@@ -414,7 +414,8 @@ describe('route handlers with mocked WA client', () => {
       expect(profileBody.profile.picture).toBeTruthy()
       // IQ must use bare PN, not device JID
       expect(ctx.client.profile.getStatus).toHaveBeenCalledWith('5511999888777@s.whatsapp.net')
-      expect(ctx.client.profile.getProfilePicture).toHaveBeenCalledWith('5511999888777@s.whatsapp.net', 'preview')
+      // Prefer full-res IQ; preview only if image fails
+      expect(ctx.client.profile.getProfilePicture).toHaveBeenCalledWith('5511999888777@s.whatsapp.net', 'image')
 
       const instRes = await ctx.app.inject({
         method: 'GET',
