@@ -224,6 +224,7 @@ const plugin: FastifyPluginAsync = async (app) => {
       layout: 'modern',
       darkMode: true,
       hideModels: false,
+      // Media routes list multipart/form-data first so Try It defaults to file upload
       defaultHttpClient: {
         targetKey: 'shell',
         clientKey: 'curl',
