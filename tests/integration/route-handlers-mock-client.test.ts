@@ -457,7 +457,14 @@ describe('route handlers with mocked WA client', () => {
     })
 
     it('PUT /profile/image (short) sets avatar from base64', async () => {
-      const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x00, 0x01]).toString('base64')
+      const { default: sharp } = await import('sharp')
+      const jpegB64 = (
+        await sharp({
+          create: { width: 24, height: 24, channels: 3, background: { r: 1, g: 2, b: 3 } },
+        })
+          .jpeg()
+          .toBuffer()
+      ).toString('base64')
       const res = await ctx.app.inject({
         method: 'PUT',
         url: '/v1/profile/image',
@@ -476,7 +483,14 @@ describe('route handlers with mocked WA client', () => {
     })
 
     it('PUT /profile/picture is alias of /profile/image', async () => {
-      const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x02]).toString('base64')
+      const { default: sharp } = await import('sharp')
+      const jpegB64 = (
+        await sharp({
+          create: { width: 16, height: 16, channels: 3, background: { r: 9, g: 9, b: 9 } },
+        })
+          .jpeg()
+          .toBuffer()
+      ).toString('base64')
       const res = await ctx.app.inject({
         method: 'PUT',
         url: `/v1/profile/picture`,

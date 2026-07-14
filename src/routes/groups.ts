@@ -6,8 +6,10 @@ import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
 import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
-import { serviceUnavailable } from '~/lib/errors'
+import { badRequest, serviceUnavailable } from '~/lib/errors'
+import { parseWaIqError } from '~/lib/wa-iq-error'
 import { resolveWhatsAppNumbers } from '~/lib/phone-resolve'
+import { normalizeProfileJpeg } from '~/media/profile-image'
 import { mediaPreValidation, requireMediaFromRequest } from '~/media/request-media'
 import type { CacheClient } from '~/redis/client'
 
@@ -396,9 +398,20 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       const jid = normalizeGroupJid(params.groupId)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const bytes = await readFile(media.path)
-        const pictureId = await client.profile.setProfilePicture(bytes, jid)
-        return { ok: true as const, pictureId }
+        const jpeg = await normalizeProfileJpeg(await readFile(media.path))
+        try {
+          const pictureId = await client.profile.setProfilePicture(jpeg, jid)
+          return { ok: true as const, pictureId }
+        } catch (err) {
+          const iq = parseWaIqError(err)
+          if (iq) {
+            throw badRequest(
+              `WhatsApp rejected the group picture (${iq.code ?? iq.kind}). Prefer a clear JPEG/PNG/WebP photo.`,
+              { wa: iq },
+            )
+          }
+          throw err
+        }
       } finally {
         await media.cleanup()
       }
