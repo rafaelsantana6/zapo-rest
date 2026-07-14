@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Multipart media uploads** on POST/PUT media routes: profile/group avatar,
+  messages (image/video/audio/document/sticker), status media, and call blast.
+  Accept `mediaUrl`, `mediaBase64`, or `multipart/form-data` field `file` (aliases
+  `media` / `audio` / …). Cap via env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).
+
 ## [0.6.0] - 2026-07-14
 
 ### Changed

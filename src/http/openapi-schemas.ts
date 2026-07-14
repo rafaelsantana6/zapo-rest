@@ -377,15 +377,14 @@ export const SendTextBodySchema = z
 export const SendMediaBodySchema = z
   .object({
     to: RecipientToSchema,
-    mediaUrl: z
-      .string()
-      .url()
-      .optional()
-      .meta({ description: 'Public HTTPS URL of the file (preferred)', example: EXAMPLES.imageMessage.mediaUrl }),
+    mediaUrl: z.string().url().optional().meta({
+      description: 'Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.',
+      example: EXAMPLES.imageMessage.mediaUrl,
+    }),
     mediaBase64: z
       .string()
       .optional()
-      .meta({ description: 'Base64 or data-URL media (prefer mediaUrl for large files)' }),
+      .meta({ description: 'Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.' }),
     mimetype: z
       .string()
       .optional()
@@ -396,9 +395,20 @@ export const SendMediaBodySchema = z
     viewOnce: z.boolean().optional().meta({ description: 'Image: view-once wrapper', example: false }),
   })
   .meta({
-    description: 'Send media — require mediaUrl or mediaBase64',
+    description:
+      'Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` ' +
+      '(with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).',
     example: EXAMPLES.imageMessage,
   })
+
+/** Shared curl note for media routes (JSON + multipart). */
+export const MEDIA_INPUT_HELP =
+  'Media source (one of):\n' +
+  '- JSON `mediaUrl` — public HTTPS URL (SSRF-guarded download)\n' +
+  '- JSON `mediaBase64` — raw or data-URL base64\n' +
+  '- `multipart/form-data` file field `file` (aliases: `media`, `audio`, `image`, `document`, `video`, `sticker`) ' +
+  'plus text fields for the rest of the body\n\n' +
+  'Max size: `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n'
 
 export const SendMessageResponseSchema = z
   .object({
@@ -592,12 +602,18 @@ export const BlastBodySchema = z
     audioUrl: z
       .string()
       .url()
+      .optional()
       .meta({
         description:
           'HTTPS URL of a WAV file (PCM 8/16/24/32-bit or float32; any sample rate/channels — resampled to 16 kHz mono). ' +
-          'Server-side download is **SSRF-guarded** (public hosts only, no redirects, size/time caps). Prefer hosting on your CDN.',
+          'Server-side download is **SSRF-guarded**. Or send multipart `file` / `audio` / `mediaBase64`.',
         example: 'https://example.com/message.wav',
       }),
+    mediaBase64: z
+      .string()
+      .optional()
+      .meta({ description: 'Base64 WAV bytes (alternative to audioUrl / multipart upload)' }),
+    mediaUrl: z.string().url().optional().meta({ description: 'Alias of audioUrl for shared media resolvers' }),
     responseTimeoutMs: z.coerce
       .number()
       .int()

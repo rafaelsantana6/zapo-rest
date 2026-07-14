@@ -13,6 +13,7 @@ import {
 import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
 import { badRequest, notFound, serviceUnavailable } from '~/lib/errors'
+import { mediaPreValidation, parseMediaRequest } from '~/media/request-media'
 import type { MediaStorage } from '~/media/storage'
 import type { CacheClient } from '~/redis/client'
 import type { CallStore } from '~/store/calls'
@@ -37,6 +38,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
   app.post<InstanceParams & { Body: z.infer<typeof BlastBodySchema> }>(
     scopedInstancePaths('/calls/blast'),
     {
+      preValidation: mediaPreValidation(env),
       schema: {
         tags: ['Calls'],
         summary: 'Audio blast — call + play predefined audio + record response',
@@ -44,7 +46,8 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
           'Outbound VoIP **audio blast**: dial → wait for answer → play WAV → optional remote-leg record + Whisper STT.\n\n' +
           '### Audio\n' +
           '- **WAV only** (PCM 8/16/24/32-bit or float32). Any rate/channels → resampled to **16 kHz mono**.\n' +
-          '- `audioUrl` is fetched server-side with **SSRF protection** (public HTTPS only, no redirects, size/time caps).\n\n' +
+          '- Provide **one** of: `audioUrl` (HTTPS, SSRF-guarded), `mediaBase64`, or multipart field `file` / `audio`.\n' +
+          '- Size caps: blast WAV download limit (~20 MiB) and env `MEDIA_UPLOAD_MAX_BYTES` for uploads.\n\n' +
           '### Recording & STT\n' +
           '- With `recordResponse` (default true) the remote PCM is stored and linked on the call row — ' +
           '`GET .../calls/{callId}/recording` and `POST .../transcribe` work afterwards.\n' +
@@ -76,36 +79,43 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
       const name = resolveInstanceName(request)
 
       const body = request.body
-      if (!body.audioUrl) {
-        throw badRequest('audioUrl is required')
+      const { media } = await parseMediaRequest(request, env)
+      const audioUrl = typeof body.audioUrl === 'string' ? body.audioUrl : undefined
+      if (!media && !audioUrl) {
+        throw badRequest('audioUrl, mediaBase64, or multipart file is required')
       }
 
-      const result = await executeAudioBlast({
-        manager,
-        instanceName: name,
-        to: body.to,
-        audioUrl: body.audioUrl,
-        responseTimeoutMs: body.responseTimeoutMs ?? 5000,
-        callTimeoutMs: body.callTimeoutMs ?? 30000,
-        recordResponse: body.recordResponse ?? true,
-        maxCaptureSeconds: env.CALL_RECORDING_MAX_SECONDS,
-        mediaStorage,
-        cache,
-        calls,
-        stt:
-          body.transcribe !== false && env.STT_ENABLED && env.STT_API_URL && env.STT_API_KEY
-            ? {
-                enabled: true,
-                apiUrl: env.STT_API_URL,
-                apiKey: env.STT_API_KEY,
-                model: env.STT_MODEL,
-                temperature: env.STT_TEMPERATURE,
-                language: body.sttLanguage ?? env.STT_LANGUAGE,
-              }
-            : undefined,
-      })
-
-      return result
+      try {
+        const result = await executeAudioBlast({
+          manager,
+          instanceName: name,
+          to: body.to,
+          // Prefer resolved local file (multipart / mediaBase64); else remote audioUrl
+          audioUrl: media ? undefined : audioUrl,
+          audioPath: media?.path,
+          responseTimeoutMs: body.responseTimeoutMs ?? 5000,
+          callTimeoutMs: body.callTimeoutMs ?? 30000,
+          recordResponse: body.recordResponse ?? true,
+          maxCaptureSeconds: env.CALL_RECORDING_MAX_SECONDS,
+          mediaStorage,
+          cache,
+          calls,
+          stt:
+            body.transcribe !== false && env.STT_ENABLED && env.STT_API_URL && env.STT_API_KEY
+              ? {
+                  enabled: true,
+                  apiUrl: env.STT_API_URL,
+                  apiKey: env.STT_API_KEY,
+                  model: env.STT_MODEL,
+                  temperature: env.STT_TEMPERATURE,
+                  language: body.sttLanguage ?? env.STT_LANGUAGE,
+                }
+              : undefined,
+        })
+        return result
+      } finally {
+        if (media) await media.cleanup()
+      }
     },
   )
 

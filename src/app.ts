@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import cors from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
 import fastifyStatic from '@fastify/static'
 import websocket from '@fastify/websocket'
@@ -77,6 +78,15 @@ export async function buildApp(deps: BuildAppDeps) {
 
   await app.register(errorHandlerPlugin)
   await app.register(securityHeadersPlugin)
+  await app.register(multipart, {
+    limits: {
+      fileSize: deps.env.MEDIA_UPLOAD_MAX_BYTES,
+      files: 1,
+      fields: 40,
+    },
+    // Do not attach to body — routes use parseMediaRequest / requireMediaFromRequest
+    attachFieldsToBody: false,
+  })
   await app.register(cors, {
     origin: resolveCorsOrigin(deps.env),
     credentials: true,

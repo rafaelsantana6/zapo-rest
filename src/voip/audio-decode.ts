@@ -159,6 +159,27 @@ export async function removeTempDir(path: string): Promise<void> {
  * Download a user-supplied audio URL with SSRF vetting, no redirects, timeout, and size cap.
  * Decodes WAV → 16 kHz mono Float32 PCM.
  */
+/** Decode a local WAV file already on disk (multipart / base64 temp path). */
+export async function decodeLocalWav(filePath: string): Promise<{ pcm: Float32Array; tempDir: string }> {
+  const { readFile } = await import('node:fs/promises')
+  const buf = await readFile(filePath)
+  if (buf.length > MAX_BLAST_AUDIO_BYTES) {
+    throw badRequest(`audio file exceeds max size (${MAX_BLAST_AUDIO_BYTES} bytes)`)
+  }
+  const tempDir = await mkdtemp(join(tmpdir(), 'zapo-blast-'))
+  try {
+    const pcm = decodeWavPcm(buf)
+    log.debug(
+      { path: filePath, samples: pcm.length, durationMs: Math.round((pcm.length / TARGET_SAMPLE_RATE) * 1000) },
+      'local audio decoded',
+    )
+    return { pcm, tempDir }
+  } catch (err) {
+    await removeTempDir(tempDir)
+    throw err
+  }
+}
+
 export async function downloadAndDecode(audioUrl: string): Promise<{ pcm: Float32Array; tempDir: string }> {
   await assertPublicUrl(audioUrl)
 

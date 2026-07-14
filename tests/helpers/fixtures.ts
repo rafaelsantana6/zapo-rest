@@ -21,6 +21,7 @@ export function makeEnv(overrides: Partial<Env> = {}): Env {
     MEDIA_AUTO_DOWNLOAD: false,
     PROFILE_PICTURE_CACHE_TTL_SECONDS: 86_400,
     AVATAR_FETCH_TYPES: 'both',
+    MEDIA_UPLOAD_MAX_BYTES: 100 * 1024 * 1024,
     MEDIA_STORAGE: 'local',
     MEDIA_LOCAL_DIR: '/tmp/zapo-rest-test-media/objects',
     S3_REGION: 'us-east-1',

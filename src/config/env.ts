@@ -109,6 +109,16 @@ const envSchema = z
     /** Profile picture cache TTL (seconds). default 24h. 0 = disable cache. */
     PROFILE_PICTURE_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(86_400),
     /**
+     * Max size for inbound media (URL download, base64, or multipart upload) in bytes.
+     * Default 100 MiB. Applies to messages, profile/group pictures, status media, etc.
+     */
+    MEDIA_UPLOAD_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(512 * 1024 * 1024)
+      .default(100 * 1024 * 1024),
+    /**
      * Which avatar size(s) to auto-fetch on own-profile sync and picture notifications.
      * - `both` (default): full-res first, then preview — best quality + list thumbnail
      * - `image`: full-res only
