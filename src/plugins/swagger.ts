@@ -1,9 +1,23 @@
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import swagger from '@fastify/swagger'
 import scalarApiReference from '@scalar/fastify-api-reference'
 import type { FastifyPluginAsync } from 'fastify'
 import fp from 'fastify-plugin'
 import { createJsonSchemaTransform, jsonSchemaTransformObject } from 'fastify-type-provider-zod'
+import { injectMultipartMediaBodies } from '~/http/openapi-multipart'
 import { EXAMPLES, OPENAPI_TAGS } from '~/http/openapi-schemas'
+
+function packageVersion(): string {
+  try {
+    const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
+    const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version?: string }
+    return pkg.version ?? '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+}
 
 const API_DESCRIPTION = `
 # zapo-rest
@@ -98,10 +112,35 @@ Todas as falhas usam:
 
 Códigos comuns: \`UNAUTHORIZED\`, \`FORBIDDEN\`, \`NOT_FOUND\`, \`CONFLICT\`, \`VALIDATION_ERROR\`, \`SERVICE_UNAVAILABLE\`, \`BAD_REQUEST\`.
 
+## Mídia (URL · base64 · upload)
+
+Rotas de envio de mídia e avatar aceitam **uma** das fontes:
+
+| Content-Type | Campos |
+|--------------|--------|
+| \`application/json\` | \`mediaUrl\` e/ou \`mediaBase64\` (+ metadados) |
+| \`multipart/form-data\` | arquivo \`file\` (aliases: \`media\`, \`audio\`, \`image\`, \`document\`, \`video\`, \`sticker\`) + campos de texto |
+
+Limite: env \`MEDIA_UPLOAD_MAX_BYTES\` (padrão **100 MiB**).
+
+\`\`\`bash
+# Avatar por upload
+curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
+  -F file=@./avatar.jpg
+
+# Imagem de mensagem por multipart
+curl -s -X POST "$BASE/v1/messages/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
+  -F to=5511999999999 -F file=@./foto.jpg -F caption="oi"
+\`\`\`
+
+Endpoints: \`PUT /v1/profile/image|picture\`, \`PUT /v1/groups/:id/picture\`,
+\`POST /v1/messages/{image,video,audio,document,sticker}\`, \`POST /v1/status/send\`,
+\`POST /v1/calls/blast\` (WAV).
+
 ## OpenAPI
 
-- **UI (Scalar):** [\`/docs\`](/docs)
-- **JSON:** [\`/docs/json\`](/docs/json) — gerado automaticamente a partir dos schemas Zod das rotas (\`fastify-type-provider-zod\` + \`@fastify/swagger\`)
+- **UI (Scalar):** [\`/docs\`](/docs) — escolha *multipart/form-data* no request body para o seletor de arquivo
+- **JSON:** [\`/docs/json\`](/docs/json) — gerado a partir dos schemas Zod + multipart injetado
 
 ## Guia rico
 
@@ -115,7 +154,7 @@ const plugin: FastifyPluginAsync = async (app) => {
       info: {
         title: 'zapo-rest API',
         description: API_DESCRIPTION,
-        version: '0.1.0',
+        version: packageVersion(),
         contact: {
           name: 'zapo-rest',
         },
@@ -171,7 +210,7 @@ const plugin: FastifyPluginAsync = async (app) => {
     }),
     transformObject: (input) => {
       const openapiObject = jsonSchemaTransformObject(input) as Record<string, unknown>
-      return injectWebsocketStreamPath(openapiObject)
+      return injectMultipartMediaBodies(injectWebsocketStreamPath(openapiObject))
     },
   })
 
