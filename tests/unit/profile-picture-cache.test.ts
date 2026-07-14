@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   extractProfilePictureUrl,
+  preferredAvatarReadOrder,
   PROFILE_PICTURE_CACHE_TTL_DEFAULT,
   profilePictureCacheKey,
+  typesToFetch,
 } from '~/lib/profile-picture-cache'
 import { avatarStorageKey, sha256Hex } from '~/store/avatars'
 
@@ -34,5 +36,12 @@ describe('profile-picture-cache', () => {
 
   it('sha256 is stable', () => {
     expect(sha256Hex(Buffer.from('abc'))).toBe(sha256Hex(Buffer.from('abc')))
+  })
+
+  it('AVATAR_FETCH_TYPES maps to fetch order (image before preview when both)', () => {
+    expect(typesToFetch('both')).toEqual(['image', 'preview'])
+    expect(typesToFetch('image')).toEqual(['image'])
+    expect(typesToFetch('preview')).toEqual(['preview'])
+    expect(preferredAvatarReadOrder()).toEqual(['image', 'preview'])
   })
 })

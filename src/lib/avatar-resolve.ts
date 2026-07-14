@@ -8,13 +8,17 @@
 import type { Env } from '~/config/env'
 import {
   extractProfilePictureUrl,
+  preferredAvatarReadOrder,
   PROFILE_PICTURE_CACHE_TTL_DEFAULT,
   type ProfilePictureType,
+  typesToFetch,
 } from '~/lib/profile-picture-cache'
 import { isSoftProfileQueryFailure, parseWaIqError } from '~/lib/wa-iq-error'
 import type { MediaStorage } from '~/media/storage'
 import { type AvatarStatus, type AvatarStore, avatarStorageKey, type ContactAvatar, sha256Hex } from '~/store/avatars'
 import type { ContactStore } from '~/store/contacts'
+
+export type AvatarEnv = Pick<Env, 'PROFILE_PICTURE_CACHE_TTL_SECONDS' | 'AVATAR_FETCH_TYPES'>
 
 export type WaClientLike = {
   profile: {
@@ -140,6 +144,90 @@ function toResult(
   }
 }
 
+/** Prefer full-res `ok` result over preview when multiple types were resolved. */
+export function pickBestAvatarResult(results: AvatarResolveResult[]): AvatarResolveResult | null {
+  for (const type of preferredAvatarReadOrder()) {
+    const hit = results.find((r) => r.type === type && r.status === 'ok' && r.url)
+    if (hit) return hit
+  }
+  return results.find((r) => r.status === 'ok' && r.url) ?? results[0] ?? null
+}
+
+/**
+ * Resolve avatars according to `AVATAR_FETCH_TYPES` (image first when `both`).
+ * Returns every attempt plus the best URL for consumers (instance.avatarUrl).
+ */
+export async function resolveAvatarsByPolicy(opts: {
+  instanceName: string
+  jid: string
+  refresh?: boolean
+  client: WaClientLike
+  mediaStorage: MediaStorage
+  avatars: AvatarStore
+  contacts?: ContactStore
+  env: AvatarEnv
+}): Promise<{ results: AvatarResolveResult[]; best: AvatarResolveResult | null }> {
+  const types = typesToFetch(opts.env.AVATAR_FETCH_TYPES)
+  const results: AvatarResolveResult[] = []
+  for (const picType of types) {
+    try {
+      const r = await resolveContactAvatar({
+        instanceName: opts.instanceName,
+        jid: opts.jid,
+        picType,
+        refresh: opts.refresh,
+        client: opts.client,
+        mediaStorage: opts.mediaStorage,
+        avatars: opts.avatars,
+        contacts: opts.contacts,
+        env: opts.env,
+      })
+      results.push(r)
+    } catch {
+      // one type failing shouldn't block the other
+    }
+  }
+  return { results, best: pickBestAvatarResult(results) }
+}
+
+export type StoredAvatarLookup =
+  | { kind: 'ok'; url: string }
+  /** All known rows are privacy/none — do not suggest on-demand path */
+  | { kind: 'none' }
+  /** No usable row yet */
+  | { kind: 'miss' }
+
+/**
+ * Pick a durable avatar URL from storage, preferring full-res over preview.
+ * Does not hit WhatsApp.
+ */
+export async function getStoredAvatarUrl(opts: {
+  instanceName: string
+  jid: string
+  avatars: AvatarStore
+  mediaStorage?: MediaStorage | null
+  /** Relative API path fallback when storage has no public URL */
+  apiPathFallback?: string | null
+}): Promise<StoredAvatarLookup> {
+  let sawNegative = false
+  let sawRow = false
+  for (const picType of preferredAvatarReadOrder()) {
+    const av = await opts.avatars.get(opts.instanceName, opts.jid, picType)
+    if (!av) continue
+    sawRow = true
+    if (av.status === 'ok' && av.storageKey) {
+      const pub = opts.mediaStorage?.publicUrl?.(av.storageKey)
+      const url = pub ?? opts.apiPathFallback ?? apiAvatarUrl(opts.instanceName, opts.jid, picType)
+      return { kind: 'ok', url }
+    }
+    if (av.status === 'privacy' || av.status === 'none') {
+      sawNegative = true
+    }
+  }
+  if (sawRow && sawNegative) return { kind: 'none' }
+  return { kind: 'miss' }
+}
+
 export async function resolveContactAvatar(opts: {
   instanceName: string
   jid: string
@@ -149,7 +237,7 @@ export async function resolveContactAvatar(opts: {
   mediaStorage: MediaStorage
   avatars: AvatarStore
   contacts?: ContactStore
-  env: Pick<Env, 'PROFILE_PICTURE_CACHE_TTL_SECONDS'>
+  env: AvatarEnv
 }): Promise<AvatarResolveResult> {
   const { instanceName, jid, picType, refresh = false, client, mediaStorage, avatars, contacts } = opts
   const ttl =
@@ -368,7 +456,7 @@ export async function applyPictureNotification(opts: {
   mediaStorage: MediaStorage
   avatars: AvatarStore
   contacts?: ContactStore
-  env: Pick<Env, 'PROFILE_PICTURE_CACHE_TTL_SECONDS'>
+  env: AvatarEnv
   /** Normalize target JID (PN preferred) */
   resolveJid?: (raw: string) => string
 }): Promise<{
@@ -410,31 +498,16 @@ export async function applyPictureNotification(opts: {
     return { action: 'request', jid, results: [], deleted: [] }
   }
 
-  // set | set_avatar | unknown → force revalidate and store bytes
-  const types: ProfilePictureType[] = ['preview']
-  const imageMeta = await opts.avatars.get(opts.instanceName, jid, 'image')
-  if (imageMeta?.status === 'ok' || imageMeta?.storageKey) {
-    types.push('image')
-  }
-
-  const results: AvatarResolveResult[] = []
-  for (const picType of types) {
-    try {
-      const r = await resolveContactAvatar({
-        instanceName: opts.instanceName,
-        jid,
-        picType,
-        refresh: true,
-        client: opts.client,
-        mediaStorage: opts.mediaStorage,
-        avatars: opts.avatars,
-        contacts: opts.contacts,
-        env: opts.env,
-      })
-      results.push(r)
-    } catch {
-      // one type failing shouldn't block the other
-    }
-  }
+  // set | set_avatar | unknown → force revalidate per AVATAR_FETCH_TYPES (default both)
+  const { results } = await resolveAvatarsByPolicy({
+    instanceName: opts.instanceName,
+    jid,
+    refresh: true,
+    client: opts.client,
+    mediaStorage: opts.mediaStorage,
+    avatars: opts.avatars,
+    contacts: opts.contacts,
+    env: opts.env,
+  })
   return { action: action === 'set_avatar' ? 'set_avatar' : 'set', jid, results, deleted: [] }
 }

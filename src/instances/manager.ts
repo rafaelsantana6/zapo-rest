@@ -2,7 +2,12 @@ import type { Pool } from 'pg'
 import type { WaAuthCredentials, WaClient, WaConnectionEvent, WaIncomingMessageEvent } from 'zapo-js'
 import type { Env } from '~/config/env'
 import type { EventProcessor } from '~/events/processor'
-import { applyPictureNotification, resolveContactAvatar } from '~/lib/avatar-resolve'
+import {
+  applyPictureNotification,
+  getStoredAvatarUrl,
+  pickBestAvatarResult,
+  resolveAvatarsByPolicy,
+} from '~/lib/avatar-resolve'
 import { badRequest, conflict, notFound, serviceUnavailable } from '~/lib/errors'
 import { toRecipientJid } from '~/lib/jid'
 import { bareUserJid, isLidJid } from '~/lib/jid-canon'
@@ -207,10 +212,10 @@ export class InstanceManager {
     if (!this.avatars || !this.opts.mediaStorage) return
     const jid = bareUserJid(creds.meJid)
     try {
-      await resolveContactAvatar({
+      // AVATAR_FETCH_TYPES: default both (full-res first, preview fallback)
+      await resolveAvatarsByPolicy({
         instanceName: name,
         jid,
-        picType: 'preview',
         refresh: false,
         client,
         mediaStorage: this.opts.mediaStorage,
@@ -225,9 +230,9 @@ export class InstanceManager {
 
   /**
    * Own-account avatar URL for list/get.
-   * 1) Prefer durable storage (or public CDN URL).
-   * 2) If live client + storage: resolve against WA (TTL-cached) so first GET after open fills storage.
-   * 3) Fallback: authenticated profile-picture API path (endpoint fetches from WA on demand).
+   * 1) Live client + storage: resolve per AVATAR_FETCH_TYPES (prefer full-res URL).
+   * 2) Storage hit: image first, then preview.
+   * 3) Fallback: authenticated profile-picture API path (on-demand `?type=`).
    */
   private async resolveOwnAvatarUrl(
     instanceName: string,
@@ -244,10 +249,9 @@ export class InstanceManager {
     // Live resolve into durable storage when possible (respects TTL / negative cache)
     if (client && this.avatars && this.opts.mediaStorage) {
       try {
-        const result = await resolveContactAvatar({
+        const { best, results } = await resolveAvatarsByPolicy({
           instanceName,
           jid,
-          picType: 'preview',
           refresh: false,
           client,
           mediaStorage: this.opts.mediaStorage,
@@ -255,27 +259,28 @@ export class InstanceManager {
           contacts: this.opts.contacts,
           env: this.opts.env,
         })
-        if (result.status === 'ok' && result.url) return result.url
-        if (result.status === 'privacy' || result.status === 'none') return null
+        if (best?.status === 'ok' && best.url) return best.url
+        // All resolved types are definitive negatives → no avatar
+        if (results.length > 0 && results.every((r) => r.status === 'privacy' || r.status === 'none')) {
+          return null
+        }
       } catch (err) {
         this.log.debug({ err, instance: instanceName }, 'own avatar resolve failed')
       }
     }
 
-    // Storage hit without live client
+    // Storage hit without live client (or after soft live failure) — prefer full-res
     if (this.avatars) {
       try {
-        const av =
-          (await this.avatars.get(instanceName, jid, 'preview')) ?? (await this.avatars.get(instanceName, jid, 'image'))
-        if (av?.status === 'ok' && av.storageKey) {
-          const media = this.opts.mediaStorage
-          if (media?.publicUrl) {
-            const pub = media.publicUrl(av.storageKey)
-            if (pub) return pub
-          }
-          return apiPath
-        }
-        if (av?.status === 'privacy' || av?.status === 'none') return null
+        const stored = await getStoredAvatarUrl({
+          instanceName,
+          jid,
+          avatars: this.avatars,
+          mediaStorage: this.opts.mediaStorage,
+          apiPathFallback: apiPath,
+        })
+        if (stored.kind === 'ok') return stored.url
+        if (stored.kind === 'none') return null
       } catch {
         // ignore
       }
@@ -744,7 +749,8 @@ export class InstanceManager {
     if (!row) return
 
     const applied = await this.applyPicture(name, client, event)
-    const primary = applied?.results?.[0]
+    // Prefer full-res when both types were refreshed
+    const primary = pickBestAvatarResult(applied?.results ?? [])
     await this.opts.webhooks.emit(row, 'contact.picture', {
       action: applied?.action ?? event?.action ?? null,
       jid: applied?.jid ?? event?.targetJid ?? event?.chatJid ?? null,

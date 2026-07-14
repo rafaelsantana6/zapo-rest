@@ -373,6 +373,66 @@ describe('route handlers with mocked WA client', () => {
   })
 
   describe('profile name + image', () => {
+    it('GET /profile aligns pushName/avatar with /v1/instance (bare JID for IQs)', async () => {
+      // Device meJid must be stripped before getStatus / getProfilePicture
+      ctx.client.getCredentials.mockReturnValue({
+        meJid: '5511999888777:57@s.whatsapp.net',
+        meDisplayName: 'Rafael Santana',
+        // empty pushName — enrich should still use meDisplayName
+        pushName: '',
+      })
+      ctx.client.profile.getStatus.mockResolvedValue({ status: 'Atendimento 9–18h' })
+      ctx.client.profile.getProfilePicture.mockResolvedValue({
+        id: 'pic1',
+        url: 'https://mmg.whatsapp.net/ephemeral.jpg',
+      } as { url: string })
+      // Seed meJid on instance row so enrich can build avatar path
+      await ctx.repo.updateStatus(INSTANCE, {
+        meJid: '5511999888777:57@s.whatsapp.net',
+        pushName: null,
+      })
+
+      const profileRes = await ctx.app.inject({
+        method: 'GET',
+        url: '/v1/profile',
+        headers: key,
+      })
+      expect(profileRes.statusCode).toBe(200)
+      const profileBody = profileRes.json() as {
+        profile: {
+          pushName: string | null
+          avatarUrl: string | null
+          status: string | null
+          picture: { url?: string; id?: string } | null
+          bareJid: string | null
+          meJid: string | null
+        }
+      }
+      expect(profileBody.profile.pushName).toBe('Rafael Santana')
+      expect(profileBody.profile.bareJid).toBe('5511999888777@s.whatsapp.net')
+      expect(profileBody.profile.status).toBe('Atendimento 9–18h')
+      expect(profileBody.profile.picture).toBeTruthy()
+      // IQ must use bare PN, not device JID
+      expect(ctx.client.profile.getStatus).toHaveBeenCalledWith('5511999888777@s.whatsapp.net')
+      // Prefer full-res IQ; preview only if image fails
+      expect(ctx.client.profile.getProfilePicture).toHaveBeenCalledWith('5511999888777@s.whatsapp.net', 'image')
+
+      const instRes = await ctx.app.inject({
+        method: 'GET',
+        url: '/v1/instance',
+        headers: key,
+      })
+      expect(instRes.statusCode).toBe(200)
+      const inst = (instRes.json() as { instance: { pushName: string | null; avatarUrl: string | null } }).instance
+      // Same identity fields as instance get
+      expect(profileBody.profile.pushName).toBe(inst.pushName)
+      expect(profileBody.profile.avatarUrl).toBe(inst.avatarUrl)
+      // picture.url prefers durable avatarUrl when present
+      if (inst.avatarUrl) {
+        expect(profileBody.profile.picture?.url).toBe(inst.avatarUrl)
+      }
+    })
+
     it('PUT /profile/name (short) sets push name on WhatsApp', async () => {
       const res = await ctx.app.inject({
         method: 'PUT',
