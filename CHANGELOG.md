@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-14
+
 ### Changed
 
 - **OpenAPI / guide**: media routes advertise `multipart/form-data` with binary `file`
   (Scalar file picker) alongside JSON; guide (pt/en/es), README, and swagger intro document
-  URL · base64 · multipart. Regenerated `openapi.json` for short paths + 0.7.x surface.
+  URL · base64 · multipart. Regenerated `openapi.json` for short paths + 0.7.x surface
+  (#53).
 
 ## [0.7.0] - 2026-07-14
 
@@ -271,7 +274,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.4.0...v0.5.0
