@@ -7,17 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-07-14
+
 ### Fixed
 
 - **Multipart avatar upload (502)**: raise Fastify `bodyLimit` to `MEDIA_UPLOAD_MAX_BYTES`
   (was 1 MiB default — large multipart uploads failed at the edge). Profile/group picture
   set now re-encodes uploads to compact JPEG via sharp before WhatsApp IQ; WA rejections
-  return **400** with a clear message instead of opaque **502** `WA_IQ_FAILED`.
+  return **400** with a clear message instead of opaque **502** `WA_IQ_FAILED`
+  (#55).
 
 ### Changed
 
 - **Scalar Try It**: all media routes list `multipart/form-data` first with binary `file` +
-  `encoding` so the docs UI shows a file picker by default (JSON still available).
+  `encoding` so the docs UI shows a file picker by default (JSON still available)
+  (#55).
 
 ## [0.7.1] - 2026-07-14
 
@@ -286,7 +290,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.5.0...v0.6.0
