@@ -1,3 +1,4 @@
+import type { AppCall, CallRecordingStatus } from '~/store/calls'
 import type { AppChat } from '~/store/chats'
 import type { AppContact } from '~/store/contacts'
 import type { AppMessage, UpsertMessageInput } from '~/store/messages'
@@ -540,5 +541,115 @@ export class MemoryMediaStorage {
 
   publicUrl(storageKey: string) {
     return `http://media.test/${storageKey}`
+  }
+}
+
+/** In-memory CallStore for blast/recording tests. */
+export class MemoryCallStore {
+  readonly byKey = new Map<string, AppCall>()
+
+  private key(instanceName: string, callId: string) {
+    return `${instanceName}::${callId}`
+  }
+
+  async get(instanceName: string, callId: string): Promise<AppCall | null> {
+    return this.byKey.get(this.key(instanceName, callId)) ?? null
+  }
+
+  async upsertStart(input: {
+    instanceName: string
+    callId: string
+    peerJid?: string | null
+    direction?: string
+    mediaType?: string
+    state?: string | null
+    recordingEnabled?: boolean
+  }): Promise<AppCall> {
+    const k = this.key(input.instanceName, input.callId)
+    const prev = this.byKey.get(k)
+    const now = new Date()
+    if (prev) {
+      if (input.peerJid != null) prev.peerJid = input.peerJid
+      if (input.direction != null) prev.direction = input.direction
+      if (input.state != null) prev.state = input.state
+      prev.recordingEnabled = prev.recordingEnabled || Boolean(input.recordingEnabled)
+      return prev
+    }
+    const row: AppCall = {
+      instanceName: input.instanceName,
+      callId: input.callId,
+      peerJid: input.peerJid ?? null,
+      direction: input.direction ?? 'unknown',
+      mediaType: input.mediaType ?? 'audio',
+      state: input.state ?? null,
+      endReason: null,
+      startedAt: now,
+      endedAt: null,
+      durationSecs: null,
+      recordingEnabled: Boolean(input.recordingEnabled),
+      recordingStatus: 'none',
+      recordingStorageKey: null,
+      recordingUrl: null,
+      recordingMime: null,
+      recordingBytes: null,
+      recordingError: null,
+    }
+    this.byKey.set(k, row)
+    return row
+  }
+
+  async markRecordingStarted(instanceName: string, callId: string): Promise<void> {
+    const row = this.byKey.get(this.key(instanceName, callId))
+    if (!row) return
+    if (row.recordingEnabled && (row.recordingStatus === 'none' || row.recordingStatus === 'disabled')) {
+      row.recordingStatus = 'recording'
+    }
+  }
+
+  async updateState(
+    instanceName: string,
+    callId: string,
+    patch: { state?: string | null; endReason?: string | null },
+  ): Promise<void> {
+    const row = this.byKey.get(this.key(instanceName, callId))
+    if (!row) return
+    if (patch.state !== undefined) row.state = patch.state
+    if (patch.endReason !== undefined) row.endReason = patch.endReason
+  }
+
+  async markEnded(
+    instanceName: string,
+    callId: string,
+    opts: { endReason?: string | null; durationSecs?: number | null; state?: string | null },
+  ): Promise<AppCall | null> {
+    const row = this.byKey.get(this.key(instanceName, callId))
+    if (!row) return null
+    row.endedAt = row.endedAt ?? new Date()
+    if (opts.durationSecs != null) row.durationSecs = opts.durationSecs
+    if (opts.endReason !== undefined) row.endReason = opts.endReason
+    row.state = opts.state ?? row.state ?? 'ended'
+    return row
+  }
+
+  async setRecordingResult(
+    instanceName: string,
+    callId: string,
+    result:
+      | { status: 'ready'; storageKey: string; url: string | null; mime: string; bytes: number }
+      | { status: 'failed'; error: string }
+      | { status: 'disabled' | 'none' },
+  ): Promise<void> {
+    const row = this.byKey.get(this.key(instanceName, callId))
+    if (!row) return
+    row.recordingStatus = result.status as CallRecordingStatus
+    if (result.status === 'ready') {
+      row.recordingStorageKey = result.storageKey
+      row.recordingUrl = result.url
+      row.recordingMime = result.mime
+      row.recordingBytes = result.bytes
+      row.recordingError = null
+    } else if (result.status === 'failed') {
+      row.recordingError = result.error
+    }
   }
 }

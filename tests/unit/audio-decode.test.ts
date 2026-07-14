@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { decodeWavPcm, encodeResponseWav, TARGET_SAMPLE_RATE } from '~/voip/audio-decode'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { decodeWavPcm, downloadAndDecode, encodeResponseWav, TARGET_SAMPLE_RATE } from '~/voip/audio-decode'
 
 /** Minimal 16-bit mono PCM WAV at 16 kHz with `n` silence samples. */
 function makePcm16Wav(n: number, sampleRate = TARGET_SAMPLE_RATE): Buffer {
@@ -45,5 +45,32 @@ describe('decodeWavPcm', () => {
     for (let i = 0; i < samples.length; i++) {
       expect(back[i]).toBeCloseTo(samples[i] ?? 0, 2)
     }
+  })
+})
+
+describe('downloadAndDecode SSRF / caps', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('blocks private / loopback audioUrl', async () => {
+    await expect(downloadAndDecode('http://127.0.0.1/x.wav')).rejects.toThrow()
+    await expect(downloadAndDecode('http://169.254.169.254/latest/meta-data')).rejects.toThrow()
+    await expect(downloadAndDecode('file:///etc/passwd')).rejects.toThrow()
+  })
+
+  it('rejects body larger than MAX when content-length is honest', async () => {
+    // assertPublicUrl needs a public host — use example.com then fail on size
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        return new Response(Buffer.alloc(100), {
+          status: 200,
+          headers: { 'content-length': String(50 * 1024 * 1024) },
+        })
+      }),
+    )
+    await expect(downloadAndDecode('https://example.com/huge.wav')).rejects.toThrow(/max size|exceeds/i)
   })
 })
