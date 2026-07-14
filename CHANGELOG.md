@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-14
+
 ### Changed
 
 - **OpenAPI / guide**: media routes advertise `multipart/form-data` with binary `file`
   (Scalar file picker) alongside JSON; guide (pt/en/es), README, and swagger intro document
-  URL · base64 · multipart. Regenerated `openapi.json` for short paths + 0.7.x surface.
+  URL · base64 · multipart. Regenerated `openapi.json` for short paths + 0.7.x surface
+  (#53).
 
 ## [0.7.0] - 2026-07-14
 
