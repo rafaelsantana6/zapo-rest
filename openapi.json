@@ -3,7 +3,7 @@
   "info": {
     "title": "zapo-rest API",
     "description": "# zapo-rest\n\nREST API multi-session para WhatsApp baseada em [zapo-js](https://zapo.to).\n\n## Autenticação\n\n| Tipo | Origem | Escopo |\n|------|--------|--------|\n| **Admin** | env `ADMIN_API_KEY` | Todas as instâncias + create/delete/rotate |\n| **Instance** | campo `apiKey` da instância (plaintext) | Somente a instância dona da key |\n\nEnvie em **todas** as rotas `/v1/*`:\n\n```http\nX-Api-Key: <sua-chave>\n```\n\nou\n\n```http\nAuthorization: Bearer <sua-chave>\n```\n\n`GET /health` e `GET /ready` são públicos.\n\n## Escopo da instância (dual path)\n\n| Quem | Path |\n|------|------|\n| **Admin** | **Sempre** com nome: `/v1/instances/:name/...` (omitir o nome → 400) |\n| **Instance key** | Nomeado **ou** forma curta sem nome |\n\nForma curta (só com instance key — a instância é inferida da API key):\n\n- Recursos: `/v1/messages/text`, `/v1/chats`, `/v1/contacts`, … (equivale a `/v1/instances/:name/...`)\n- Ciclo de vida: `/v1/instance`, `/v1/instance/connect`, `/v1/instance/qr`, … (singular `instance`, não colide com `/v1/instances`)\n\n## Fluxo rápido (instância)\n\n```bash\n# 1) Criar (admin)\ncurl -s -X POST \"$BASE/v1/instances\" \\\n  -H \"X-Api-Key: $ADMIN_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"name\":\"sales-1\",\"webhookUrl\":\"https://example.com/webhooks/zapo\",\"webhookEvents\":[\"instance.qr\",\"instance.connection\",\"message.inbound\",\"call.incoming\"]}'\n\n# 2) Conectar\ncurl -s -X POST \"$BASE/v1/instances/sales-1/connect\" -H \"X-Api-Key: $ADMIN_API_KEY\"\n\n# 3) QR\ncurl -s \"$BASE/v1/instances/sales-1/qr\" -H \"X-Api-Key: $ADMIN_API_KEY\"\n\n# 4) Enviar texto (admin: path com nome)\ncurl -s -X POST \"$BASE/v1/instances/sales-1/messages/text\" \\\n  -H \"X-Api-Key: $ADMIN_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"text\":\"Olá! Mensagem enviada via zapo-rest 👋\",\"linkPreview\":true}'\n\n# 4b) Enviar texto (instance key: forma curta sem nome)\ncurl -s -X POST \"$BASE/v1/messages/text\" \\\n  -H \"X-Api-Key: $INSTANCE_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"text\":\"Olá! Mensagem enviada via zapo-rest 👋\",\"linkPreview\":true}'\n```\n\n## Webhooks\n\nPayload envelope:\n\n```json\n{\n  \"event\": \"message.inbound\",\n  \"instance\": \"sales-1\",\n  \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n  \"data\": {\n    \"key\": {\n      \"remoteJid\": \"5511888888888@s.whatsapp.net\",\n      \"fromMe\": false,\n      \"id\": \"ABC123\"\n    },\n    \"message\": {\n      \"conversation\": \"Oi\"\n    },\n    \"pushName\": \"Cliente\"\n  }\n}\n```\n\n## VoIP (áudio live)\n\nApós `POST.../calls`, abra o WebSocket:\n\n```\nws(s)://<host>/v1/instances/{name}/calls/{callId}/stream?apiKey=<key>\n```\n\n- Server → JSON `{ \"op\": \"ready\", \"sampleRate\": 16000, \"format\": \"f32le\" }`\n- Client ↔ server: frames **binários** Float32 LE mono @ 16 kHz\n- Backpressure: JSON `{ \"op\": \"backpressure\", \"pause\": true | false }`\n\n## Erros\n\nTodas as falhas usam:\n\n```json\n{ \"error\": { \"code\": \"UNAUTHORIZED\", \"message\": \"…\", \"details\": {} } }\n```\n\nCódigos comuns: `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `VALIDATION_ERROR`, `SERVICE_UNAVAILABLE`, `BAD_REQUEST`.\n\n## Mídia (URL · base64 · upload)\n\nRotas de envio de mídia e avatar aceitam **uma** das fontes:\n\n| Content-Type | Campos |\n|--------------|--------|\n| `application/json` | `mediaUrl` e/ou `mediaBase64` (+ metadados) |\n| `multipart/form-data` | arquivo `file` (aliases: `media`, `audio`, `image`, `document`, `video`, `sticker`) + campos de texto |\n\nLimite: env `MEDIA_UPLOAD_MAX_BYTES` (padrão **100 MiB**).\n\n```bash\n# Avatar por upload\ncurl -s -X PUT \"$BASE/v1/profile/image\" -H \"X-Api-Key: $INSTANCE_API_KEY\" \\\n  -F file=@./avatar.jpg\n\n# Imagem de mensagem por multipart\ncurl -s -X POST \"$BASE/v1/messages/image\" -H \"X-Api-Key: $INSTANCE_API_KEY\" \\\n  -F to=5511999999999 -F file=@./foto.jpg -F caption=\"oi\"\n```\n\nEndpoints: `PUT /v1/profile/image|picture`, `PUT /v1/groups/:id/picture`,\n`POST /v1/messages/{image,video,audio,document,sticker}`, `POST /v1/status/send`,\n`POST /v1/calls/blast` (WAV).\n\n## OpenAPI\n\n- **UI (Scalar):** [`/docs`](/docs) — escolha *multipart/form-data* no request body para o seletor de arquivo\n- **JSON:** [`/docs/json`](/docs/json) — gerado a partir dos schemas Zod + multipart injetado\n\n## Guia rico\n\nDocumentação narrativa (arquitetura, fluxos, exemplos): **[/guide](/guide/)**.",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "contact": {
       "name": "zapo-rest"
     },
@@ -4937,6 +4937,71 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Image file (`file` / `media` / `image`). Also set form field `to` (and optional `caption`)."
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "example": "5511999999999"
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
+                    "example": "https://picsum.photos/800",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  },
+                  "caption": {
+                    "description": "Caption (image/document)",
+                    "example": "Foto do produto",
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "description": "Document display name",
+                    "example": "relatorio.pdf",
+                    "type": "string"
+                  },
+                  "ptt": {
+                    "type": "string",
+                    "description": "Audio: send as voice note (PTT) (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "viewOnce": {
+                    "type": "string",
+                    "description": "Image: view-once wrapper (form field; send as text, e.g. true/false or digits)",
+                    "example": "false"
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg, image/png, image/webp, image/*",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -4994,66 +5059,9 @@
                   "caption": "Foto do produto"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
-                    "example": "5511999999999"
-                  },
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
-                    "example": "https://picsum.photos/800",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "caption": {
-                    "description": "Caption (image/document)",
-                    "example": "Foto do produto",
-                    "type": "string"
-                  },
-                  "fileName": {
-                    "description": "Document display name",
-                    "example": "relatorio.pdf",
-                    "type": "string"
-                  },
-                  "ptt": {
-                    "description": "Audio: send as voice note (PTT)",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "viewOnce": {
-                    "description": "Image: view-once wrapper",
-                    "example": false,
-                    "type": "boolean"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Image file (`file` / `media` / `image`). Also send form fields: `to`, `caption`, `viewOnce`, …"
-                  }
-                },
-                "required": [
-                  "to"
-                ]
-              }
             }
           },
-          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -5223,6 +5231,71 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Video file (`file` / `media` / `video`). Form fields: `to`, optional `caption`."
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "example": "5511999999999"
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
+                    "example": "https://picsum.photos/800",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  },
+                  "caption": {
+                    "description": "Caption (image/document)",
+                    "example": "Foto do produto",
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "description": "Document display name",
+                    "example": "relatorio.pdf",
+                    "type": "string"
+                  },
+                  "ptt": {
+                    "type": "string",
+                    "description": "Audio: send as voice note (PTT) (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "viewOnce": {
+                    "type": "string",
+                    "description": "Image: view-once wrapper (form field; send as text, e.g. true/false or digits)",
+                    "example": "false"
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "video/mp4, video/*, application/octet-stream",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -5280,66 +5353,9 @@
                   "caption": "Foto do produto"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
-                    "example": "5511999999999"
-                  },
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
-                    "example": "https://picsum.photos/800",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "caption": {
-                    "description": "Caption (image/document)",
-                    "example": "Foto do produto",
-                    "type": "string"
-                  },
-                  "fileName": {
-                    "description": "Document display name",
-                    "example": "relatorio.pdf",
-                    "type": "string"
-                  },
-                  "ptt": {
-                    "description": "Audio: send as voice note (PTT)",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "viewOnce": {
-                    "description": "Image: view-once wrapper",
-                    "example": false,
-                    "type": "boolean"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Video file (`file` / `media` / `video`). Form fields: `to`, `caption`, …"
-                  }
-                },
-                "required": [
-                  "to"
-                ]
-              }
             }
           },
-          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -5366,6 +5382,71 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Audio / voice-note file (`file` / `media` / `audio`). Form fields: `to`, optional `ptt`."
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "example": "5511999999999"
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
+                    "example": "https://picsum.photos/800",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  },
+                  "caption": {
+                    "description": "Caption (image/document)",
+                    "example": "Foto do produto",
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "description": "Document display name",
+                    "example": "relatorio.pdf",
+                    "type": "string"
+                  },
+                  "ptt": {
+                    "type": "string",
+                    "description": "Audio: send as voice note (PTT) (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "viewOnce": {
+                    "type": "string",
+                    "description": "Image: view-once wrapper (form field; send as text, e.g. true/false or digits)",
+                    "example": "false"
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "audio/ogg, audio/mpeg, audio/mp4, audio/*, application/octet-stream",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -5423,66 +5504,9 @@
                   "caption": "Foto do produto"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
-                    "example": "5511999999999"
-                  },
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
-                    "example": "https://picsum.photos/800",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "caption": {
-                    "description": "Caption (image/document)",
-                    "example": "Foto do produto",
-                    "type": "string"
-                  },
-                  "fileName": {
-                    "description": "Document display name",
-                    "example": "relatorio.pdf",
-                    "type": "string"
-                  },
-                  "ptt": {
-                    "description": "Audio: send as voice note (PTT)",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "viewOnce": {
-                    "description": "Image: view-once wrapper",
-                    "example": false,
-                    "type": "boolean"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Audio / voice-note file (`file` / `media` / `audio`). Form fields: `to`, `ptt`, …"
-                  }
-                },
-                "required": [
-                  "to"
-                ]
-              }
             }
           },
-          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -5652,6 +5676,71 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Document file (`file` / `media` / `document`). Form fields: `to`, optional `fileName`, `caption`."
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "example": "5511999999999"
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
+                    "example": "https://picsum.photos/800",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  },
+                  "caption": {
+                    "description": "Caption (image/document)",
+                    "example": "Foto do produto",
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "description": "Document display name",
+                    "example": "relatorio.pdf",
+                    "type": "string"
+                  },
+                  "ptt": {
+                    "type": "string",
+                    "description": "Audio: send as voice note (PTT) (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "viewOnce": {
+                    "type": "string",
+                    "description": "Image: view-once wrapper (form field; send as text, e.g. true/false or digits)",
+                    "example": "false"
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "application/pdf, application/octet-stream, */*",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -5709,66 +5798,9 @@
                   "caption": "Foto do produto"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
-                    "example": "5511999999999"
-                  },
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
-                    "example": "https://picsum.photos/800",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "caption": {
-                    "description": "Caption (image/document)",
-                    "example": "Foto do produto",
-                    "type": "string"
-                  },
-                  "fileName": {
-                    "description": "Document display name",
-                    "example": "relatorio.pdf",
-                    "type": "string"
-                  },
-                  "ptt": {
-                    "description": "Audio: send as voice note (PTT)",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "viewOnce": {
-                    "description": "Image: view-once wrapper",
-                    "example": false,
-                    "type": "boolean"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Document file (`file` / `media` / `document`). Form fields: `to`, `fileName`, `caption`, …"
-                  }
-                },
-                "required": [
-                  "to"
-                ]
-              }
             }
           },
-          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -5938,6 +5970,71 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Sticker file (`file` / `media` / `sticker`), typically image/webp."
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "example": "5511999999999"
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
+                    "example": "https://picsum.photos/800",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  },
+                  "caption": {
+                    "description": "Caption (image/document)",
+                    "example": "Foto do produto",
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "description": "Document display name",
+                    "example": "relatorio.pdf",
+                    "type": "string"
+                  },
+                  "ptt": {
+                    "type": "string",
+                    "description": "Audio: send as voice note (PTT) (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "viewOnce": {
+                    "type": "string",
+                    "description": "Image: view-once wrapper (form field; send as text, e.g. true/false or digits)",
+                    "example": "false"
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/webp, image/png, image/*",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -5995,66 +6092,9 @@
                   "caption": "Foto do produto"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
-                    "example": "5511999999999"
-                  },
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
-                    "example": "https://picsum.photos/800",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Base64 or data-URL media (JSON body). Prefer mediaUrl or multipart for large files.",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "MIME type, e.g. image/jpeg, audio/ogg; codecs=opus",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "caption": {
-                    "description": "Caption (image/document)",
-                    "example": "Foto do produto",
-                    "type": "string"
-                  },
-                  "fileName": {
-                    "description": "Document display name",
-                    "example": "relatorio.pdf",
-                    "type": "string"
-                  },
-                  "ptt": {
-                    "description": "Audio: send as voice note (PTT)",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "viewOnce": {
-                    "description": "Image: view-once wrapper",
-                    "example": false,
-                    "type": "boolean"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Sticker file (`file` / `media` / `sticker`), typically image/webp."
-                  }
-                },
-                "required": [
-                  "to"
-                ]
-              }
             }
           },
-          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "Send media. Provide **one** of: `mediaUrl`, `mediaBase64` (JSON), or multipart field `file` / `media` (with form fields for `to`, `caption`, …). Size limit: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -11129,6 +11169,76 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "WAV audio for blast (`file` / `audio` / `media`). Form field `to` required."
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone number (or JID) to call",
+                    "example": "5511999999999"
+                  },
+                  "audioUrl": {
+                    "description": "HTTPS URL of a WAV file (PCM 8/16/24/32-bit or float32; any sample rate/channels — resampled to 16 kHz mono). Server-side download is **SSRF-guarded**. Or send multipart `file` / `audio` / `mediaBase64`.",
+                    "example": "https://example.com/message.wav",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Base64 WAV bytes (alternative to audioUrl / multipart upload)",
+                    "type": "string"
+                  },
+                  "mediaUrl": {
+                    "description": "Alias of audioUrl for shared media resolvers",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "responseTimeoutMs": {
+                    "type": "string",
+                    "description": "Time to wait for a spoken response after the audio finishes (ms) (form field; send as text, e.g. true/false or digits)",
+                    "example": "5000"
+                  },
+                  "callTimeoutMs": {
+                    "type": "string",
+                    "description": "Max time to wait for the callee to answer (ms) (form field; send as text, e.g. true/false or digits)",
+                    "example": "30000"
+                  },
+                  "recordResponse": {
+                    "type": "string",
+                    "description": "Record the remote audio leg. Requires media storage. Persists on the call row so `GET .../recording` and `POST .../transcribe` work. (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "transcribe": {
+                    "type": "string",
+                    "description": "When true (default if omitted) and `STT_ENABLED` + `STT_API_URL` + `STT_API_KEY` are set, run Whisper STT on the recorded response. Set false to skip. (form field; send as text, e.g. true/false or digits)",
+                    "example": "true"
+                  },
+                  "sttLanguage": {
+                    "description": "Language hint for STT (ISO 639-1, e.g. `pt`). Overrides `STT_LANGUAGE` env.",
+                    "example": "pt",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "audio/wav, audio/x-wav, audio/*, application/octet-stream",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -11201,78 +11311,9 @@
                   "sttLanguage": "pt"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Phone number (or JID) to call",
-                    "example": "5511999999999"
-                  },
-                  "audioUrl": {
-                    "description": "HTTPS URL of a WAV file (PCM 8/16/24/32-bit or float32; any sample rate/channels — resampled to 16 kHz mono). Server-side download is **SSRF-guarded**. Or send multipart `file` / `audio` / `mediaBase64`.",
-                    "example": "https://example.com/message.wav",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Base64 WAV bytes (alternative to audioUrl / multipart upload)",
-                    "type": "string"
-                  },
-                  "mediaUrl": {
-                    "description": "Alias of audioUrl for shared media resolvers",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "responseTimeoutMs": {
-                    "default": 5000,
-                    "description": "Time to wait for a spoken response after the audio finishes (ms)",
-                    "example": 5000,
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 60000
-                  },
-                  "callTimeoutMs": {
-                    "default": 30000,
-                    "description": "Max time to wait for the callee to answer (ms)",
-                    "example": 30000,
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 120000
-                  },
-                  "recordResponse": {
-                    "default": true,
-                    "description": "Record the remote audio leg. Requires media storage. Persists on the call row so `GET .../recording` and `POST .../transcribe` work.",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "transcribe": {
-                    "description": "When true (default if omitted) and `STT_ENABLED` + `STT_API_URL` + `STT_API_KEY` are set, run Whisper STT on the recorded response. Set false to skip.",
-                    "example": true,
-                    "type": "boolean"
-                  },
-                  "sttLanguage": {
-                    "description": "Language hint for STT (ISO 639-1, e.g. `pt`). Overrides `STT_LANGUAGE` env.",
-                    "example": "pt",
-                    "type": "string"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "WAV audio for blast (`file` / `audio` / `media`). Form fields: `to`, timeouts, `recordResponse`, …"
-                  }
-                },
-                "required": [
-                  "to"
-                ]
-              }
             }
           },
-          "description": "Outbound VoIP **audio blast**: dial, play a WAV when answered, optionally record the remote leg and transcribe via Groq/OpenAI-compatible Whisper. HTTP stays open until the blast finishes — raise client timeouts for long WAVs. Env: `STT_*` for transcription.\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "Outbound VoIP **audio blast**: dial, play a WAV when answered, optionally record the remote leg and transcribe via Groq/OpenAI-compatible Whisper. HTTP stays open until the blast finishes — raise client timeouts for long WAVs. Env: `STT_*` for transcription.\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -13484,6 +13525,34 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Group picture file (`file` / `media` / `image`). Re-encoded to JPEG server-side."
+                  },
+                  "mediaUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg, image/png, image/webp, image/*",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -13497,29 +13566,9 @@
                   }
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "mediaUrl": {
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "type": "string"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "JPEG group picture file (`file` / `media` / `image`)."
-                  }
-                }
-              }
             }
           },
-          "description": "Also accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "parameters": [
           {
@@ -14262,6 +14311,42 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Profile picture file — use this for Try It. API also accepts field aliases `media` / `image`. Re-encoded to JPEG server-side."
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of a JPEG image",
+                    "example": "https://cdn.example.com/avatar.jpg",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Raw or data-URL base64 of a JPEG image",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "Optional MIME (default image/jpeg)",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg, image/png, image/webp, image/*",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -14287,37 +14372,9 @@
                   "mediaUrl": "https://cdn.example.com/avatar.jpg"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of a JPEG image",
-                    "example": "https://cdn.example.com/avatar.jpg",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Raw or data-URL base64 of a JPEG image",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "Optional MIME (default image/jpeg)",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "JPEG profile picture file. Field name `file` (aliases accepted by the API: `media`, `image`)."
-                  }
-                }
-              }
             }
           },
-          "description": "JPEG avatar via `mediaUrl`, `mediaBase64`, or multipart `file`. WhatsApp expects JPEG profile pictures. Size limit: MEDIA_UPLOAD_MAX_BYTES.\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "JPEG avatar via `mediaUrl`, `mediaBase64`, or multipart `file`. WhatsApp expects JPEG profile pictures. Size limit: MEDIA_UPLOAD_MAX_BYTES.\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -14808,6 +14865,42 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Profile picture file — use this for Try It. API also accepts field aliases `media` / `image`. Re-encoded to JPEG server-side."
+                  },
+                  "mediaUrl": {
+                    "description": "Public HTTPS URL of a JPEG image",
+                    "example": "https://cdn.example.com/avatar.jpg",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Raw or data-URL base64 of a JPEG image",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "description": "Optional MIME (default image/jpeg)",
+                    "example": "image/jpeg",
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg, image/png, image/webp, image/*",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -14833,37 +14926,9 @@
                   "mediaUrl": "https://cdn.example.com/avatar.jpg"
                 }
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "mediaUrl": {
-                    "description": "Public HTTPS URL of a JPEG image",
-                    "example": "https://cdn.example.com/avatar.jpg",
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "description": "Raw or data-URL base64 of a JPEG image",
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "description": "Optional MIME (default image/jpeg)",
-                    "example": "image/jpeg",
-                    "type": "string"
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "JPEG profile picture file. Field name `file` (aliases accepted by the API: `media`, `image`)."
-                  }
-                }
-              }
             }
           },
-          "description": "JPEG avatar via `mediaUrl`, `mediaBase64`, or multipart `file`. WhatsApp expects JPEG profile pictures. Size limit: MEDIA_UPLOAD_MAX_BYTES.\n\nAlso accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "JPEG avatar via `mediaUrl`, `mediaBase64`, or multipart `file`. WhatsApp expects JPEG profile pictures. Size limit: MEDIA_UPLOAD_MAX_BYTES.\n\n**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {
@@ -15809,6 +15874,70 @@
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "**Prefer this content type in Scalar for file uploads.** Field `file` is the binary upload. Other properties are optional text form fields (or use `mediaUrl` / `mediaBase64` instead of `file`). Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "description": "Optional status media (`file` / `media`). Form fields: `recipients` (JSON array string), `type`, `caption`, `text`, …"
+                  },
+                  "recipients": {
+                    "type": "string",
+                    "description": "JIDs or phones that should receive the status (fan-out list) (JSON array as a single form field string)",
+                    "example": "[]"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mediaUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "caption": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "text",
+                      "image",
+                      "video",
+                      "audio"
+                    ]
+                  },
+                  "statusSetting": {
+                    "type": "string",
+                    "enum": [
+                      "contacts",
+                      "allowlist",
+                      "denylist",
+                      "close_friends"
+                    ]
+                  }
+                },
+                "required": [
+                  "recipients"
+                ]
+              },
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg, image/png, video/mp4, audio/*, application/octet-stream",
+                  "style": "form",
+                  "explode": false
+                }
+              }
+            },
             "application/json": {
               "schema": {
                 "type": "object",
@@ -15863,70 +15992,9 @@
                   "recipients"
                 ]
               }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "description": "Multipart form: upload `file` **or** send `mediaUrl` / `mediaBase64` as text fields. Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB).",
-                "properties": {
-                  "recipients": {
-                    "minItems": 1,
-                    "maxItems": 256,
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "description": "JIDs or phones that should receive the status (fan-out list)"
-                  },
-                  "text": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "mediaUrl": {
-                    "type": "string",
-                    "format": "uri"
-                  },
-                  "mediaBase64": {
-                    "type": "string"
-                  },
-                  "mimetype": {
-                    "type": "string"
-                  },
-                  "caption": {
-                    "type": "string"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "text",
-                      "image",
-                      "video",
-                      "audio"
-                    ]
-                  },
-                  "statusSetting": {
-                    "type": "string",
-                    "enum": [
-                      "contacts",
-                      "allowlist",
-                      "denylist",
-                      "close_friends"
-                    ]
-                  },
-                  "file": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Optional status media (`file` / `media`). Form fields: `recipients` (JSON array string), `type`, `caption`, `text`, …"
-                  }
-                },
-                "required": [
-                  "recipients"
-                ]
-              }
             }
           },
-          "description": "Also accepts **`multipart/form-data`** with field `file` (see content type below)."
+          "description": "**Scalar:** select content type `multipart/form-data` (default) and use the **file** picker. JSON (`mediaUrl` / `mediaBase64`) remains available."
         },
         "security": [
           {

@@ -93,6 +93,36 @@ const plugin: FastifyPluginAsync = async (app) => {
       })
     }
 
+    // @fastify/multipart / busboy limits (413 / 400) — not opaque Cloudflare 502s
+    if (err && typeof err === 'object' && 'code' in err) {
+      const e = err as { code?: unknown; message?: unknown }
+      const code = String(e.code ?? '')
+      const message = typeof e.message === 'string' ? e.message : undefined
+      if (
+        code === 'FST_REQ_FILE_TOO_LARGE' ||
+        code === 'FST_FILES_LIMIT' ||
+        code === 'FST_PARTS_LIMIT' ||
+        code === 'FST_FIELDS_LIMIT'
+      ) {
+        return reply.status(413).send({
+          error: {
+            code: 'PAYLOAD_TOO_LARGE',
+            message: message || 'Upload too large',
+            details: { code },
+          },
+        })
+      }
+      if (code === 'FST_MP_PREMATURE_CLOSE' || code === 'FST_INVALID_MULTIPART_CONTENT_TYPE') {
+        return reply.status(400).send({
+          error: {
+            code: 'BAD_REQUEST',
+            message: message || 'Invalid multipart upload',
+            details: { code },
+          },
+        })
+      }
+    }
+
     // Map common zapo protocol errors to actionable API responses
     if (err instanceof Error) {
       const msg = err.message

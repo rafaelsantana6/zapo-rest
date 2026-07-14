@@ -876,9 +876,11 @@ curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
         <Callout title="Mídia: URL · base64 · multipart">
           Avatar, mensagens de mídia, status e blast aceitam <strong>uma</strong> fonte: <code>mediaUrl</code>,{' '}
           <code>mediaBase64</code> (JSON) ou upload <code>multipart/form-data</code> no campo <code>file</code>{' '}
-          (aliases: <code>media</code>, <code>audio</code>, …). Limite: env <code>MEDIA_UPLOAD_MAX_BYTES</code> (padrão
-          100&nbsp;MiB). No Scalar (<code>/docs</code>), escolha content-type <code>multipart/form-data</code> para o
-          seletor de arquivo.
+          (aliases: <code>media</code>, <code>audio</code>, …). Limite de body/upload: env{' '}
+          <code>MEDIA_UPLOAD_MAX_BYTES</code> (padrão 100&nbsp;MiB; o bodyLimit do Fastify segue o mesmo valor). No
+          Scalar (<code>/docs</code>), o content-type padrão das rotas de mídia é <code>multipart/form-data</code> com
+          seletor de <code>file</code> (JSON continua disponível). Foto de perfil/grupo: o servidor re-encoda PNG/WebP
+          etc. para JPEG compacto (≤640px) antes do WhatsApp — evite 502 por formato/tamanho inválido.
         </Callout>
         <h2 id="send-types">Tipos de envio</h2>
         <table>

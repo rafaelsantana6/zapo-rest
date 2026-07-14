@@ -8,7 +8,9 @@ import { ErrorBodySchema, MEDIA_INPUT_HELP, OkSchema } from '~/http/openapi-sche
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { bareUserJid } from '~/lib/jid-canon'
+import { normalizeProfileJpeg } from '~/media/profile-image'
 import { mediaPreValidation, requireMediaFromRequest } from '~/media/request-media'
+import { parseWaIqError } from '~/lib/wa-iq-error'
 
 export type ProfileRoutesDeps = {
   manager: InstanceManager
@@ -200,10 +202,23 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
     const client = manager.requireRegisteredClient(instanceName)
     const { media } = await requireMediaFromRequest(request, env)
     try {
-      const bytes = await readFile(media.path)
-      if (bytes.byteLength === 0) throw badRequest('empty image payload')
-      const id = await client.profile.setProfilePicture(bytes)
-      return { ok: true as const, pictureId: id ?? null }
+      const raw = await readFile(media.path)
+      // WA expects compact JPEG; multipart often sends PNG/HEIC/huge phone photos
+      const jpeg = await normalizeProfileJpeg(raw)
+      try {
+        const id = await client.profile.setProfilePicture(jpeg)
+        return { ok: true as const, pictureId: id ?? null }
+      } catch (err) {
+        const iq = parseWaIqError(err)
+        if (iq) {
+          throw badRequest(
+            `WhatsApp rejected the profile picture (${iq.code ?? iq.kind}). ` +
+              'Use a clear JPEG/PNG/WebP photo (we re-encode to JPEG ≤640px).',
+            { wa: iq },
+          )
+        }
+        throw err
+      }
     } finally {
       await media.cleanup()
     }

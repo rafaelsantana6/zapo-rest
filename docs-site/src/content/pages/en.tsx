@@ -871,9 +871,11 @@ curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
         <Callout title="Media: URL · base64 · multipart">
           Avatar, media messages, status, and blast accept <strong>one</strong> source: <code>mediaUrl</code>,{' '}
           <code>mediaBase64</code> (JSON), or <code>multipart/form-data</code> upload field <code>file</code> (aliases:{' '}
-          <code>media</code>, <code>audio</code>, …). Cap: env <code>MEDIA_UPLOAD_MAX_BYTES</code> (default
-          100&nbsp;MiB). In Scalar (<code>/docs</code>), pick content-type <code>multipart/form-data</code> for the file
-          picker.
+          <code>media</code>, <code>audio</code>, …). Body/upload cap: env <code>MEDIA_UPLOAD_MAX_BYTES</code> (default
+          100&nbsp;MiB; Fastify <code>bodyLimit</code> matches it). In Scalar (<code>/docs</code>), media routes default
+          to <code>multipart/form-data</code> with a <code>file</code> picker (JSON still available). Profile/group
+          photos: the server re-encodes PNG/WebP/etc. to compact JPEG (≤640px) before WhatsApp — avoids opaque 502s from
+          bad format/size.
         </Callout>
         <h2 id="send-types">Send types</h2>
         <table>

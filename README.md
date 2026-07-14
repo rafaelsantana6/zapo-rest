@@ -399,7 +399,7 @@ Avatar, message media (`image|video|audio|document|sticker`), status, group pict
 | Base64 | JSON `mediaBase64` |
 | File upload | `multipart/form-data` field `file` (aliases: `media`, `audio`, …) |
 
-Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB). In Scalar `/docs`, select content-type **multipart/form-data** to get the file picker.
+Max size: env `MEDIA_UPLOAD_MAX_BYTES` (default 100 MiB; Fastify `bodyLimit` matches). In Scalar `/docs`, media routes **default to multipart/form-data** with a **file** picker (JSON still available). Profile/group avatars are re-encoded server-side to compact JPEG (≤640px) before WhatsApp.
 
 ### Webhooks (multi-config)
 

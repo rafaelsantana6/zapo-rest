@@ -68,9 +68,13 @@ export type BuildAppDeps = {
 
 export async function buildApp(deps: BuildAppDeps) {
   const trustProxy = deps.env.TRUST_PROXY ? deps.env.TRUST_PROXY_HOPS : false
+  // Default Fastify bodyLimit is 1 MiB — too small for multipart avatars/media uploads.
+  // Align with MEDIA_UPLOAD_MAX_BYTES (multipart fileSize also falls back to bodyLimit).
+  const bodyLimit = deps.env.MEDIA_UPLOAD_MAX_BYTES
   const app = Fastify({
     logger: false,
     trustProxy,
+    bodyLimit,
   }).withTypeProvider<ZodTypeProvider>()
 
   app.setValidatorCompiler(validatorCompiler)
@@ -80,9 +84,12 @@ export async function buildApp(deps: BuildAppDeps) {
   await app.register(securityHeadersPlugin)
   await app.register(multipart, {
     limits: {
-      fileSize: deps.env.MEDIA_UPLOAD_MAX_BYTES,
+      fileSize: bodyLimit,
       files: 1,
       fields: 40,
+      // Large data-URL fields in hybrid forms; files stream separately
+      fieldSize: Math.min(bodyLimit, 12 * 1024 * 1024),
+      parts: 50,
     },
     // Do not attach to body — routes use parseMediaRequest / requireMediaFromRequest
     attachFieldsToBody: false,

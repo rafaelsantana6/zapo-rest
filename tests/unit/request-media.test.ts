@@ -1,12 +1,21 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import sharp from 'sharp'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildApp } from '~/app'
 import { InstanceManager } from '~/instances/manager'
 import { WebhookDispatcher } from '~/webhooks/dispatcher'
 import { makeEnv } from '../helpers/fixtures'
 import { MemoryInstanceRepo } from '../helpers/memory-repo'
+
+async function sampleJpeg(width = 32, height = 32): Promise<Buffer> {
+  return sharp({
+    create: { width, height, channels: 3, background: { r: 10, g: 20, b: 30 } },
+  })
+    .jpeg()
+    .toBuffer()
+}
 
 /** Minimal multipart/form-data body for light-my-request inject. */
 function multipartBody(
@@ -101,7 +110,7 @@ describe('multipart media upload', () => {
 
   it('PUT /profile/image accepts multipart file upload', async () => {
     const { app: server, apiKey } = await boot()
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x01, 0x02, 0x03])
+    const jpeg = await sampleJpeg()
     const { payload, contentType } = multipartBody(
       {},
       { field: 'file', filename: 'avatar.jpg', contentType: 'image/jpeg', data: jpeg },
@@ -124,7 +133,7 @@ describe('multipart media upload', () => {
 
   it('POST /messages/image accepts multipart file + fields', async () => {
     const { app: server, apiKey } = await boot()
-    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0xaa, 0xbb])
+    const jpeg = await sampleJpeg(48, 48)
     const { payload, contentType } = multipartBody(
       { to: '5511888777666', caption: 'oi' },
       { field: 'file', filename: 'p.jpg', contentType: 'image/jpeg', data: jpeg },
@@ -168,7 +177,7 @@ describe('multipart media upload', () => {
 
   it('still accepts JSON mediaBase64 for profile image', async () => {
     const { app: server, apiKey } = await boot()
-    const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x00]).toString('base64')
+    const jpegB64 = (await sampleJpeg()).toString('base64')
     const res = await server.inject({
       method: 'PUT',
       url: '/v1/profile/image',
@@ -176,5 +185,26 @@ describe('multipart media upload', () => {
       payload: { mediaBase64: jpegB64, mimetype: 'image/jpeg' },
     })
     expect(res.statusCode).toBe(200)
+  })
+
+  it('accepts PNG multipart and re-encodes to JPEG for WA', async () => {
+    const { app: server, apiKey } = await boot()
+    const png = await sharp({
+      create: { width: 80, height: 80, channels: 3, background: { r: 200, g: 10, b: 10 } },
+    })
+      .png()
+      .toBuffer()
+    const { payload, contentType } = multipartBody(
+      {},
+      { field: 'file', filename: 'avatar.png', contentType: 'image/png', data: png },
+    )
+    const res = await server.inject({
+      method: 'PUT',
+      url: '/v1/profile/image',
+      headers: { 'x-api-key': apiKey, 'content-type': contentType },
+      payload,
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ ok: true, pictureId: 'pic-upload-1' })
   })
 })
