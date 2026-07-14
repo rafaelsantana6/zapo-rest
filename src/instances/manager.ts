@@ -2,7 +2,7 @@ import type { Pool } from 'pg'
 import type { WaAuthCredentials, WaClient, WaConnectionEvent, WaIncomingMessageEvent } from 'zapo-js'
 import type { Env } from '~/config/env'
 import type { EventProcessor } from '~/events/processor'
-import { applyPictureNotification } from '~/lib/avatar-resolve'
+import { applyPictureNotification, resolveContactAvatar } from '~/lib/avatar-resolve'
 import { badRequest, conflict, notFound, serviceUnavailable } from '~/lib/errors'
 import { toRecipientJid } from '~/lib/jid'
 import { bareUserJid, isLidJid } from '~/lib/jid-canon'
@@ -151,48 +151,138 @@ export class InstanceManager {
   }
 
   /**
+   * Display name from live credentials.
+   * zapo-js often keeps the broadcast name in `meDisplayName` until app-state
+   * seeds `pushName` — check both.
+   */
+  private livePushName(creds: WaAuthCredentials | null | undefined): string | null {
+    if (!creds) return null
+    const push = typeof creds.pushName === 'string' ? creds.pushName.trim() : ''
+    if (push) return push
+    const display = typeof creds.meDisplayName === 'string' ? creds.meDisplayName.trim() : ''
+    if (display) return display
+    return null
+  }
+
+  /**
    * Attach token + WhatsApp profile fields (push name, avatar) for list/get responses.
    * Prefer live credentials when the session is open; fall back to DB columns.
+   * When the client is open, may revalidate own avatar via WA (TTL-gated storage).
    */
   private async enrichPublicInstance(row: InstanceRecord): Promise<PublicInstance> {
     let pushName = row.pushName
+    let meJid = row.meJid
     const client = this.tryGetClient(row.name)
     if (client) {
       try {
-        const creds = client.getCredentials() as { pushName?: string; meJid?: string | null } | null
-        if (creds?.pushName && creds.pushName !== pushName) {
-          pushName = creds.pushName
-          void this.opts.repo.updateStatus(row.name, { pushName: creds.pushName }).catch(() => undefined)
+        const creds = client.getCredentials()
+        if (creds?.meJid) meJid = creds.meJid
+        const live = this.livePushName(creds)
+        if (live && live !== pushName) {
+          pushName = live
+          void this.opts.repo.updateStatus(row.name, { pushName: live }).catch(() => undefined)
         }
       } catch {
         // ignore
       }
     }
 
-    const avatarUrl = await this.resolveOwnAvatarUrl(row.name, row.meJid)
+    const avatarUrl = await this.resolveOwnAvatarUrl(row.name, meJid, client)
     return toPublicInstance(row, { pushName, avatarUrl })
   }
 
-  /** Durable avatar for the linked account (meJid), if stored. */
-  private async resolveOwnAvatarUrl(instanceName: string, meJid: string | null): Promise<string | null> {
-    if (!meJid || !this.avatars) return null
-    const jid = bareUserJid(meJid)
+  /**
+   * After open/pair: pull own display name + avatar from WhatsApp into projections
+   * so list/get stop returning null once the session is live.
+   */
+  private async syncOwnProfile(name: string, client: WaClient): Promise<void> {
+    const creds = client.getCredentials()
+    if (!creds?.meJid) return
+
+    const pushName = this.livePushName(creds)
+    const patch: StatusPatch = { meJid: creds.meJid }
+    if (pushName) patch.pushName = pushName
+    await this.persistStatus(name, patch)
+
+    if (!this.avatars || !this.opts.mediaStorage) return
+    const jid = bareUserJid(creds.meJid)
     try {
-      const av =
-        (await this.avatars.get(instanceName, jid, 'preview')) ?? (await this.avatars.get(instanceName, jid, 'image'))
-      if (av?.status !== 'ok' || !av.storageKey) return null
-      const media = this.opts.mediaStorage
-      if (media?.publicUrl) {
-        const pub = media.publicUrl(av.storageKey)
-        if (pub) return pub
-      }
-      // Authenticated profile-picture endpoint (works without public storage URL)
-      const phone = digitsOnly(jid.split('@')[0] ?? '')
-      if (!phone) return null
-      return `/v1/instances/${encodeURIComponent(instanceName)}/contacts/${encodeURIComponent(phone)}/profile-picture`
-    } catch {
-      return null
+      await resolveContactAvatar({
+        instanceName: name,
+        jid,
+        picType: 'preview',
+        refresh: false,
+        client,
+        mediaStorage: this.opts.mediaStorage,
+        avatars: this.avatars,
+        contacts: this.opts.contacts,
+        env: this.opts.env,
+      })
+    } catch (err) {
+      this.log.debug({ err, instance: name }, 'own avatar sync failed')
     }
+  }
+
+  /**
+   * Own-account avatar URL for list/get.
+   * 1) Prefer durable storage (or public CDN URL).
+   * 2) If live client + storage: resolve against WA (TTL-cached) so first GET after open fills storage.
+   * 3) Fallback: authenticated profile-picture API path (endpoint fetches from WA on demand).
+   */
+  private async resolveOwnAvatarUrl(
+    instanceName: string,
+    meJid: string | null,
+    client: WaClient | null,
+  ): Promise<string | null> {
+    if (!meJid) return null
+    const jid = bareUserJid(meJid)
+    const phone = digitsOnly(jid.split('@')[0] ?? '')
+    if (!phone) return null
+
+    const apiPath = `/v1/instances/${encodeURIComponent(instanceName)}/contacts/${encodeURIComponent(phone)}/profile-picture`
+
+    // Live resolve into durable storage when possible (respects TTL / negative cache)
+    if (client && this.avatars && this.opts.mediaStorage) {
+      try {
+        const result = await resolveContactAvatar({
+          instanceName,
+          jid,
+          picType: 'preview',
+          refresh: false,
+          client,
+          mediaStorage: this.opts.mediaStorage,
+          avatars: this.avatars,
+          contacts: this.opts.contacts,
+          env: this.opts.env,
+        })
+        if (result.status === 'ok' && result.url) return result.url
+        if (result.status === 'privacy' || result.status === 'none') return null
+      } catch (err) {
+        this.log.debug({ err, instance: instanceName }, 'own avatar resolve failed')
+      }
+    }
+
+    // Storage hit without live client
+    if (this.avatars) {
+      try {
+        const av =
+          (await this.avatars.get(instanceName, jid, 'preview')) ?? (await this.avatars.get(instanceName, jid, 'image'))
+        if (av?.status === 'ok' && av.storageKey) {
+          const media = this.opts.mediaStorage
+          if (media?.publicUrl) {
+            const pub = media.publicUrl(av.storageKey)
+            if (pub) return pub
+          }
+          return apiPath
+        }
+        if (av?.status === 'privacy' || av?.status === 'none') return null
+      } catch {
+        // ignore
+      }
+    }
+
+    // meJid known but not cached: point clients at the on-demand fetch endpoint
+    return apiPath
   }
 
   async create(input: CreateInstanceInput) {
@@ -270,13 +360,16 @@ export class InstanceManager {
     try {
       await session.client.connect()
       // If socket is already open (or creds restored) before the event is handled, reflect that now.
-      const creds = session.client.getCredentials() as WaAuthCredentials | null
+      const creds = session.client.getCredentials()
       if (creds?.meJid) {
+        const pushName = this.livePushName(creds)
         await this.persistStatus(name, {
           status: 'open',
           meJid: creds.meJid,
-          pushName: creds.pushName ?? undefined,
+          ...(pushName ? { pushName } : {}),
         })
+        // Best-effort: pull avatar + confirm push name without blocking connect response
+        void this.syncOwnProfile(name, session.client).catch(() => undefined)
       }
     } catch (err) {
       this.log.error({ err, name }, 'connect failed')
@@ -310,7 +403,7 @@ export class InstanceManager {
     if (!row) throw notFound(`instance "${name}" not found`)
     const session = this.sessions.get(name)
     if (session) session.record = row
-    return toPublicInstance(row)
+    return this.enrichPublicInstance(row)
   }
 
   getClient(name: string): WaClient {
@@ -504,16 +597,18 @@ export class InstanceManager {
   }
 
   private async onAuthPaired(name: string, session: LiveSession, credentials: WaAuthCredentials): Promise<void> {
+    const pushName = this.livePushName(credentials)
     const row = await this.persistStatus(name, {
       status: 'open',
       meJid: credentials.meJid ?? null,
-      pushName: credentials.pushName ?? undefined,
+      ...(pushName ? { pushName } : {}),
       lastQr: null,
     })
     session.reconnectAttempt = 0
     if (row) {
       await this.opts.webhooks.emit(row, 'instance.paired', { meJid: credentials.meJid })
     }
+    void this.syncOwnProfile(name, session.client).catch(() => undefined)
   }
 
   private async onConnection(
@@ -538,13 +633,14 @@ export class InstanceManager {
     event: ConnectionOpenEvent,
   ): Promise<void> {
     session.reconnectAttempt = 0
-    const creds = client.getCredentials() as WaAuthCredentials | null
+    const creds = client.getCredentials()
     const registered = Boolean(creds?.meJid)
     const nextStatus: InstanceStatus = registered ? 'open' : 'qr'
+    const pushName = this.livePushName(creds)
     const row = await this.persistStatus(name, {
       status: nextStatus,
       meJid: creds?.meJid ?? undefined,
-      pushName: creds?.pushName ?? undefined,
+      ...(pushName ? { pushName } : {}),
     })
     if (row) {
       await this.opts.webhooks.emit(row, 'instance.connection', {
@@ -556,7 +652,10 @@ export class InstanceManager {
     }
     // Presence subscriptions are wiped by WA on reconnect — clients must re-subscribe.
     // Mark available so peers can send chatstate again.
-    if (registered) await this.markAvailable(name, client)
+    if (registered) {
+      await this.markAvailable(name, client)
+      void this.syncOwnProfile(name, client).catch(() => undefined)
+    }
   }
 
   private async onConnectionClosed(name: string, session: LiveSession, event: ConnectionCloseEvent): Promise<void> {
