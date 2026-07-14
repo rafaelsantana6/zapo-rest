@@ -41,8 +41,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
         <h2 id="capabilities">What the API covers</h2>
         <ul>
           <li>
-            <strong>Instances</strong> — create/connect/QR/pairing-code/restart/logout, admin vs instance API keys;
-            dual paths (named or short form with instance key)
+            <strong>Instances</strong> — create/connect/QR/pairing-code/restart/logout, admin vs instance API keys; dual
+            paths (named or short form with instance key)
           </li>
           <li>
             <strong>Messages</strong> — text, reply, image, video, audio/PTT, document, sticker, location, poll, react,
