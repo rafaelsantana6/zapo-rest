@@ -5,7 +5,13 @@ import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { MediaStorage } from '~/media/storage'
 import type { CacheClient } from '~/redis/client'
 import type { CallStore } from '~/store/calls'
-import { downloadAndDecode, encodeResponseWav, removeTempDir, TARGET_SAMPLE_RATE } from '~/voip/audio-decode'
+import {
+  decodeLocalWav,
+  downloadAndDecode,
+  encodeResponseWav,
+  removeTempDir,
+  TARGET_SAMPLE_RATE,
+} from '~/voip/audio-decode'
 import { transcribeAudio } from '~/voip/audio-transcribe'
 import { isAnsweredCallState } from '~/voip/recording-manager'
 
@@ -22,7 +28,10 @@ export type AudioBlastRequest = {
   manager: InstanceManager
   instanceName: string
   to: string
-  audioUrl: string
+  /** Remote WAV URL (SSRF-guarded). Mutually exclusive with `audioPath`. */
+  audioUrl?: string
+  /** Local WAV path (multipart / base64 temp). Mutually exclusive with `audioUrl`. */
+  audioPath?: string
   responseTimeoutMs: number
   callTimeoutMs: number
   recordResponse: boolean
@@ -264,6 +273,7 @@ export async function executeAudioBlast(opts: AudioBlastRequest): Promise<AudioB
       instanceName,
       to,
       audioUrl,
+      audioPath,
       responseTimeoutMs,
       callTimeoutMs,
       recordResponse,
@@ -273,6 +283,10 @@ export async function executeAudioBlast(opts: AudioBlastRequest): Promise<AudioB
       stt,
     } = opts
 
+    if (!audioUrl && !audioPath) {
+      throw new Error('audioUrl or audioPath is required')
+    }
+
     const maxCaptureSeconds = opts.maxCaptureSeconds ?? 120
     const maxSamples = Math.max(1, Math.floor(maxCaptureSeconds * TARGET_SAMPLE_RATE))
 
@@ -281,7 +295,7 @@ export async function executeAudioBlast(opts: AudioBlastRequest): Promise<AudioB
     log.info({ to }, 'starting blast call')
     const peerJid = await resolveRecipientJid(client, to, cache)
 
-    const decoded = await downloadAndDecode(audioUrl)
+    const decoded = audioPath ? await decodeLocalWav(audioPath) : await downloadAndDecode(audioUrl as string)
     const { pcm } = decoded
     tempDir = decoded.tempDir
     const audioDurationMs = Math.round((pcm.length / TARGET_SAMPLE_RATE) * 1000)

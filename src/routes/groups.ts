@@ -8,7 +8,7 @@ import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { serviceUnavailable } from '~/lib/errors'
 import { resolveWhatsAppNumbers } from '~/lib/phone-resolve'
-import { resolveMediaToFile } from '~/media/fetch'
+import { mediaPreValidation, requireMediaFromRequest } from '~/media/request-media'
 import type { CacheClient } from '~/redis/client'
 
 const GroupParams = z.object({
@@ -372,9 +372,11 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
   app.put(
     scopedInstancePaths('/groups/:groupId/picture'),
     {
+      ...(env ? { preValidation: mediaPreValidation(env) } : {}),
       schema: {
         tags: ['Groups'],
-        summary: 'Set group picture (JPEG bytes via URL or base64)',
+        summary: 'Set group picture (JPEG via URL, base64, or multipart file)',
+        description: 'Provide `mediaUrl`, `mediaBase64`, or multipart field `file`. Max size: MEDIA_UPLOAD_MAX_BYTES.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: GroupParams,
         body: z.object({
@@ -387,10 +389,9 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       const params = request.params
       const name = resolveInstanceName(request)
       if (!env) throw serviceUnavailable('MEDIA storage env not configured')
-      const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = normalizeGroupJid(params.groupId)
-      const media = await resolveMediaToFile(body, env)
+      const { media } = await requireMediaFromRequest(request, env)
       try {
         const bytes = await readFile(media.path)
         const pictureId = await client.profile.setProfilePicture(bytes, jid)

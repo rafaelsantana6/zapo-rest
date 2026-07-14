@@ -4,11 +4,11 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { ErrorBodySchema, OkSchema } from '~/http/openapi-schemas'
+import { ErrorBodySchema, MEDIA_INPUT_HELP, OkSchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { bareUserJid } from '~/lib/jid-canon'
-import { resolveMediaToFile } from '~/media/fetch'
+import { mediaPreValidation, requireMediaFromRequest } from '~/media/request-media'
 
 export type ProfileRoutesDeps = {
   manager: InstanceManager
@@ -48,11 +48,10 @@ const SetProfileImageBody = z
     mediaBase64: z.string().optional().meta({ description: 'Raw or data-URL base64 of a JPEG image' }),
     mimetype: z.string().optional().meta({ description: 'Optional MIME (default image/jpeg)', example: 'image/jpeg' }),
   })
-  .refine((b) => Boolean(b.mediaUrl || b.mediaBase64), {
-    message: 'mediaUrl or mediaBase64 is required',
-  })
   .meta({
-    description: 'JPEG avatar bytes via URL or base64. WhatsApp expects JPEG profile pictures.',
+    description:
+      'JPEG avatar via `mediaUrl`, `mediaBase64`, or multipart `file`. WhatsApp expects JPEG profile pictures. ' +
+      'Size limit: MEDIA_UPLOAD_MAX_BYTES.',
     example: { mediaUrl: 'https://cdn.example.com/avatar.jpg' },
   })
 
@@ -193,12 +192,13 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
     handleSetPushName,
   )
 
-  /** Shared handler: set WhatsApp profile picture from URL or base64. */
+  /** Shared handler: set WhatsApp profile picture from URL, base64, or multipart file. */
   async function handleSetProfileImage(request: FastifyRequest) {
     const instanceName = resolveInstanceName(request)
-    const body = SetProfileImageBody.parse(request.body)
+    // Body already validated by route schema (JSON) or filled by mediaPreValidation (multipart)
+    SetProfileImageBody.parse(request.body ?? {})
     const client = manager.requireRegisteredClient(instanceName)
-    const media = await resolveMediaToFile(body, env)
+    const { media } = await requireMediaFromRequest(request, env)
     try {
       const bytes = await readFile(media.path)
       if (bytes.byteLength === 0) throw badRequest('empty image payload')
@@ -210,19 +210,24 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
   }
 
   const setImageDescription =
-    'Updates the WhatsApp **profile picture** (avatar). Provide JPEG bytes via `mediaUrl` (public HTTPS) or `mediaBase64`.\n\n' +
+    'Updates the WhatsApp **profile picture** (avatar).\n\n' +
+    MEDIA_INPUT_HELP +
     '**Paths** (identical handlers)\n' +
-    '- `PUT /v1/instances/:name/profile/image` · `PUT /v1/profile/image` (preferred)\n' +
-    '- `PUT /v1/instances/:name/profile/picture` · `PUT /v1/profile/picture` (alias)\n\n' +
+    '- `PUT /v1/profile/image` (preferred) · alias `PUT /v1/profile/picture`\n\n' +
     '```bash\n' +
     'curl -s -X PUT "$BASE/v1/profile/image" \\\n' +
     '  -H "X-Api-Key: $INSTANCE_API_KEY" -H "content-type: application/json" \\\n' +
-    '  -d \'{"mediaUrl":"https://cdn.example.com/avatar.jpg"}\'\n' +
+    '  -d \'{"mediaUrl":"https://cdn.example.com/avatar.jpg"}\'\n\n' +
+    'curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\\n' +
+    '  -F file=@./avatar.jpg\n' +
     '```'
+
+  const profileMediaHooks = { preValidation: mediaPreValidation(env) }
 
   app.put(
     scopedInstancePaths('/profile/image'),
     {
+      ...profileMediaHooks,
       schema: {
         tags: ['Profile'],
         summary: 'Set profile picture (avatar)',
@@ -244,6 +249,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
   app.put(
     scopedInstancePaths('/profile/picture'),
     {
+      ...profileMediaHooks,
       schema: {
         tags: ['Profile'],
         summary: 'Set profile picture (alias of /profile/image)',

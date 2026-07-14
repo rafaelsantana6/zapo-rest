@@ -6,7 +6,7 @@ import type { Env } from '~/config/env'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
-import { resolveMediaToFile } from '~/media/fetch'
+import { mediaPreValidation, parseMediaRequest } from '~/media/request-media'
 import type { CacheClient } from '~/redis/client'
 
 export type StatusRoutesDeps = {
@@ -35,11 +35,13 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
   app.post(
     scopedInstancePaths('/status/send'),
     {
+      preValidation: mediaPreValidation(env),
       schema: {
         tags: ['Status'],
         summary: 'Publish a status / story broadcast',
         description:
-          'Uses `client.status.send`. Provide `text` and/or media. `recipients` is the fan-out list required by zapo.',
+          'Uses `client.status.send`. Provide `text` and/or media (`mediaUrl` / `mediaBase64` / multipart `file`). ' +
+          '`recipients` is the fan-out list required by zapo. Max media size: MEDIA_UPLOAD_MAX_BYTES.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: SendStatusBody,
       },
@@ -54,56 +56,52 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
         recipients.push(await resolveRecipientJid(client, r, cache))
       }
 
+      const { media } = await parseMediaRequest(request, env)
       let content: Parameters<typeof client.status.send>[0]['content']
-      const mediaType = body.type ?? (body.mediaUrl || body.mediaBase64 ? 'image' : 'text')
+      const mediaType = body.type ?? (media ? 'image' : 'text')
 
-      if (mediaType === 'text' || (!body.mediaUrl && !body.mediaBase64)) {
+      if (mediaType === 'text' || !media) {
         if (!body.text) throw badRequest('text is required when type is "text" (no media provided)')
         content = { type: 'text', text: body.text }
-      } else {
-        const media = await resolveMediaToFile(
-          { mediaUrl: body.mediaUrl, mediaBase64: body.mediaBase64, mimetype: body.mimetype },
-          env,
-        )
-        try {
-          if (mediaType === 'video') {
-            content = {
-              type: 'video',
-              media: media.path,
-              mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
-              caption: body.caption ?? body.text,
-            }
-          } else if (mediaType === 'audio') {
-            content = {
-              type: 'audio',
-              media: media.path,
-              mimetype: media.mimetype ?? body.mimetype,
-            }
-          } else {
-            content = {
-              type: 'image',
-              media: media.path,
-              mimetype: media.mimetype ?? body.mimetype ?? 'image/jpeg',
-              caption: body.caption ?? body.text,
-            }
-          }
-          const result = await client.status.send({
-            content,
-            recipients,
-            statusSetting: body.statusSetting,
-          })
-          return { id: result.id, result, recipients }
-        } finally {
-          await media.cleanup()
-        }
+        const result = await client.status.send({
+          content,
+          recipients,
+          statusSetting: body.statusSetting,
+        })
+        return { id: result.id, result, recipients }
       }
 
-      const result = await client.status.send({
-        content,
-        recipients,
-        statusSetting: body.statusSetting,
-      })
-      return { id: result.id, result, recipients }
+      try {
+        if (mediaType === 'video') {
+          content = {
+            type: 'video',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
+            caption: body.caption ?? body.text,
+          }
+        } else if (mediaType === 'audio') {
+          content = {
+            type: 'audio',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype,
+          }
+        } else {
+          content = {
+            type: 'image',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'image/jpeg',
+            caption: body.caption ?? body.text,
+          }
+        }
+        const result = await client.status.send({
+          content,
+          recipients,
+          statusSetting: body.statusSetting,
+        })
+        return { id: result.id, result, recipients }
+      } finally {
+        await media.cleanup()
+      }
     },
   )
 

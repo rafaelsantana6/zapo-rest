@@ -6,6 +6,7 @@ import type { Env } from '~/config/env'
 import {
   ErrorBodySchema,
   EXAMPLES,
+  MEDIA_INPUT_HELP,
   SendMediaBodySchema,
   SendMessageResponseSchema,
   SendTextBodySchema,
@@ -14,7 +15,7 @@ import type { InstanceManager } from '~/instances/manager'
 import { badRequest, notFound } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import { buildVCard, type VCardContact } from '~/lib/vcard'
-import { resolveMediaToFile } from '~/media/fetch'
+import { mediaPreValidation, requireMediaFromRequest } from '~/media/request-media'
 import type { CacheClient } from '~/redis/client'
 import type { MessageStore } from '~/store/messages'
 import { toPublicMessage } from '~/store/messages'
@@ -197,12 +198,26 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
     },
   )
 
+  const mediaHooks = { preValidation: mediaPreValidation(env) }
+  const mediaBodyHelp =
+    MEDIA_INPUT_HELP +
+    '```bash\n' +
+    '# JSON + URL\n' +
+    'curl -s -X POST "$BASE/v1/messages/image" -H "X-Api-Key: $KEY" -H "content-type: application/json" \\\n' +
+    '  -d \'{"to":"5511999999999","mediaUrl":"https://cdn.example.com/a.jpg"}\'\n\n' +
+    '# Multipart upload\n' +
+    'curl -s -X POST "$BASE/v1/messages/image" -H "X-Api-Key: $KEY" \\\n' +
+    '  -F to=5511999999999 -F file=@./photo.jpg -F caption="oi"\n' +
+    '```'
+
   app.post(
     scopedInstancePaths('/messages/image'),
     {
+      ...mediaHooks,
       schema: {
         tags: ['Messages'],
         summary: 'Send image',
+        description: mediaBodyHelp,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: SendMediaBodySchema,
         response: { 200: SendMessageResponseSchema, 400: ErrorBodySchema, 503: ErrorBodySchema },
@@ -213,7 +228,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const media = await resolveMediaToFile(body, env)
+      const { media } = await requireMediaFromRequest(request, env)
       try {
         const result = await client.message.send(
           jid,
@@ -245,9 +260,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   app.post(
     scopedInstancePaths('/messages/video'),
     {
+      ...mediaHooks,
       schema: {
         tags: ['Messages'],
         summary: 'Send video',
+        description: mediaBodyHelp,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: SendMediaBodySchema,
       },
@@ -257,7 +274,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const media = await resolveMediaToFile(body, env)
+      const { media } = await requireMediaFromRequest(request, env)
       try {
         const result = await client.message.send(jid, {
           type: 'video',
@@ -285,9 +302,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   app.post(
     scopedInstancePaths('/messages/audio'),
     {
+      ...mediaHooks,
       schema: {
         tags: ['Messages'],
         summary: 'Send audio / voice note',
+        description: mediaBodyHelp,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: SendMediaBodySchema,
         response: { 200: SendMessageResponseSchema, 400: ErrorBodySchema, 503: ErrorBodySchema },
@@ -298,7 +317,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const media = await resolveMediaToFile(body, env)
+      const { media } = await requireMediaFromRequest(request, env)
       try {
         const result = await client.message.send(jid, {
           type: 'audio',
@@ -325,9 +344,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   app.post(
     scopedInstancePaths('/messages/document'),
     {
+      ...mediaHooks,
       schema: {
         tags: ['Messages'],
         summary: 'Send document',
+        description: mediaBodyHelp,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: SendMediaBodySchema,
         response: { 200: SendMessageResponseSchema, 400: ErrorBodySchema, 503: ErrorBodySchema },
@@ -338,13 +359,13 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const media = await resolveMediaToFile(body, env)
+      const { media } = await requireMediaFromRequest(request, env)
       try {
         const result = await client.message.send(jid, {
           type: 'document',
           media: media.path,
           mimetype: media.mimetype ?? body.mimetype,
-          fileName: body.fileName,
+          fileName: body.fileName ?? media.fileName,
           caption: body.caption,
         })
         await projectOutbound({
@@ -355,7 +376,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
           caption: body.caption ?? null,
           hasMedia: true,
           mediaMime: media.mimetype ?? body.mimetype ?? null,
-          mediaFilename: body.fileName ?? null,
+          mediaFilename: body.fileName ?? media.fileName ?? null,
           raw: result,
         })
         return { id: result.id, result }
@@ -368,9 +389,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
   app.post(
     scopedInstancePaths('/messages/sticker'),
     {
+      ...mediaHooks,
       schema: {
         tags: ['Messages'],
         summary: 'Send sticker',
+        description: mediaBodyHelp,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: SendMediaBodySchema,
       },
@@ -380,7 +403,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const media = await resolveMediaToFile(body, env)
+      const { media } = await requireMediaFromRequest(request, env)
       try {
         const result = await client.message.send(jid, {
           type: 'sticker',
