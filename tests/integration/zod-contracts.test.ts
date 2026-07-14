@@ -113,10 +113,10 @@ describe('HTTP Zod contracts (dryRun app)', () => {
     }
   })
 
-  it('GET /v1/instances/:name QR endpoint shape', async () => {
+  it('GET /v1/instance/qr endpoint shape', async () => {
     const res = await ctx.app.inject({
       method: 'GET',
-      url: `/v1/instances/${instanceName}/qr`,
+      url: `/v1/instance/qr`,
       headers: { 'x-api-key': instanceKey },
     })
     expect(res.statusCode).toBe(200)
@@ -127,7 +127,7 @@ describe('HTTP Zod contracts (dryRun app)', () => {
   it('POST messages/text rejects invalid body before touching WhatsApp', async () => {
     const missingText = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${instanceName}/messages/text`,
+      url: `/v1/messages/text`,
       headers: { 'x-api-key': instanceKey, 'content-type': 'application/json' },
       payload: { to: '5511999999999' },
     })
@@ -136,19 +136,18 @@ describe('HTTP Zod contracts (dryRun app)', () => {
 
     const missingTo = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${instanceName}/messages/text`,
+      url: `/v1/messages/text`,
       headers: { 'x-api-key': instanceKey, 'content-type': 'application/json' },
       payload: { text: 'oi' },
     })
     expect(missingTo.statusCode).toBeGreaterThanOrEqual(400)
   })
 
-  it('POST messages/* require instance access (403 other key)', async () => {
-    const other = await createInstance(ctx.app, 'contract-other')
+  it('admin cannot call operational message routes (403)', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${instanceName}/messages/text`,
-      headers: { 'x-api-key': other.apiKey, 'content-type': 'application/json' },
+      url: `/v1/messages/text`,
+      headers: { 'x-api-key': ADMIN_KEY, 'content-type': 'application/json' },
       payload: { to: '5511999999999', text: 'nope' },
     })
     expect(res.statusCode).toBe(403)
@@ -158,7 +157,7 @@ describe('HTTP Zod contracts (dryRun app)', () => {
   it('webhook create validates URL and returns public webhook shape', async () => {
     const bad = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${instanceName}/webhooks`,
+      url: `/v1/webhooks`,
       headers: { 'x-api-key': instanceKey, 'content-type': 'application/json' },
       payload: { url: 'not-https' },
     })
@@ -166,7 +165,7 @@ describe('HTTP Zod contracts (dryRun app)', () => {
 
     const ok = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${instanceName}/webhooks`,
+      url: `/v1/webhooks`,
       headers: { 'x-api-key': instanceKey, 'content-type': 'application/json' },
       payload: {
         url: 'https://webhook.site/zapo-contract',
@@ -195,7 +194,7 @@ describe('HTTP Zod contracts (dryRun app)', () => {
 
     const list = await ctx.app.inject({
       method: 'GET',
-      url: `/v1/instances/${instanceName}/webhooks`,
+      url: `/v1/webhooks`,
       headers: { 'x-api-key': instanceKey },
     })
     expect(list.statusCode).toBe(200)
@@ -207,7 +206,7 @@ describe('HTTP Zod contracts (dryRun app)', () => {
   it('instance connect ok schema (dryRun)', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${instanceName}/connect`,
+      url: `/v1/instance/connect`,
       headers: { 'x-api-key': instanceKey },
     })
     // dryRun may return 200 ok or 503 if connect path expects client — accept documented shapes

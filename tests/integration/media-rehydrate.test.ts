@@ -89,7 +89,7 @@ describe('media GET rehydrate', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/v1/instances/sales-1/messages/MSG_MEDIA_1/media',
+      url: '/v1/messages/MSG_MEDIA_1/media',
       headers: { 'x-api-key': 'zr_test_sales_1' },
     })
 
@@ -107,7 +107,7 @@ describe('media GET rehydrate', () => {
     downloadBytes.mockClear()
     const res2 = await app.inject({
       method: 'GET',
-      url: '/v1/instances/sales-1/messages/MSG_MEDIA_1/media',
+      url: '/v1/messages/MSG_MEDIA_1/media',
       headers: { 'x-api-key': 'zr_test_sales_1' },
     })
     expect(res2.statusCode).toBe(200)
@@ -130,7 +130,7 @@ describe('media GET rehydrate', () => {
 
     const res = await app.inject({
       method: 'GET',
-      url: '/v1/instances/sales-1/messages/MSG_MEDIA_1/media',
+      url: '/v1/messages/MSG_MEDIA_1/media',
       headers: { 'x-api-key': 'zr_test_sales_1' },
     })
     expect(res.statusCode).toBe(404)

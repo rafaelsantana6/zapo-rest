@@ -1,10 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  ErrorBodySchema,
-  InstanceResponseSchema,
-  InstanceWithKeyResponseSchema,
-  OkSchema,
-} from '~/http/openapi-schemas'
+import { InstanceResponseSchema, InstanceWithKeyResponseSchema, OkSchema } from '~/http/openapi-schemas'
 import { ADMIN_KEY, buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 
 describe('instance lifecycle HTTP contracts', () => {
@@ -22,7 +17,7 @@ describe('instance lifecycle HTTP contracts', () => {
     const created = await createInstance(ctx.app, 'life-1')
     const get = await ctx.app.inject({
       method: 'GET',
-      url: '/v1/instances/life-1',
+      url: '/v1/instance',
       headers: { 'x-api-key': created.apiKey },
     })
     expect(get.statusCode).toBe(200)
@@ -38,37 +33,25 @@ describe('instance lifecycle HTTP contracts', () => {
       url: '/v1/instances/life-1/keys/rotate',
       headers: { 'x-api-key': ADMIN_KEY },
     })
-    if (rotate.statusCode === 200) {
-      const rotated = InstanceWithKeyResponseSchema.parse(rotate.json())
-      expect(rotated.instance.apiKey).not.toBe(created.apiKey)
-      expect(rotated.instance.apiKey).toBeTruthy()
-      // old key must fail
-      const old = await ctx.app.inject({
-        method: 'GET',
-        url: '/v1/instances/life-1',
-        headers: { 'x-api-key': created.apiKey },
-      })
-      expect(old.statusCode).toBe(401)
-    } else {
-      // endpoint may be named differently — still assert error envelope
-      expect(ErrorBodySchema.safeParse(rotate.json()).success || rotate.statusCode === 404).toBe(true)
-    }
+    expect(rotate.statusCode).toBe(200)
+    const rotated = InstanceWithKeyResponseSchema.parse(rotate.json())
+    expect(rotated.instance.apiKey).not.toBe(created.apiKey)
+    expect(rotated.instance.apiKey).toBeTruthy()
+    // old key must fail
+    const old = await ctx.app.inject({
+      method: 'GET',
+      url: '/v1/instance',
+      headers: { 'x-api-key': created.apiKey },
+    })
+    expect(old.statusCode).toBe(401)
 
     const del = await ctx.app.inject({
       method: 'DELETE',
       url: '/v1/instances/life-1',
       headers: { 'x-api-key': ADMIN_KEY },
     })
-    if (del.statusCode === 200) {
-      expect(OkSchema.safeParse(del.json()).success || InstanceResponseSchema.safeParse(del.json()).success).toBe(true)
-    }
-
-    const missing = await ctx.app.inject({
-      method: 'GET',
-      url: '/v1/instances/life-1',
-      headers: { 'x-api-key': ADMIN_KEY },
-    })
-    expect([404, 401, 403]).toContain(missing.statusCode)
+    expect(del.statusCode).toBe(200)
+    expect(OkSchema.safeParse(del.json()).success).toBe(true)
   })
 
   it('duplicate create conflicts', async () => {

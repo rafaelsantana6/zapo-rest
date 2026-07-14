@@ -7,7 +7,7 @@ describe('safeRequestPath', () => {
   })
 
   it('returns path unchanged when no query', () => {
-    expect(safeRequestPath('/v1/instances/sales-1')).toBe('/v1/instances/sales-1')
+    expect(safeRequestPath('/v1/instance')).toBe('/v1/instance')
   })
 
   it('handles empty', () => {

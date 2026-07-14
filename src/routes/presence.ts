@@ -6,7 +6,6 @@ import {
   ChatstateBodySchema,
   ChatstateParamsSchema,
   ErrorBodySchema,
-  InstanceNameParams,
   OkSchema,
   PresenceBodySchema,
 } from '~/http/openapi-schemas'
@@ -33,7 +32,6 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
           'Broadcasts account presence: `available` (online) or `unavailable`.\n\n' +
           '```json\n{ "type": "available" }\n```',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: PresenceBodySchema,
         response: {
           200: OkSchema,
@@ -46,7 +44,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.presence.send(body.type)
@@ -87,7 +85,7 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, decodeURIComponent(params.jid), cache)
@@ -114,14 +112,13 @@ export const presenceRoutes: FastifyPluginAsync<PresenceRoutesDeps> = async (fas
           'Subscribes to online/offline and typing/recording indicators for a chat JID. ' +
           'Must be re-subscribed after reconnect. Events: `presence.update`, `chatstate`.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           jid: z.string().min(1).describe('Phone or JID to subscribe'),
         }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       // Subscribes PN + all LID aliases and marks us available (55 + nono dígito inside manager)
       const { jids } = await manager.subscribePresence(name, body.jid)

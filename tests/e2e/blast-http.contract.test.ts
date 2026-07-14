@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { mockFetchWav, silenceWav } from '../helpers/blast-mocks'
-import { ADMIN_KEY, buildMockedWaApp, INSTANCE, INSTANCE_KEY, type MockWaApp } from '../helpers/mock-wa-app'
+import { ADMIN_KEY, buildMockedWaApp, INSTANCE_KEY, type MockWaApp } from '../helpers/mock-wa-app'
 
 describe('e2e HTTP contract: blast + transcribe', () => {
   let ctx: MockWaApp
@@ -30,7 +30,7 @@ describe('e2e HTTP contract: blast + transcribe', () => {
   it('blast response matches public contract fields', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: { 'x-api-key': INSTANCE_KEY, 'content-type': 'application/json' },
       payload: {
         to: '5511999999999',
@@ -65,7 +65,7 @@ describe('e2e HTTP contract: blast + transcribe', () => {
   it('transcribe contract after blast-linked recording', async () => {
     const blast = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: { 'x-api-key': ADMIN_KEY },
       payload: {
         to: '5511888888888',
@@ -81,7 +81,7 @@ describe('e2e HTTP contract: blast + transcribe', () => {
 
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/${callId}/transcribe`,
+      url: `/v1/calls/${callId}/transcribe`,
       headers: { 'x-api-key': INSTANCE_KEY },
     })
     expect(res.statusCode).toBe(200)
@@ -96,7 +96,7 @@ describe('e2e HTTP contract: blast + transcribe', () => {
   it('GET recording streams WAV after blast', async () => {
     const blast = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: { 'x-api-key': INSTANCE_KEY },
       payload: {
         to: '5511777777777',
@@ -112,7 +112,7 @@ describe('e2e HTTP contract: blast + transcribe', () => {
 
     const rec = await ctx.app.inject({
       method: 'GET',
-      url: `/v1/instances/${INSTANCE}/calls/${callId}/recording`,
+      url: `/v1/calls/${callId}/recording`,
       headers: { 'x-api-key': INSTANCE_KEY },
     })
     expect(rec.statusCode).toBe(200)

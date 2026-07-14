@@ -10,7 +10,7 @@ import {
   type CallReasonBodySchema,
   ErrorBodySchema,
   EXAMPLES,
-  InstanceNameParams,
+  type InstanceNameParams,
   MuteBodySchema,
   OkSchema,
   StartCallBodySchema,
@@ -67,7 +67,6 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           `  -d '${JSON.stringify(EXAMPLES.startCall)}'\n` +
           '```',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: StartCallBodySchema,
         response: {
           200: StartCallResponseSchema,
@@ -80,7 +79,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = asVoipClient(manager.requireRegisteredClient(name))
       // 55 + nono dígito via usync (e.g. 68981159096 → 556881159096@…)
@@ -114,7 +113,6 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         description:
           'Persisted calls for the instance. Use `withRecording=true` to only list calls with downloadable recordings.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: z.object({
           limit: z.coerce.number().int().positive().max(200).optional(),
           offset: z.coerce.number().int().nonnegative().optional(),
@@ -126,7 +124,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       if (!calls) return { calls: [] }
       const q = request.query
       const rows = await calls.list(name, {
@@ -145,11 +143,10 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         tags: ['Calls'],
         summary: 'Get call recording setting',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       if (!callRecording) {
         return { callRecordingEnabled: false, storageReady: false }
       }
@@ -166,12 +163,11 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         description:
           'Requires media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote) stored in object storage.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({ enabled: z.boolean() }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       if (!callRecording) throw badRequest('call recording not available')
       try {
@@ -190,7 +186,6 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         summary: 'List active calls',
         description: 'Lists in-memory calls for the instance (`client.voip.getCalls()`), including ringing and active.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: {
           200: CallListResponseSchema,
           401: ErrorBodySchema,
@@ -201,7 +196,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       const live = client.voip.getCalls()
       return { calls: live.map((c) => serializeCallInfo(c)) }
@@ -228,7 +223,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       const call = client.voip.getCall(params.callId)
       if (!call) {
@@ -260,7 +255,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     async (request) => {
       const params = request.params
       const log = request.log.child({ component: 'calls', op: 'accept' })
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       const resolved = resolveLiveCall(client, params.callId)
       if (!resolved) {
@@ -336,7 +331,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       await client.voip.rejectCall(params.callId)
       return { ok: true as const }
@@ -364,7 +359,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       await client.voip.endCall(params.callId)
       return { ok: true as const }
@@ -393,7 +388,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = asVoipClient(manager.requireRegisteredClient(name))
       client.voip.setMute(params.callId, body.muted)
@@ -417,7 +412,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     },
     async (request, reply) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       if (!calls || !mediaStorage) throw notFound('recording store unavailable')
       const row = await calls.get(name, params.callId)
       if (!row?.recordingStorageKey || row.recordingStatus !== 'ready') {
@@ -475,7 +470,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
 
       let instanceName: string
       try {
-        instanceName = resolveInstanceName(request, params.name)
+        instanceName = resolveInstanceName(request)
       } catch {
         socket.close(4403, 'forbidden')
         return

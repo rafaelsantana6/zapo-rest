@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking (0.x):** Operational routes no longer accept `/v1/instances/:name/...`.
+  Session methods require an **instance API key** and use short paths (`/v1/messages/...`,
+  `/v1/instance/connect`, …). Admin key is limited to create/list/delete/rotate under
+  `/v1/instances` (+ `DELETE|.../keys/rotate` with `:name`).
+
 ## [0.4.0] - 2026-07-14
 
 ### Added

@@ -8,13 +8,13 @@ import { buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 describe('groups / contacts / presence validation matrix', () => {
   let ctx: TestApp
   let key: string
-  let name: string
+  let _name: string
 
   beforeAll(async () => {
     ctx = await buildTestApp()
     const inst = await createInstance(ctx.app, 'gcp-val')
     key = inst.apiKey
-    name = inst.name
+    _name = inst.name
   })
 
   afterAll(async () => {
@@ -24,7 +24,7 @@ describe('groups / contacts / presence validation matrix', () => {
   async function inject(method: 'POST' | 'PUT', path: string, payload: unknown) {
     return ctx.app.inject({
       method,
-      url: `/v1/instances/${name}${path}`,
+      url: `/v1${path}`,
       headers: { 'x-api-key': key, 'content-type': 'application/json' },
       payload: payload as Record<string, unknown>,
     })
@@ -51,7 +51,7 @@ describe('groups / contacts / presence validation matrix', () => {
       expectValidation(
         await ctx.app.inject({
           method: 'POST',
-          url: `/v1/instances/${name}/chats/5511999999999/chatstate`,
+          url: `/v1/chats/5511999999999/chatstate`,
           headers: { 'x-api-key': key, 'content-type': 'application/json' },
           payload: { state: 'flying' },
         }),
@@ -59,7 +59,7 @@ describe('groups / contacts / presence validation matrix', () => {
       expectValidation(
         await ctx.app.inject({
           method: 'POST',
-          url: `/v1/instances/${name}/chats/5511999999999/chatstate`,
+          url: `/v1/chats/5511999999999/chatstate`,
           headers: { 'x-api-key': key, 'content-type': 'application/json' },
           payload: {},
         }),
@@ -134,7 +134,7 @@ describe('groups / contacts / presence validation matrix', () => {
       expectValidation(
         await ctx.app.inject({
           method: 'POST',
-          url: `/v1/instances/${name}/calls/fake-id/mute`,
+          url: `/v1/calls/fake-id/mute`,
           headers: { 'x-api-key': key, 'content-type': 'application/json' },
           payload: { muted: 'yes' },
         }),
@@ -142,13 +142,12 @@ describe('groups / contacts / presence validation matrix', () => {
     })
   })
 
-  describe('cross-instance forbidden', () => {
-    it('other instance key cannot hit presence', async () => {
-      const other = await createInstance(ctx.app, 'gcp-other')
+  describe('admin forbidden on operational routes', () => {
+    it('admin key cannot hit presence', async () => {
       const res = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${name}/presence`,
-        headers: { 'x-api-key': other.apiKey, 'content-type': 'application/json' },
+        url: `/v1/presence`,
+        headers: { 'x-api-key': 'test-admin-api-key-min-16', 'content-type': 'application/json' },
         payload: { type: 'available' },
       })
       expect(res.statusCode).toBe(403)

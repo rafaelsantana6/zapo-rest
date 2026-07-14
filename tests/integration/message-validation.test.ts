@@ -9,13 +9,13 @@ import { buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 describe('message endpoint validation matrix', () => {
   let ctx: TestApp
   let key: string
-  let name: string
+  let _name: string
 
   beforeAll(async () => {
     ctx = await buildTestApp()
     const inst = await createInstance(ctx.app, 'msg-val')
     key = inst.apiKey
-    name = inst.name
+    _name = inst.name
   })
 
   afterAll(async () => {
@@ -25,7 +25,7 @@ describe('message endpoint validation matrix', () => {
   async function post(path: string, payload: unknown) {
     return ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${name}${path}`,
+      url: `/v1${path}`,
       headers: { 'x-api-key': key, 'content-type': 'application/json' },
       payload: payload as Record<string, unknown>,
     })

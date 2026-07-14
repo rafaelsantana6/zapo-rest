@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
@@ -42,12 +41,11 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
         description:
           'Uses `client.status.send`. Provide `text` and/or media. `recipients` is the fan-out list required by zapo.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendStatusBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
 
@@ -116,7 +114,6 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
         tags: ['Status'],
         summary: 'Revoke a published status',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           messageId: z.string().min(1),
           recipients: Recipients,
@@ -125,7 +122,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const recipients: string[] = []
@@ -148,7 +145,6 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
         tags: ['Status'],
         summary: 'Set status distribution privacy',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           mode: z.enum([
             'CONTACTS',
@@ -167,7 +163,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const userJids: string[] = []
@@ -202,7 +198,6 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
         tags: ['Status'],
         summary: 'Mute / unmute a contact status',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           jid: z.string().min(1),
           muted: z.boolean(),
@@ -210,7 +205,7 @@ export const statusRoutes: FastifyPluginAsync<StatusRoutesDeps> = async (fastify
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, body.jid, cache)

@@ -7,7 +7,7 @@ import {
   BlastResponseSchema,
   CallParamsSchema,
   ErrorBodySchema,
-  InstanceNameParams,
+  type InstanceNameParams,
   TranscribeResponseSchema,
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
@@ -61,7 +61,6 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
           '"responseTimeoutMs":5000,"recordResponse":true,"transcribe":true,"sttLanguage":"pt"}\'\n' +
           '```',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: BlastBodySchema,
         response: {
           200: BlastResponseSchema,
@@ -74,7 +73,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
 
       const body = request.body
       if (!body.audioUrl) {
@@ -145,7 +144,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
 
       if (!env.STT_ENABLED || !env.STT_API_URL || !env.STT_API_KEY) {
         throw serviceUnavailable('STT not configured — set STT_ENABLED=true, STT_API_URL, and STT_API_KEY')

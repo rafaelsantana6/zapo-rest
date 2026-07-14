@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
-import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
+import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { notFound } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
@@ -15,7 +15,7 @@ export type LabelRoutesDeps = {
   cache?: CacheClient
 }
 
-const LabelIdParams = InstanceNameParams.extend({
+const LabelIdParams = z.object({
   labelId: z.string().min(1),
 })
 
@@ -38,11 +38,10 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
         summary: 'List labels',
         description: 'WhatsApp Business labels (app-state LabelEdit). Stored locally + synced via chat.set.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       await manager.get(name)
       const rows = await labels.list(name)
       return { labels: rows.map(toPublicLabel) }
@@ -56,12 +55,11 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
         tags: ['Labels'],
         summary: 'Create / upsert label',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: LabelBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const row = await labels.upsert({
@@ -97,7 +95,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
@@ -135,7 +133,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
       try {
@@ -174,7 +172,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
@@ -211,7 +209,7 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const existing = await labels.get(name, params.labelId)
       if (!existing) throw notFound('label not found')
       const chats = await labels.listChats(name, params.labelId)
@@ -226,12 +224,12 @@ export const labelRoutes: FastifyPluginAsync<LabelRoutesDeps> = async (app, deps
         tags: ['Labels'],
         summary: 'List labels on a chat',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams.extend({ chatId: z.string() }),
+        params: z.object({ chatId: z.string() }),
       },
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.tryGetClient(name)
       const chatJid = await resolveRecipientJid(client, params.chatId, cache)
       const rows = await labels.listLabelsForChat(name, chatJid)

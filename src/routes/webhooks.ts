@@ -2,7 +2,6 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { notFound } from '~/lib/errors'
 import { assertPublicUrl } from '~/lib/ssrf-guard'
@@ -29,7 +28,7 @@ const WebhookBody = z.object({
   enabled: z.boolean().optional(),
 })
 
-const WebhookIdParams = InstanceNameParams.extend({
+const WebhookIdParams = z.object({
   webhookId: z.string().min(1),
 })
 
@@ -53,7 +52,6 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
         summary: 'List webhooks (multi-config multi-config)',
         description: 'Multiple webhook endpoints per instance with per-URL events, HMAC, retries, and custom headers.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: {
           200: z.object({
             webhooks: z.array(z.record(z.string(), z.any())),
@@ -63,7 +61,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
+      const name = resolveInstanceName(request)
       await manager.get(name) // 404 if missing
       const rows = await webhookRepo.list(name)
       return {
@@ -80,12 +78,11 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
         tags: ['Webhooks'],
         summary: 'Create webhook config',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: WebhookBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, InstanceNameParams.parse(request.params).name)
+      const name = resolveInstanceName(request)
       await manager.get(name)
       const body = WebhookBody.parse(request.body)
       await assertPublicUrl(body.url, { allowHttp })
@@ -113,7 +110,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
     },
     async (request) => {
       const params = WebhookIdParams.parse(request.params)
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const row = await webhookRepo.get(name, params.webhookId)
       if (!row) throw notFound('webhook not found')
       return { webhook: toPublicWebhook(row) }
@@ -133,7 +130,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
     },
     async (request) => {
       const params = WebhookIdParams.parse(request.params)
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = WebhookBody.partial().parse(request.body)
       if (body.url !== undefined) await assertPublicUrl(body.url, { allowHttp })
       const row = await webhookRepo.update(name, params.webhookId, {
@@ -161,7 +158,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookRoutesDeps> = async (app, 
     },
     async (request) => {
       const params = WebhookIdParams.parse(request.params)
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const ok = await webhookRepo.delete(name, params.webhookId)
       if (!ok) throw notFound('webhook not found')
       return { ok: true as const }

@@ -4,14 +4,14 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
+import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { serviceUnavailable } from '~/lib/errors'
 import { resolveWhatsAppNumbers } from '~/lib/phone-resolve'
 import { resolveMediaToFile } from '~/media/fetch'
 import type { CacheClient } from '~/redis/client'
 
-const GroupParams = InstanceNameParams.extend({
+const GroupParams = z.object({
   groupId: z.string().min(1),
 })
 
@@ -49,7 +49,6 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
         tags: ['Groups'],
         summary: 'List groups',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: {
           200: z.object({ groups: z.array(z.any().meta({ type: 'object', additionalProperties: true })) }),
           503: ErrorBodySchema,
@@ -57,7 +56,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const groups = await client.group.queryAllGroups()
       return { groups: [...groups] }
@@ -71,7 +70,6 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
         tags: ['Groups'],
         summary: 'Create group',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           subject: z.string().min(1).max(100),
           participants: z.array(z.string()).min(1),
@@ -80,7 +78,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const participants = await resolveParticipants(client, body.participants)
@@ -103,7 +101,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const jid = normalizeGroupJid(params.groupId)
       const group = await client.group.queryGroupMetadata(jid)
@@ -123,7 +121,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const jid = normalizeGroupJid(params.groupId)
       await client.group.leaveGroup([jid])
@@ -144,7 +142,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.group.setSubject(normalizeGroupJid(params.groupId), body.subject)
@@ -165,7 +163,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.group.setDescription(normalizeGroupJid(params.groupId), body.description)
@@ -185,7 +183,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const code = await client.group.queryInviteCode(normalizeGroupJid(params.groupId))
       return { code, inviteLink: `https://chat.whatsapp.com/${code}` }
@@ -204,7 +202,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const result = await client.group.revokeInvite(normalizeGroupJid(params.groupId))
       return { code: result.code, inviteLink: `https://chat.whatsapp.com/${result.code}` }
@@ -218,12 +216,11 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
         tags: ['Groups'],
         summary: 'Join group via invite code',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({ code: z.string().min(1) }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const code = body.code.replace(/^https?:\/\/chat\.whatsapp\.com\//, '')
@@ -239,12 +236,11 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
         tags: ['Groups'],
         summary: 'Preview group invite',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: z.object({ code: z.string().min(1) }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const q = request.query
       const client = manager.requireRegisteredClient(name)
       const code = q.code.replace(/^https?:\/\/chat\.whatsapp\.com\//, '')
@@ -266,7 +262,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const result = await client.group.addParticipants(
@@ -290,7 +286,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const result = await client.group.removeParticipants(
@@ -314,7 +310,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const result = await client.group.promoteParticipants(
@@ -338,7 +334,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const result = await client.group.demoteParticipants(
@@ -364,7 +360,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const q = request.query
       const client = manager.requireRegisteredClient(name)
       const jid = normalizeGroupJid(params.groupId)
@@ -389,7 +385,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       if (!env) throw serviceUnavailable('MEDIA storage env not configured')
       const body = request.body
       const client = manager.requireRegisteredClient(name)
@@ -417,7 +413,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       await client.profile.deleteProfilePicture(normalizeGroupJid(params.groupId))
       return { ok: true as const }
@@ -444,7 +440,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = normalizeGroupJid(params.groupId)
@@ -477,7 +473,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.group.setSetting(normalizeGroupJid(params.groupId), 'announcement', body.enabled)
@@ -498,7 +494,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.group.setSetting(normalizeGroupJid(params.groupId), 'restrict', body.enabled)

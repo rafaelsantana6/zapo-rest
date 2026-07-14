@@ -1,5 +1,7 @@
 const KEY_STORAGE = 'zapo_rest_api_key'
 const HINT_STORAGE = 'zapo_rest_instance_hint'
+/** When admin opens an instance page, we switch the request key to that instance's apiKey. */
+const ADMIN_BACKUP_STORAGE = 'zapo_rest_admin_key_backup'
 
 export type Instance = {
   name: string
@@ -94,6 +96,7 @@ export function setStoredKey(key: string): void {
 export function clearStoredKey(): void {
   sessionStorage.removeItem(KEY_STORAGE)
   sessionStorage.removeItem(HINT_STORAGE)
+  sessionStorage.removeItem(ADMIN_BACKUP_STORAGE)
 }
 
 export function setInstanceHint(name: string) {
@@ -102,6 +105,28 @@ export function setInstanceHint(name: string) {
 
 export function getInstanceHint(): string | null {
   return sessionStorage.getItem(HINT_STORAGE)
+}
+
+/**
+ * Admin opens an instance: operational routes need the **instance** API key.
+ * Backs up the admin key so leaving the instance can restore it.
+ */
+/** Switch request key to an instance token (backs up admin key once). Not a React hook. */
+export function setInstanceApiKey(instanceApiKey: string): void {
+  const cur = getStoredKey()
+  if (cur && !sessionStorage.getItem(ADMIN_BACKUP_STORAGE)) {
+    sessionStorage.setItem(ADMIN_BACKUP_STORAGE, cur)
+  }
+  setStoredKey(instanceApiKey)
+}
+
+/** Restore admin key after leaving an instance (if we had backed it up). */
+export function restoreAdminApiKey(): void {
+  const admin = sessionStorage.getItem(ADMIN_BACKUP_STORAGE)
+  if (admin) {
+    setStoredKey(admin)
+    sessionStorage.removeItem(ADMIN_BACKUP_STORAGE)
+  }
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -140,8 +165,8 @@ export function listInstances() {
   return request<{ instances: Instance[] }>('/v1/instances')
 }
 
-export function getInstance(name: string) {
-  return request<{ instance: Instance }>(`/v1/instances/${enc(name)}`)
+export function getInstance(_name: string) {
+  return request<{ instance: Instance }>(`/v1/instance`)
 }
 
 export function createInstance(body: {
@@ -160,139 +185,140 @@ export function deleteInstance(name: string) {
   return request<{ ok: boolean }>(`/v1/instances/${enc(name)}`, { method: 'DELETE' })
 }
 
-export function connectInstance(name: string) {
-  return request<{ instance: Instance }>(`/v1/instances/${enc(name)}/connect`, { method: 'POST' })
+export function connectInstance(_name: string) {
+  return request<{ instance: Instance }>(`/v1/instance/connect`, { method: 'POST' })
 }
 
-export function disconnectInstance(name: string) {
-  return request<{ instance: Instance }>(`/v1/instances/${enc(name)}/disconnect`, {
+export function disconnectInstance(_name: string) {
+  return request<{ instance: Instance }>(`/v1/instance/disconnect`, {
     method: 'POST',
   })
 }
 
-export function restartInstance(name: string) {
-  return request<{ instance: Instance }>(`/v1/instances/${enc(name)}/restart`, { method: 'POST' })
+export function restartInstance(_name: string) {
+  return request<{ instance: Instance }>(`/v1/instance/restart`, { method: 'POST' })
 }
 
-export function getQr(name: string) {
-  return request<{ qr: string | null; status: string; expiresAt?: string | null }>(`/v1/instances/${enc(name)}/qr`)
+export function getQr(_name: string) {
+  return request<{ qr: string | null; status: string; expiresAt?: string | null }>(`/v1/instance/qr`)
 }
 
-export function requestPairing(name: string, phone: string) {
-  return request<{ code: string; phone: string }>(`/v1/instances/${enc(name)}/pairing-code`, {
+export function requestPairing(_name: string, phone: string) {
+  return request<{ code: string; phone: string }>(`/v1/instance/pairing-code`, {
     method: 'POST',
     body: JSON.stringify({ phone }),
   })
 }
 
 export function rotateKey(name: string) {
+  // Admin-only collection route (still names the target instance)
   return request<{ instance: Instance }>(`/v1/instances/${enc(name)}/keys/rotate`, {
     method: 'POST',
   })
 }
 
 // ── Chats / messages ────────────────────────────────────────────────────────
-export function listChats(name: string, limit = 100) {
-  return request<{ chats: Chat[] }>(`/v1/instances/${enc(name)}/chats?limit=${limit}`)
+export function listChats(_name: string, limit = 100) {
+  return request<{ chats: Chat[] }>(`/v1/chats?limit=${limit}`)
 }
 
-export function listMessages(name: string, chatId: string, limit = 80) {
-  return request<{ messages: Message[] }>(`/v1/instances/${enc(name)}/chats/${enc(chatId)}/messages?limit=${limit}`)
+export function listMessages(_name: string, chatId: string, limit = 80) {
+  return request<{ messages: Message[] }>(`/v1/chats/${enc(chatId)}/messages?limit=${limit}`)
 }
 
-export function markChatRead(name: string, chatId: string, messageIds: string[]) {
-  return request<{ ok: boolean }>(`/v1/instances/${enc(name)}/chats/${enc(chatId)}/messages/read`, {
+export function markChatRead(_name: string, chatId: string, messageIds: string[]) {
+  return request<{ ok: boolean }>(`/v1/chats/${enc(chatId)}/messages/read`, {
     method: 'POST',
     body: JSON.stringify({ messageIds }),
   })
 }
 
-export function archiveChat(name: string, chatId: string, archive = true) {
-  return request(`/v1/instances/${enc(name)}/chats/${enc(chatId)}/${archive ? 'archive' : 'unarchive'}`, {
+export function archiveChat(_name: string, chatId: string, archive = true) {
+  return request(`/v1/chats/${enc(chatId)}/${archive ? 'archive' : 'unarchive'}`, {
     method: 'POST',
   })
 }
 
 // ── Send ────────────────────────────────────────────────────────────────────
-export function sendText(name: string, to: string, text: string, opts?: { mentions?: string[] }) {
-  return request<{ id: string }>(`/v1/instances/${enc(name)}/messages/text`, {
+export function sendText(_name: string, to: string, text: string, opts?: { mentions?: string[] }) {
+  return request<{ id: string }>(`/v1/messages/text`, {
     method: 'POST',
     body: JSON.stringify({ to, text, ...opts }),
   })
 }
 
 export function sendMedia(
-  name: string,
+  _name: string,
   kind: 'image' | 'video' | 'audio' | 'document' | 'sticker',
   body: Record<string, unknown>,
 ) {
-  return request<{ id: string }>(`/v1/instances/${enc(name)}/messages/${kind}`, {
+  return request<{ id: string }>(`/v1/messages/${kind}`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function sendLocation(
-  name: string,
+  _name: string,
   body: { to: string; latitude: number; longitude: number; name?: string; address?: string },
 ) {
-  return request<{ id: string }>(`/v1/instances/${enc(name)}/messages/location`, {
+  return request<{ id: string }>(`/v1/messages/location`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function sendPoll(
-  name: string,
+  _name: string,
   body: { to: string; name: string; options: string[]; selectableCount?: number },
 ) {
-  return request<{ id: string }>(`/v1/instances/${enc(name)}/messages/poll`, {
+  return request<{ id: string }>(`/v1/messages/poll`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function sendContact(
-  name: string,
+  _name: string,
   body: {
     to: string
     contacts: { fullName: string; phoneNumber: string; organization?: string; email?: string }[]
   },
 ) {
-  return request<{ id: string }>(`/v1/instances/${enc(name)}/messages/contact`, {
+  return request<{ id: string }>(`/v1/messages/contact`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function sendReact(name: string, body: { to: string; messageId: string; emoji: string; fromMe?: boolean }) {
-  return request<{ id: string }>(`/v1/instances/${enc(name)}/messages/react`, {
+export function sendReact(_name: string, body: { to: string; messageId: string; emoji: string; fromMe?: boolean }) {
+  return request<{ id: string }>(`/v1/messages/react`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 // ── Contacts / resolve ──────────────────────────────────────────────────────
-export function listContacts(name: string, limit = 200) {
-  return request<{ contacts: Contact[] }>(`/v1/instances/${enc(name)}/contacts?limit=${limit}`)
+export function listContacts(_name: string, limit = 200) {
+  return request<{ contacts: Contact[] }>(`/v1/contacts?limit=${limit}`)
 }
 
-export function resolveNumbers(name: string, numbers: string[]) {
-  return request<{ results: unknown[] }>(`/v1/instances/${enc(name)}/contacts/resolve`, {
+export function resolveNumbers(_name: string, numbers: string[]) {
+  return request<{ results: unknown[] }>(`/v1/contacts/resolve`, {
     method: 'POST',
     body: JSON.stringify({ numbers }),
   })
 }
 
-export function checkNumbers(name: string, phones: string[]) {
-  return request<{ results: unknown[] }>(`/v1/instances/${enc(name)}/contacts/check`, {
+export function checkNumbers(_name: string, phones: string[]) {
+  return request<{ results: unknown[] }>(`/v1/contacts/check`, {
     method: 'POST',
     body: JSON.stringify({ phones }),
   })
 }
 
 export function getProfilePicture(
-  name: string,
+  _name: string,
   phone: string,
   type: 'preview' | 'image' = 'preview',
   opts?: { refresh?: boolean },
@@ -314,60 +340,60 @@ export function getProfilePicture(
     lastFetchedAt?: string | null
     cached?: boolean
     cachedAt?: string
-  }>(`/v1/instances/${enc(name)}/contacts/${enc(phone)}/profile-picture?${q}`)
+  }>(`/v1/contacts/${enc(phone)}/profile-picture?${q}`)
 }
 
-export function getAbout(name: string, phone: string) {
-  return request<{ status: string | null; jid?: string }>(`/v1/instances/${enc(name)}/contacts/${enc(phone)}/about`)
+export function getAbout(_name: string, phone: string) {
+  return request<{ status: string | null; jid?: string }>(`/v1/contacts/${enc(phone)}/about`)
 }
 
-export function createJidLocal(name: string, numbers: string[]) {
-  return request<{ results: unknown[] }>(`/v1/instances/${enc(name)}/contacts/jid`, {
+export function createJidLocal(_name: string, numbers: string[]) {
+  return request<{ results: unknown[] }>(`/v1/contacts/jid`, {
     method: 'POST',
     body: JSON.stringify({ numbers }),
   })
 }
 
 // ── Groups ──────────────────────────────────────────────────────────────────
-export function listGroups(name: string) {
-  return request<{ groups: Group[] }>(`/v1/instances/${enc(name)}/groups`)
+export function listGroups(_name: string) {
+  return request<{ groups: Group[] }>(`/v1/groups`)
 }
 
-export function getGroup(name: string, groupId: string) {
-  return request<{ group: Group }>(`/v1/instances/${enc(name)}/groups/${enc(groupId)}`)
+export function getGroup(_name: string, groupId: string) {
+  return request<{ group: Group }>(`/v1/groups/${enc(groupId)}`)
 }
 
-export function createGroup(name: string, body: { subject: string; participants: string[]; description?: string }) {
-  return request<{ group: Group }>(`/v1/instances/${enc(name)}/groups`, {
+export function createGroup(_name: string, body: { subject: string; participants: string[]; description?: string }) {
+  return request<{ group: Group }>(`/v1/groups`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function leaveGroup(name: string, groupId: string) {
-  return request<{ ok: boolean }>(`/v1/instances/${enc(name)}/groups/${enc(groupId)}/leave`, {
+export function leaveGroup(_name: string, groupId: string) {
+  return request<{ ok: boolean }>(`/v1/groups/${enc(groupId)}/leave`, {
     method: 'POST',
   })
 }
 
-export function groupInviteCode(name: string, groupId: string) {
-  return request<{ code: string; inviteLink: string }>(`/v1/instances/${enc(name)}/groups/${enc(groupId)}/invite-code`)
+export function groupInviteCode(_name: string, groupId: string) {
+  return request<{ code: string; inviteLink: string }>(`/v1/groups/${enc(groupId)}/invite-code`)
 }
 
-export function joinGroup(name: string, code: string) {
-  return request<{ group: Group }>(`/v1/instances/${enc(name)}/groups/join`, {
+export function joinGroup(_name: string, code: string) {
+  return request<{ group: Group }>(`/v1/groups/join`, {
     method: 'POST',
     body: JSON.stringify({ code }),
   })
 }
 
 // ── Webhooks ────────────────────────────────────────────────────────────────
-export function listWebhooks(name: string) {
-  return request<{ webhooks: WebhookConfig[]; availableEvents: string[] }>(`/v1/instances/${enc(name)}/webhooks`)
+export function listWebhooks(_name: string) {
+  return request<{ webhooks: WebhookConfig[]; availableEvents: string[] }>(`/v1/webhooks`)
 }
 
 export function createWebhook(
-  name: string,
+  _name: string,
   body: {
     url: string
     events?: string[]
@@ -376,72 +402,70 @@ export function createWebhook(
     retries?: { policy?: string; delaySeconds?: number; attempts?: number }
   },
 ) {
-  return request<{ webhook: WebhookConfig }>(`/v1/instances/${enc(name)}/webhooks`, {
+  return request<{ webhook: WebhookConfig }>(`/v1/webhooks`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function updateWebhook(name: string, id: string, body: Record<string, unknown>) {
-  return request<{ webhook: WebhookConfig }>(`/v1/instances/${enc(name)}/webhooks/${enc(id)}`, {
+export function updateWebhook(_name: string, id: string, body: Record<string, unknown>) {
+  return request<{ webhook: WebhookConfig }>(`/v1/webhooks/${enc(id)}`, {
     method: 'PUT',
     body: JSON.stringify(body),
   })
 }
 
-export function deleteWebhook(name: string, id: string) {
-  return request<{ ok: boolean }>(`/v1/instances/${enc(name)}/webhooks/${enc(id)}`, {
+export function deleteWebhook(_name: string, id: string) {
+  return request<{ ok: boolean }>(`/v1/webhooks/${enc(id)}`, {
     method: 'DELETE',
   })
 }
 
 // ── Profile ─────────────────────────────────────────────────────────────────
-export function getProfile(name: string) {
-  return request<{ profile: unknown }>(`/v1/instances/${enc(name)}/profile`)
+export function getProfile(_name: string) {
+  return request<{ profile: unknown }>(`/v1/profile`)
 }
 
-export function setProfileName(name: string, displayName: string) {
-  return request(`/v1/instances/${enc(name)}/profile/name`, {
+export function setProfileName(_name: string, displayName: string) {
+  return request(`/v1/profile/name`, {
     method: 'PUT',
     body: JSON.stringify({ name: displayName }),
   })
 }
 
-export function setProfileStatus(name: string, status: string) {
-  return request(`/v1/instances/${enc(name)}/profile/status`, {
+export function setProfileStatus(_name: string, status: string) {
+  return request(`/v1/profile/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   })
 }
 
 // ── Labels ──────────────────────────────────────────────────────────────────
-export function listLabels(name: string) {
-  return request<{ labels: { id: string; name: string; color: number; isActive: boolean }[] }>(
-    `/v1/instances/${enc(name)}/labels`,
-  )
+export function listLabels(_name: string) {
+  return request<{ labels: { id: string; name: string; color: number; isActive: boolean }[] }>(`/v1/labels`)
 }
 
-export function createLabel(name: string, body: { name: string; color?: number; id?: string }) {
-  return request(`/v1/instances/${enc(name)}/labels`, {
+export function createLabel(_name: string, body: { name: string; color?: number; id?: string }) {
+  return request(`/v1/labels`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function deleteLabel(name: string, labelId: string) {
-  return request(`/v1/instances/${enc(name)}/labels/${enc(labelId)}`, { method: 'DELETE' })
+export function deleteLabel(_name: string, labelId: string) {
+  return request(`/v1/labels/${enc(labelId)}`, { method: 'DELETE' })
 }
 
 // ── Presence ────────────────────────────────────────────────────────────────
-export function setPresence(name: string, type: 'available' | 'unavailable') {
-  return request(`/v1/instances/${enc(name)}/presence`, {
+export function setPresence(_name: string, type: 'available' | 'unavailable') {
+  return request(`/v1/presence`, {
     method: 'POST',
     body: JSON.stringify({ type }),
   })
 }
 
-export function setChatstate(name: string, jid: string, state: 'composing' | 'paused' | 'recording') {
-  return request(`/v1/instances/${enc(name)}/chats/${enc(jid)}/chatstate`, {
+export function setChatstate(_name: string, jid: string, state: 'composing' | 'paused' | 'recording') {
+  return request(`/v1/chats/${enc(jid)}/chatstate`, {
     method: 'POST',
     body: JSON.stringify({ state }),
   })
@@ -597,11 +621,11 @@ export function statusLabel(status: string): string {
 }
 
 // ── Media ───────────────────────────────────────────────────────────────────
-export function getMessageMediaUrl(name: string, messageId: string): string {
-  return `/v1/instances/${enc(name)}/messages/${enc(messageId)}/media`
+export function getMessageMediaUrl(_name: string, messageId: string): string {
+  return `/v1/messages/${enc(messageId)}/media`
 }
 
-export function getBase64FromMedia(name: string, messageId: string) {
+export function getBase64FromMedia(_name: string, messageId: string) {
   return request<{
     base64: string
     mimetype: string | null
@@ -610,7 +634,7 @@ export function getBase64FromMedia(name: string, messageId: string) {
     size: number
     mediaUrl: string | null
     source: string
-  }>(`/v1/instances/${enc(name)}/media/getBase64FromMediaMessage`, {
+  }>(`/v1/media/getBase64FromMediaMessage`, {
     method: 'POST',
     body: JSON.stringify({ messageId }),
   })
@@ -696,16 +720,16 @@ export type MetricsResources = {
   generatedAt: string
 }
 
-export function getInstanceMetrics(name: string, opts?: { from?: string; to?: string }) {
+export function getInstanceMetrics(_name: string, opts?: { from?: string; to?: string }) {
   const q = new URLSearchParams()
   if (opts?.from) q.set('from', opts.from)
   if (opts?.to) q.set('to', opts.to)
   const qs = q.toString()
-  return request<MetricsSummary>(`/v1/instances/${enc(name)}/metrics${qs ? `?${qs}` : ''}`)
+  return request<MetricsSummary>(`/v1/metrics${qs ? `?${qs}` : ''}`)
 }
 
 export function getInstanceMetricsTimeseries(
-  name: string,
+  _name: string,
   opts?: { from?: string; to?: string; bucket?: 'hour' | 'day' },
 ) {
   const q = new URLSearchParams()
@@ -713,19 +737,19 @@ export function getInstanceMetricsTimeseries(
   if (opts?.to) q.set('to', opts.to)
   if (opts?.bucket) q.set('bucket', opts.bucket)
   const qs = q.toString()
-  return request<MetricsTimeseries>(`/v1/instances/${enc(name)}/metrics/timeseries${qs ? `?${qs}` : ''}`)
+  return request<MetricsTimeseries>(`/v1/metrics/timeseries${qs ? `?${qs}` : ''}`)
 }
 
-export function getInstanceMetricsResources(name: string) {
-  return request<MetricsResources>(`/v1/instances/${enc(name)}/metrics/resources`)
+export function getInstanceMetricsResources(_name: string) {
+  return request<MetricsResources>(`/v1/metrics/resources`)
 }
 
 // ── Privacy / business ──────────────────────────────────────────────────────
-export function getPrivacy(name: string) {
-  return request<{ settings: unknown; privacy?: unknown }>(`/v1/instances/${enc(name)}/privacy`)
+export function getPrivacy(_name: string) {
+  return request<{ settings: unknown; privacy?: unknown }>(`/v1/privacy`)
 }
 
-export function updatePrivacy(name: string, body: { setting: string; value: string } | Record<string, unknown>) {
+export function updatePrivacy(_name: string, body: { setting: string; value: string } | Record<string, unknown>) {
   // Accept either {setting,value} or a single-key map from the dashboard form
   let payload: { setting: string; value: string }
   if ('setting' in body && 'value' in body) {
@@ -734,67 +758,65 @@ export function updatePrivacy(name: string, body: { setting: string; value: stri
     const [setting, value] = Object.entries(body)[0] ?? ['last', 'all']
     payload = { setting, value: String(value) }
   }
-  return request(`/v1/instances/${enc(name)}/privacy`, {
+  return request(`/v1/privacy`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
-export function getBlocklist(name: string) {
-  return request<{ blocklist: string[] }>(`/v1/instances/${enc(name)}/blocklist`)
+export function getBlocklist(_name: string) {
+  return request<{ blocklist: string[] }>(`/v1/blocklist`)
 }
 
-export function getBusinessProfile(name: string, phone?: string) {
+export function getBusinessProfile(_name: string, phone?: string) {
   const q = phone ? `?phone=${enc(phone)}` : ''
-  return request<{ profile: unknown }>(`/v1/instances/${enc(name)}/business/profile${q}`)
+  return request<{ profile: unknown }>(`/v1/business/profile${q}`)
 }
 
 // ── Status / stories ────────────────────────────────────────────────────────
-export function sendStatusText(name: string, body: { text: string; recipients: string[] }) {
-  return request(`/v1/instances/${enc(name)}/status/send`, {
+export function sendStatusText(_name: string, body: { text: string; recipients: string[] }) {
+  return request(`/v1/status/send`, {
     method: 'POST',
     body: JSON.stringify({ type: 'text', ...body }),
   })
 }
 
 export function sendStatusMedia(
-  name: string,
+  _name: string,
   body: { mediaUrl?: string; mediaBase64?: string; caption?: string; recipients: string[]; type?: string },
 ) {
-  return request(`/v1/instances/${enc(name)}/status/send`, {
+  return request(`/v1/status/send`, {
     method: 'POST',
     body: JSON.stringify({ type: body.type ?? 'image', ...body }),
   })
 }
 
-export function revokeStatus(name: string, messageId: string, recipients: string[] = []) {
-  return request(`/v1/instances/${enc(name)}/status/revoke`, {
+export function revokeStatus(_name: string, messageId: string, recipients: string[] = []) {
+  return request(`/v1/status/revoke`, {
     method: 'POST',
     body: JSON.stringify({ messageId, recipients: recipients.length ? recipients : ['status@broadcast'] }),
   })
 }
 
 // ── LIDs ────────────────────────────────────────────────────────────────────
-export function listLids(name: string, limit = 100, offset = 0) {
-  return request<{ lids: { lid: string; pn: string }[]; total?: number }>(
-    `/v1/instances/${enc(name)}/lids?limit=${limit}&offset=${offset}`,
-  )
+export function listLids(_name: string, limit = 100, offset = 0) {
+  return request<{ lids: { lid: string; pn: string }[]; total?: number }>(`/v1/lids?limit=${limit}&offset=${offset}`)
 }
 
-export function countLids(name: string) {
-  return request<{ count: number }>(`/v1/instances/${enc(name)}/lids/count`)
+export function countLids(_name: string) {
+  return request<{ count: number }>(`/v1/lids/count`)
 }
 
-export function getLid(name: string, lid: string) {
-  return request(`/v1/instances/${enc(name)}/lids/${enc(lid)}`)
+export function getLid(_name: string, lid: string) {
+  return request(`/v1/lids/${enc(lid)}`)
 }
 
-export function getLidByPn(name: string, phone: string) {
-  return request(`/v1/instances/${enc(name)}/lids/pn/${enc(phone)}`)
+export function getLidByPn(_name: string, phone: string) {
+  return request(`/v1/lids/pn/${enc(phone)}`)
 }
 
-export function reconcileLids(name: string) {
-  return request(`/v1/instances/${enc(name)}/chats/reconcile-lids`, { method: 'POST' })
+export function reconcileLids(_name: string) {
+  return request(`/v1/chats/reconcile-lids`, { method: 'POST' })
 }
 
 // ── Generic API probe (dashboard explorer) ──────────────────────────────────
@@ -883,15 +905,15 @@ export type CallHistoryItem = {
   }
 }
 
-export function startCall(name: string, to: string) {
-  return request<{ callId: string; peerJid: string }>(`/v1/instances/${enc(name)}/calls`, {
+export function startCall(_name: string, to: string) {
+  return request<{ callId: string; peerJid: string }>(`/v1/calls`, {
     method: 'POST',
     body: JSON.stringify({ to }),
   })
 }
 
-export function listLiveCalls(name: string) {
-  return request<{ calls: LiveCall[] }>(`/v1/instances/${enc(name)}/calls`)
+export function listLiveCalls(_name: string) {
+  return request<{ calls: LiveCall[] }>(`/v1/calls`)
 }
 
 /** @deprecated prefer listLiveCalls */
@@ -899,53 +921,51 @@ export function listCalls(name: string) {
   return listLiveCalls(name)
 }
 
-export function listCallHistory(name: string, opts?: { limit?: number; offset?: number; withRecording?: boolean }) {
+export function listCallHistory(_name: string, opts?: { limit?: number; offset?: number; withRecording?: boolean }) {
   const q = new URLSearchParams()
   if (opts?.limit) q.set('limit', String(opts.limit))
   if (opts?.offset) q.set('offset', String(opts.offset))
   if (opts?.withRecording) q.set('withRecording', 'true')
   const qs = q.toString()
-  return request<{ calls: CallHistoryItem[] }>(`/v1/instances/${enc(name)}/calls/history${qs ? `?${qs}` : ''}`)
+  return request<{ calls: CallHistoryItem[] }>(`/v1/calls/history${qs ? `?${qs}` : ''}`)
 }
 
-export function acceptCall(name: string, callId: string) {
-  return request(`/v1/instances/${enc(name)}/calls/${enc(callId)}/accept`, { method: 'POST' })
+export function acceptCall(_name: string, callId: string) {
+  return request(`/v1/calls/${enc(callId)}/accept`, { method: 'POST' })
 }
 
-export function rejectCall(name: string, callId: string) {
-  return request(`/v1/instances/${enc(name)}/calls/${enc(callId)}/reject`, { method: 'POST' })
+export function rejectCall(_name: string, callId: string) {
+  return request(`/v1/calls/${enc(callId)}/reject`, { method: 'POST' })
 }
 
-export function endCall(name: string, callId: string) {
-  return request(`/v1/instances/${enc(name)}/calls/${enc(callId)}/end`, { method: 'POST' })
+export function endCall(_name: string, callId: string) {
+  return request(`/v1/calls/${enc(callId)}/end`, { method: 'POST' })
 }
 
-export function muteCall(name: string, callId: string, muted: boolean) {
-  return request(`/v1/instances/${enc(name)}/calls/${enc(callId)}/mute`, {
+export function muteCall(_name: string, callId: string, muted: boolean) {
+  return request(`/v1/calls/${enc(callId)}/mute`, {
     method: 'POST',
     body: JSON.stringify({ muted }),
   })
 }
 
-export function getCallRecordingSettings(name: string) {
-  return request<{ callRecordingEnabled: boolean; storageReady: boolean }>(
-    `/v1/instances/${enc(name)}/settings/call-recording`,
-  )
+export function getCallRecordingSettings(_name: string) {
+  return request<{ callRecordingEnabled: boolean; storageReady: boolean }>(`/v1/settings/call-recording`)
 }
 
-export function setCallRecording(name: string, enabled: boolean) {
-  return request<{ callRecordingEnabled: boolean; storageReady: boolean }>(
-    `/v1/instances/${enc(name)}/settings/call-recording`,
-    { method: 'PUT', body: JSON.stringify({ enabled }) },
-  )
+export function setCallRecording(_name: string, enabled: boolean) {
+  return request<{ callRecordingEnabled: boolean; storageReady: boolean }>(`/v1/settings/call-recording`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  })
 }
 
-export function callRecordingDownloadUrl(name: string, callId: string) {
-  return `/v1/instances/${enc(name)}/calls/${enc(callId)}/recording`
+export function callRecordingDownloadUrl(_name: string, callId: string) {
+  return `/v1/calls/${enc(callId)}/recording`
 }
 
-export function subscribePresence(name: string, jid: string) {
-  return request(`/v1/instances/${enc(name)}/presence/subscribe`, {
+export function subscribePresence(_name: string, jid: string) {
+  return request(`/v1/presence/subscribe`, {
     method: 'POST',
     body: JSON.stringify({ jid }),
   })

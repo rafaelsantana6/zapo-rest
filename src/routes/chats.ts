@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
-import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
+import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { notFound } from '~/lib/errors'
 import { toRecipientJid } from '~/lib/jid'
@@ -13,7 +13,7 @@ import { type ChatStore, toPublicChat } from '~/store/chats'
 import type { LidMapStore } from '~/store/lid-map'
 import { type MessageStore, toPublicMessage } from '~/store/messages'
 
-const ChatParams = InstanceNameParams.extend({
+const ChatParams = z.object({
   chatId: z.string().min(1).describe('Chat JID or phone digits (LID or PN — aliases merged)'),
 })
 
@@ -94,7 +94,6 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
           'Returns chat projections. **merge=true (default)** collapses multiple `@lid` rows ' +
           'that map to the same phone JID ( style), preferring `@s.whatsapp.net`.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: ListChatsQuery,
         response: {
           200: z.object({ chats: z.array(z.any().meta({ type: 'object', additionalProperties: true })) }),
@@ -103,7 +102,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const q = request.query
       const rows = await chats.list(name, {
         limit: q.limit,
@@ -123,11 +122,10 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
         summary: 'Reconcile LID→PN chats',
         description: 'Rebuilds lid_map from contacts, merges duplicate LID/PN conversations, deletes empty LID ghosts.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       if (!lidMap) throw notFound('lid map not available')
       const { reconcileLidChats } = await import('~/store/chat-reconcile')
       const result = await reconcileLidChats(chats.pool, name, { lidMap, chats, messages })
@@ -151,7 +149,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, params.chatId)
       let chat = await chats.get(name, jid)
       // Fallback: try original lid form
@@ -186,7 +184,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const q = request.query
       const jid = await resolveChatId(name, params.chatId)
       const aliases = lidMap ? await lidMap.expandAliases(name, jid) : [jid]
@@ -220,7 +218,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const msg = await messages.get(name, params.messageId)
       if (!msg) throw notFound('message not found')
       return { message: toPublicMessage(msg, { instanceName: name }) }
@@ -243,7 +241,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveChatId(name, params.chatId)
@@ -265,7 +263,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, params.chatId)
       try {
         const client = manager.requireRegisteredClient(name)
@@ -290,7 +288,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, params.chatId)
       try {
         const client = manager.requireRegisteredClient(name)
@@ -315,7 +313,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, params.chatId)
       const client = manager.requireRegisteredClient(name)
       await client.chat.setChatRead(jid, false)
@@ -336,7 +334,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, params.chatId)
       await chats.delete(name, jid)
       return { ok: true as const }
@@ -365,7 +363,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = request.body ?? {}
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveChatId(name, params.chatId)

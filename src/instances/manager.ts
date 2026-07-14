@@ -239,7 +239,7 @@ export class InstanceManager {
     const phone = digitsOnly(jid.split('@')[0] ?? '')
     if (!phone) return null
 
-    const apiPath = `/v1/instances/${encodeURIComponent(instanceName)}/contacts/${encodeURIComponent(phone)}/profile-picture`
+    const apiPath = `/v1/contacts/${encodeURIComponent(phone)}/profile-picture`
 
     // Live resolve into durable storage when possible (respects TTL / negative cache)
     if (client && this.avatars && this.opts.mediaStorage) {

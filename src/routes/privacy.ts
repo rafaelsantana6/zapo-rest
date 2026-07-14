@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { WA_PRIVACY_CATEGORY_TO_SETTING, WA_PRIVACY_SETTING_TO_CATEGORY, type WaPrivacySettingName } from 'zapo-js'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
-import { InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
@@ -68,7 +67,7 @@ const BusinessProfileBody = z.object({
   jids: z.array(z.string().min(1)).min(1).max(20),
 })
 
-const BusinessProfileParams = InstanceNameParams.extend({ phone: z.string().min(1) })
+const BusinessProfileParams = z.object({ phone: z.string().min(1) })
 
 export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, deps) => {
   const { manager, cache } = deps
@@ -81,11 +80,10 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
         tags: ['Privacy'],
         summary: 'Get privacy settings',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const settings = await client.privacy.getPrivacySettings()
       return { settings }
@@ -99,12 +97,11 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
         tags: ['Privacy'],
         summary: 'Set one privacy setting',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SetPrivacyBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const setting = toPrivacySettingName(request.body.setting)
       if (!setting) throw badRequest(`unknown privacy setting "${request.body.setting}"`)
       const client = manager.requireRegisteredClient(name)
@@ -120,12 +117,11 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
         tags: ['Business'],
         summary: 'Fetch business profiles for JIDs/phones',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: BusinessProfileBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const resolved: string[] = []
       for (const j of request.body.jids) {
@@ -148,7 +144,7 @@ export const privacyRoutes: FastifyPluginAsync<PrivacyRoutesDeps> = async (app, 
     },
     async (request) => {
       const { phone } = request.params
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, phone, cache)
       const profiles = await client.business.getBusinessProfile([jid])
