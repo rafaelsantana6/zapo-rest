@@ -7,6 +7,7 @@ import type { Env } from '~/config/env'
 import { ErrorBodySchema, OkSchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
+import { bareUserJid } from '~/lib/jid-canon'
 import { resolveMediaToFile } from '~/media/fetch'
 
 export type ProfileRoutesDeps = {
@@ -73,8 +74,12 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
         tags: ['Profile'],
         summary: 'Get own profile snapshot',
         description:
-          'Returns a best-effort snapshot of the linked account: `meJid`, about status, and profile picture metadata.\n\n' +
-          '**Short form (instance key):** `GET /v1/profile`',
+          'Returns the linked account profile, **aligned with `GET /v1/instance`**:\n\n' +
+          '- `pushName` / `avatarUrl` from credentials + durable storage (same enrichment as instance get)\n' +
+          '- `status` = WhatsApp About text (best-effort IQ)\n' +
+          '- `picture` = WA envelope when available; `url` prefers durable `avatarUrl`\n\n' +
+          'Uses **bare PN JID** (device suffix stripped) for status/picture IQs — device JIDs often return empty.\n\n' +
+          '```bash\ncurl -s "$BASE/v1/profile" -H "X-Api-Key: $INSTANCE_API_KEY"\n```',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         response: {
           200: z.object({ profile: z.any().meta({ type: 'object', additionalProperties: true }) }),
@@ -87,31 +92,50 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
     async (request) => {
       const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
+      // Same enrichment path as GET /v1/instance (pushName + avatarUrl)
+      const instance = await manager.get(name)
       const creds = client.getCredentials()
-      const meJid = creds?.meJid
+      const meJid = creds?.meJid ?? instance.meJid
+      // Device JIDs (`user:device@s.whatsapp.net`) break getStatus / getProfilePicture IQs
+      const bareJid = meJid ? bareUserJid(meJid) : null
+
       let status: string | null = null
       let picture: unknown = null
-      if (meJid) {
+      if (bareJid) {
         try {
-          const s = await client.profile.getStatus(meJid)
-          status = s.status
+          const s = await client.profile.getStatus(bareJid)
+          status = s.status ?? null
         } catch {
-          // ignore
+          // About may be empty / rate-limited — not fatal
         }
         try {
-          picture = await client.profile.getProfilePicture(meJid, 'preview')
+          picture = await client.profile.getProfilePicture(bareJid, 'preview')
         } catch {
-          // ignore
+          // Privacy / missing pic — fall through to durable avatarUrl
         }
       }
+
+      // Prefer durable avatar URL (same as instance.avatarUrl) over ephemeral WA CDN
+      if (instance.avatarUrl) {
+        if (picture && typeof picture === 'object' && !Array.isArray(picture)) {
+          picture = { ...(picture as Record<string, unknown>), url: instance.avatarUrl }
+        } else {
+          picture = { url: instance.avatarUrl }
+        }
+      }
+
       return {
         profile: {
           meJid,
+          bareJid,
+          pushName: instance.pushName,
+          avatarUrl: instance.avatarUrl,
           status,
           picture,
           credentials: {
-            meJid: creds?.meJid ?? null,
-            registered: Boolean(creds?.meJid),
+            meJid: meJid ?? null,
+            pushName: instance.pushName,
+            registered: Boolean(meJid),
           },
         },
       }
