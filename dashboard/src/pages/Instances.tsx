@@ -6,8 +6,10 @@ import {
   deleteInstance,
   type Instance,
   listInstances,
+  restoreAdminApiKey,
   setInstanceHint,
   shortPhone,
+  setInstanceApiKey,
 } from '../api/client'
 import { Empty, ErrorBox, Shell, StatusBadge } from '../components/Shell'
 
@@ -59,12 +61,19 @@ export function InstancesPage({ onLogout }: Props) {
       setShowCreate(false)
       await refresh()
       setInstanceHint(instance.name)
+      setInstanceApiKey(instance.apiKey)
       navigate(`/instances/${instance.name}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao criar')
     } finally {
       setBusy(false)
     }
+  }
+
+  function openInstance(inst: Instance) {
+    setInstanceHint(inst.name)
+    setInstanceApiKey(inst.apiKey)
+    navigate(`/instances/${inst.name}`)
   }
 
   return (
@@ -156,9 +165,12 @@ export function InstancesPage({ onLogout }: Props) {
                                 void (async () => {
                                   setBusy(true)
                                   try {
+                                    setInstanceApiKey(inst.apiKey)
                                     await connectInstance(inst.name)
+                                    restoreAdminApiKey()
                                     await refresh()
                                   } catch (err) {
+                                    restoreAdminApiKey()
                                     setError(err instanceof Error ? err.message : 'Erro')
                                   } finally {
                                     setBusy(false)
@@ -173,10 +185,7 @@ export function InstancesPage({ onLogout }: Props) {
                             type="button"
                             className="icon-btn primary-soft"
                             title="Acessar"
-                            onClick={() => {
-                              setInstanceHint(inst.name)
-                              navigate(`/instances/${inst.name}`)
-                            }}
+                            onClick={() => openInstance(inst)}
                           >
                             →
                           </button>

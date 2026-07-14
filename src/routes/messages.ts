@@ -6,7 +6,6 @@ import type { Env } from '~/config/env'
 import {
   ErrorBodySchema,
   EXAMPLES,
-  InstanceNameParams,
   SendMediaBodySchema,
   SendMessageResponseSchema,
   SendTextBodySchema,
@@ -123,7 +122,6 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
           `${JSON.stringify(EXAMPLES.textMessage, null, 2)}\n` +
           '```',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendTextBodySchema,
         response: {
           200: SendMessageResponseSchema,
@@ -133,7 +131,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -163,12 +161,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Reply to a message',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: ReplyBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -207,13 +204,12 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send image',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendMediaBodySchema,
         response: { 200: SendMessageResponseSchema, 400: ErrorBodySchema, 503: ErrorBodySchema },
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -253,12 +249,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send video',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendMediaBodySchema,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -294,13 +289,12 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send audio / voice note',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendMediaBodySchema,
         response: { 200: SendMessageResponseSchema, 400: ErrorBodySchema, 503: ErrorBodySchema },
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -335,13 +329,12 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send document',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendMediaBodySchema,
         response: { 200: SendMessageResponseSchema, 400: ErrorBodySchema, 503: ErrorBodySchema },
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -379,12 +372,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send sticker',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SendMediaBodySchema,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -418,12 +410,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send location',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: LocationBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -454,12 +445,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Send poll',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: PollBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -488,12 +478,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'React to a message',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: ReactBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -518,12 +507,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Edit a sent text message',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: EditBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -546,12 +534,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Revoke / delete for everyone',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: RevokeBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -574,7 +561,6 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         summary: 'Send contact vCard(s)',
         description: 'Sends one or more contacts as WhatsApp contactMessage / contactsArrayMessage (vCard 3.0).',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           to: z.string().min(1),
           contacts: z
@@ -594,7 +580,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
@@ -644,7 +630,6 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
           'Forwards a message from the local store to another chat (`forward: true`). ' +
           'Text is re-sent from `body`; other types use the raw proto payload when available.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           to: z.string().min(1),
           messageId: z.string().min(1),
@@ -654,7 +639,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       if (!messages) throw badRequest('message store not available')
 
@@ -690,7 +675,6 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Star / unstar a message (app-state)',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           chatId: z.string().min(1),
           messageId: z.string().min(1),
@@ -701,7 +685,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const chatJid = await recipientJid(name, body.chatId)
@@ -725,12 +709,12 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         tags: ['Messages'],
         summary: 'Get stored message by id',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams.extend({ messageId: z.string() }),
+        params: z.object({ messageId: z.string() }),
       },
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       if (!messages) return { message: null }
       const msg = await messages.get(name, params.messageId)
       return { message: msg ? toPublicMessage(msg, { instanceName: name }) : null }

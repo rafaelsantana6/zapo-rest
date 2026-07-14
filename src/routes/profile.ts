@@ -4,7 +4,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { ErrorBodySchema, InstanceNameParams, OkSchema } from '~/http/openapi-schemas'
+import { ErrorBodySchema, OkSchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { resolveMediaToFile } from '~/media/fetch'
@@ -76,7 +76,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
           'Returns a best-effort snapshot of the linked account: `meJid`, about status, and profile picture metadata.\n\n' +
           '**Short form (instance key):** `GET /v1/profile`',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: {
           200: z.object({ profile: z.any().meta({ type: 'object', additionalProperties: true }) }),
           401: ErrorBodySchema,
@@ -86,7 +85,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const creds = client.getCredentials()
       const meJid = creds?.meJid
@@ -121,7 +120,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
 
   /** Shared handler: update WhatsApp push name + persist on instance row. */
   async function handleSetPushName(request: FastifyRequest) {
-    const instanceName = resolveInstanceName(request, (request.params as { name?: string }).name)
+    const instanceName = resolveInstanceName(request)
     const body = SetPushNameBody.parse(request.body)
     const pushName = (body.name ?? body.pushName ?? '').trim()
     if (!pushName) throw badRequest('name or pushName is required')
@@ -152,7 +151,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
         summary: 'Set push name (display name)',
         description: setPushNameDescription,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SetPushNameBody,
         response: {
           200: OkSchema,
@@ -168,7 +166,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
 
   /** Shared handler: set WhatsApp profile picture from URL or base64. */
   async function handleSetProfileImage(request: FastifyRequest) {
-    const instanceName = resolveInstanceName(request, (request.params as { name?: string }).name)
+    const instanceName = resolveInstanceName(request)
     const body = SetProfileImageBody.parse(request.body)
     const client = manager.requireRegisteredClient(instanceName)
     const media = await resolveMediaToFile(body, env)
@@ -201,7 +199,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
         summary: 'Set profile picture (avatar)',
         description: setImageDescription,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SetProfileImageBody,
         response: {
           200: SetProfileImageResponse,
@@ -223,7 +220,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
         summary: 'Set profile picture (alias of /profile/image)',
         description: setImageDescription,
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: SetProfileImageBody,
         response: {
           200: SetProfileImageResponse,
@@ -247,7 +243,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
           'Updates the WhatsApp **About** text (status string).\n\n' +
           '**Short form (instance key):** `PUT /v1/profile/status`',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           status: z.string().max(139).meta({ description: 'About text (max 139 chars)', example: 'Atendimento 9–18h' }),
         }),
@@ -261,7 +256,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       await client.profile.setStatus(body.status)
@@ -280,7 +275,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
           '**Also:** `DELETE /v1/profile/image` (alias).\n' +
           '**Short form (instance key):** `DELETE /v1/profile/picture` or `/v1/profile/image`',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: {
           200: OkSchema,
           401: ErrorBodySchema,
@@ -290,7 +284,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       await client.profile.deleteProfilePicture()
       return { ok: true as const }
@@ -304,7 +298,6 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
         tags: ['Profile'],
         summary: 'Delete profile picture (alias of /profile/picture)',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: {
           200: OkSchema,
           401: ErrorBodySchema,
@@ -314,7 +307,7 @@ export const profileRoutes: FastifyPluginAsync<ProfileRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       await client.profile.deleteProfilePicture()
       return { ok: true as const }

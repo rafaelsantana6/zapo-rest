@@ -1,5 +1,5 @@
 import type pg from 'pg'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseEnv, resetEnvCache } from '~/config/env'
 import { InstanceManager } from '~/instances/manager'
 import { WebhookDispatcher } from '~/webhooks/dispatcher'
@@ -78,5 +78,39 @@ describe('InstanceManager (dryRun)', () => {
     expect(closed.status).toBe('close')
     const again = await manager.restart('rs-1')
     expect(again.status).toBe('open')
+  })
+
+  it('enriches pushName from meDisplayName and avatar API path from meJid', async () => {
+    const created = await manager.create({ name: 'profile-1' })
+    // Persist meJid as if session was open (dryRun never sets it)
+    await repo.updateStatus('profile-1', {
+      status: 'open',
+      meJid: '5511999888777:12@s.whatsapp.net',
+    })
+
+    const mockClient = {
+      getCredentials: () => ({
+        meJid: '5511999888777:12@s.whatsapp.net',
+        // pushName often empty; WA Web keeps the name on meDisplayName
+        meDisplayName: 'Loja Sales',
+        pushName: undefined,
+      }),
+      profile: {
+        getProfilePicture: vi.fn(async () => ({
+          url: 'https://example.com/pic.jpg',
+          id: '1',
+        })),
+      },
+    }
+    vi.spyOn(manager, 'tryGetClient').mockReturnValue(mockClient as never)
+
+    const got = await manager.get('profile-1')
+    expect(got.pushName).toBe('Loja Sales')
+    expect(got.avatarUrl).toContain('/contacts/5511999888777/profile-picture')
+    expect(got.apiKey).toBe(created.apiKey)
+
+    // Persisted for later list without live client
+    const row = await repo.getByName('profile-1')
+    expect(row?.pushName).toBe('Loja Sales')
   })
 })

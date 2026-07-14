@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import { isAdmin } from '~/auth/types'
-import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
+import { ErrorBodySchema, type InstanceNameParams } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest } from '~/lib/errors'
 import { sampleProcessResources } from '~/lib/process-resources'
@@ -56,13 +56,12 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
         description:
           'Aggregated messages, calls, media and storage for an instance over a time range (default last 7 days).',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: RangeQuery,
         response: { 400: ErrorBodySchema, 403: ErrorBodySchema },
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       await manager.get(name) // 404 if missing
       const q = request.query
       const { from, to } = parseRange(q)
@@ -78,13 +77,12 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
         summary: 'Instance metrics time series (for charts)',
         description: 'Bucketed message and call counts for plotting. `bucket=hour||day` (default day).',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: RangeQuery,
         response: { 400: ErrorBodySchema, 403: ErrorBodySchema },
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       await manager.get(name)
       const q = request.query
       const { from, to, bucket } = parseRange(q)
@@ -115,12 +113,11 @@ export const metricsRoutes: FastifyPluginAsync<MetricsRoutesDeps> = async (app, 
           'Process memory & CPU (Node process), live session share estimate, and storage usage for this instance. ' +
           'CPU/memory are process-wide (multi-session); heap is split equally among live sessions when possible.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         response: { 403: ErrorBodySchema },
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       await manager.get(name)
 
       const proc = sampleProcessResources()

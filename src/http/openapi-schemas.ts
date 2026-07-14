@@ -23,7 +23,7 @@ export const EXAMPLES = {
     status: 'open' as const,
     meJid: '5511999999999:12@s.whatsapp.net',
     pushName: 'Loja Sales',
-    avatarUrl: '/v1/instances/sales-1/contacts/5511999999999/profile-picture',
+    avatarUrl: '/v1/contacts/5511999999999/profile-picture',
     pairPhone: null,
     lastQr: null,
     lastQrAt: null,
@@ -187,16 +187,12 @@ export const InstanceName = z
   })
 
 /**
- * Path params for instance-scoped routes.
- * `name` is optional so the same handler can serve:
- * - `/v1/instances/:name/...` (name present; required for admin keys)
- * - short form without name (instance API key → inferred via `resolveInstanceName`)
+ * Path params for **admin** collection routes only (`DELETE /v1/instances/:name`, rotate key).
+ * Operational routes do not take instance name — use instance API key + `/v1/...` paths.
  */
 export const InstanceNameParams = z.object({
-  name: InstanceName.optional().meta({
-    description:
-      'Instance name. Required on `/v1/instances/:name/...` (and always when using the admin API key). ' +
-      'Omitted on short `/v1/...` paths when authenticating with an instance API key.',
+  name: InstanceName.meta({
+    description: 'Instance name (admin create/list/delete/rotate only).',
   }),
 })
 
@@ -458,7 +454,6 @@ export const ProfilePictureQuerySchema = z.object({
 })
 
 export const ProfilePictureParamsSchema = z.object({
-  name: z.string().min(1).meta({ description: 'Instance name', example: 'sales-1' }),
   phone: z.string().min(1).meta({ description: 'Phone digits or JID of the contact', example: '5511999999999' }),
 })
 
@@ -515,7 +510,6 @@ export const ChatstateBodySchema = z
   })
 
 export const ChatstateParamsSchema = z.object({
-  name: z.string().min(1).meta({ description: 'Instance name', example: 'sales-1' }),
   jid: z.string().min(1).meta({
     description: 'Chat JID or phone (URL-encode `@` as %40). Example: 5511999999999',
     example: '5511999999999',
@@ -577,7 +571,6 @@ export const CallGetResponseSchema = z
   .meta({ example: { call: EXAMPLES.callInfo } })
 
 export const CallParamsSchema = z.object({
-  name: z.string().min(1).meta({ description: 'Instance name', example: 'sales-1' }),
   callId: z.string().min(1).meta({ description: 'Call id from start or webhook', example: 'ABCDEF0123456789' }),
 })
 

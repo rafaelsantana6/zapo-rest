@@ -22,7 +22,7 @@
  * { op: "device:status", status, meJid? }
  * { op: "pong", id, ts }
  *
- * Audio PCM stays on GET /v1/instances/:name/calls/:callId/stream (separate channel).
+ * Audio PCM stays on GET /v1/calls/:callId/stream (separate channel; instance key only).
  *
  * IMPORTANT (@fastify/websocket): attach `socket.on('message')` **synchronously** in the
  * route handler. Any `await` before that silently drops client frames.
@@ -31,7 +31,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import type { WebSocket } from 'ws'
 import { type AuthDeps, resolveActor } from '~/auth/plugin'
-import { type Actor, canAccessInstance, isAdmin } from '~/auth/types'
+import type { Actor } from '~/auth/types'
 import type { Env } from '~/config/env'
 import { type RealtimeEvent, realtimeBus } from '~/events/bus'
 import type { InstanceManager } from '~/instances/manager'
@@ -183,10 +183,11 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
 
       const doAttach = async (instanceName: string, role: Actor['role']) => {
         if (!actor) throw new Error('UNAUTHORIZED')
-        if (!canAccessInstance(actor, instanceName) && !isAdmin(actor)) {
+        // Admin keys cannot operate sessions — instance API key only.
+        if (actor.role === 'admin') {
           throw new Error('FORBIDDEN')
         }
-        if (actor.role === 'instance' && actor.instanceName !== instanceName) {
+        if (actor.instanceName !== instanceName) {
           throw new Error('FORBIDDEN')
         }
         await manager.get(instanceName)
@@ -209,31 +210,26 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
         }
         actor = resolved
 
-        const preferred: string | null =
-          actor.role === 'instance'
-            ? actor.instanceName
-            : q.instance && canAccessInstance(actor, q.instance)
-              ? q.instance
-              : null
-
-        if (preferred && !canAccessInstance(actor, preferred)) {
-          send({ op: 'error', code: 'FORBIDDEN', message: 'Forbidden instance' })
+        // Instance API key only for VoIP control; admin is collection-only.
+        if (actor.role === 'admin') {
+          send({
+            op: 'error',
+            code: 'FORBIDDEN',
+            message: 'Admin API key cannot use VoIP. Use an instance API key.',
+          })
           socket.close()
           return
         }
 
-        if (preferred) {
-          try {
-            await doAttach(preferred, actor.role)
-          } catch (err) {
-            send({
-              op: 'error',
-              code: 'ATTACH_FAILED',
-              message: err instanceof Error ? err.message : 'attach failed',
-            })
-          }
-        } else {
-          send({ op: 'ready', instance: null, role: actor.role })
+        const preferred = actor.instanceName
+        try {
+          await doAttach(preferred, actor.role)
+        } catch (err) {
+          send({
+            op: 'error',
+            code: 'ATTACH_FAILED',
+            message: err instanceof Error ? err.message : 'attach failed',
+          })
         }
       })()
 

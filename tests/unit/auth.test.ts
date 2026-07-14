@@ -24,52 +24,33 @@ describe('auth types', () => {
 })
 
 describe('resolveInstanceName', () => {
-  it('uses path name when present (admin)', () => {
-    expect(resolveInstanceName(req({ role: 'admin' }), 'sales-1')).toBe('sales-1')
-  })
-
-  it('uses path name when present (instance key, own name)', () => {
-    expect(resolveInstanceName(req({ role: 'instance', instanceName: 'sales-1' }), 'sales-1')).toBe('sales-1')
-  })
-
-  it('forbids instance key for another instance name', () => {
-    expect(() => resolveInstanceName(req({ role: 'instance', instanceName: 'sales-1' }), 'other')).toThrow(AppError)
-    try {
-      resolveInstanceName(req({ role: 'instance', instanceName: 'sales-1' }), 'other')
-    } catch (e) {
-      expect(e).toBeInstanceOf(AppError)
-      expect((e as AppError).statusCode).toBe(403)
-    }
-  })
-
-  it('infers instance from API key when name omitted', () => {
+  it('infers instance from API key', () => {
     expect(resolveInstanceName(req({ role: 'instance', instanceName: 'sales-1' }))).toBe('sales-1')
-    expect(resolveInstanceName(req({ role: 'instance', instanceName: 'sales-1' }), undefined)).toBe('sales-1')
   })
 
-  it('requires name for admin when omitted (400)', () => {
+  it('ignores legacy name path args — always key-bound instance', () => {
+    expect(resolveInstanceName(req({ role: 'instance', instanceName: 'sales-1' }), 'other')).toBe('sales-1')
+  })
+
+  it('forbids admin on instance methods (403)', () => {
     try {
       resolveInstanceName(req({ role: 'admin' }))
       expect.unreachable('should throw')
     } catch (e) {
       expect(e).toBeInstanceOf(AppError)
-      expect((e as AppError).statusCode).toBe(400)
-      expect((e as AppError).message).toMatch(/admin API key/i)
+      expect((e as AppError).statusCode).toBe(403)
+      expect((e as AppError).message).toMatch(/Admin API key cannot call instance/i)
     }
   })
 })
 
 describe('scoped path helpers', () => {
-  it('scopedInstancePaths returns named + short form (array at runtime)', () => {
-    const paths = scopedInstancePaths('/messages/text') as unknown as string[]
-    expect(paths).toEqual(['/v1/instances/:name/messages/text', '/v1/messages/text'])
+  it('scopedInstancePaths is short form only', () => {
+    expect(scopedInstancePaths('/messages/text')).toBe('/v1/messages/text')
   })
 
-  it('scopedSelfPaths uses singular /v1/instance short form', () => {
-    expect(scopedSelfPaths() as unknown as string[]).toEqual(['/v1/instances/:name', '/v1/instance'])
-    expect(scopedSelfPaths('/connect') as unknown as string[]).toEqual([
-      '/v1/instances/:name/connect',
-      '/v1/instance/connect',
-    ])
+  it('scopedSelfPaths uses singular /v1/instance', () => {
+    expect(scopedSelfPaths()).toBe('/v1/instance')
+    expect(scopedSelfPaths('/connect')).toBe('/v1/instance/connect')
   })
 })

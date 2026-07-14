@@ -3,7 +3,7 @@ import fp from 'fastify-plugin'
 import type { Env } from '~/config/env'
 import type { InstanceRepo } from '~/instances/repo'
 import { safeEqual } from '~/lib/crypto-keys'
-import { badRequest, forbidden, unauthorized } from '~/lib/errors'
+import { forbidden, unauthorized } from '~/lib/errors'
 import type { Actor } from './types'
 import { canAccessInstance, isAdmin } from './types'
 
@@ -92,51 +92,44 @@ export function requireInstanceAccess(request: FastifyRequest, instanceName: str
 }
 
 /**
- * Resolve the target instance for a request.
+ * Resolve the target instance for operational routes.
  *
- * Dual routing (both work for the same handlers):
- * - **Named:** `/v1/instances/:name/...` — `nameFromParams` present; access-checked.
- * - **Inferred:** `/v1/...` (no name) — only with an **instance** API key; uses `actor.instanceName`.
+ * **Instance API key only** — name always comes from the authenticated key.
+ * Admin keys cannot call these endpoints (admin is limited to create/list/delete/rotate).
  *
- * **Admin API key must always pass the instance name** (named path). Omitting it → 400.
+ * Paths never include `:name` for operations (`/v1/messages/...`, `/v1/instance/...`).
  *
  * @example
  * ```ts
- * // path: ['/v1/instances/:name/messages/text', '/v1/messages/text']
- * const name = resolveInstanceName(request, request.params.name)
+ * // path: '/v1/messages/text'
+ * const name = resolveInstanceName(request)
  * ```
  */
-export function resolveInstanceName(request: FastifyRequest, nameFromParams?: string): string {
-  if (nameFromParams) {
-    requireInstanceAccess(request, nameFromParams)
-    return nameFromParams
-  }
+export function resolveInstanceName(request: FastifyRequest, _nameFromParams?: string): string {
   if (request.actor.role === 'admin') {
-    throw badRequest('Instance name is required when using the admin API key. Use /v1/instances/:name/...')
+    throw forbidden(
+      'Admin API key cannot call instance methods. Use an instance API key, or admin create/list/delete only.',
+    )
   }
   return request.actor.instanceName
 }
 
 /**
- * Dual URL pair for instance-scoped REST resources.
- * Named form keeps multi-tenant admin access; short form omits the name for instance keys.
+ * Instance-scoped REST resource path (no `:name` segment).
+ * Auth: instance API key — name inferred via {@link resolveInstanceName}.
  *
- * Returns a path array; `enableMultiUrlRoutes` (in app bootstrap) expands it so each
- * Fastify method shorthand registers both URLs. Typed as `string` for TS overloads.
- *
- * @param resourcePath - Path after the instance segment, e.g. `/messages/text` or `/chats/:chatId`
+ * @param resourcePath - e.g. `/messages/text` or `/chats/:chatId`
  */
 export function scopedInstancePaths(resourcePath: string): string {
   const path = resourcePath.startsWith('/') ? resourcePath : `/${resourcePath}`
-  return [`/v1/instances/:name${path}`, `/v1${path}`] as unknown as string
+  return `/v1${path}`
 }
 
 /**
- * Dual URL pair for instance lifecycle ops (get/connect/qr/…).
- * Short form uses singular `/v1/instance/...` so it never collides with admin
- * collection routes under `/v1/instances`.
+ * Instance lifecycle under singular `/v1/instance/...`
+ * (does not collide with admin collection `/v1/instances`).
  */
 export function scopedSelfPaths(resourcePath = ''): string {
   const path = !resourcePath ? '' : resourcePath.startsWith('/') ? resourcePath : `/${resourcePath}`
-  return [`/v1/instances/:name${path}`, `/v1/instance${path}`] as unknown as string
+  return `/v1/instance${path}`
 }

@@ -33,7 +33,7 @@ describe('blast + STT routes (integration)', () => {
   it('rejects unauthenticated blast', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       payload: { to: '5511999999999', audioUrl: 'https://example.com/a.wav' },
     })
     expect(res.statusCode).toBe(401)
@@ -42,7 +42,7 @@ describe('blast + STT routes (integration)', () => {
   it('validates body (missing to / audioUrl)', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: key,
       payload: { to: '5511999999999' },
     })
@@ -52,7 +52,7 @@ describe('blast + STT routes (integration)', () => {
   it('POST /calls/blast happy path with STT', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: key,
       payload: {
         to: '5511888888888',
@@ -101,14 +101,14 @@ describe('blast + STT routes (integration)', () => {
     await ctx.calls.setRecordingResult(INSTANCE, 'EXISTING1', {
       status: 'ready',
       storageKey: stored.storageKey,
-      url: `/v1/instances/${INSTANCE}/calls/EXISTING1/recording`,
+      url: `/v1/calls/EXISTING1/recording`,
       mime: 'audio/wav',
       bytes: stored.sizeBytes,
     })
 
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/EXISTING1/transcribe`,
+      url: `/v1/calls/EXISTING1/transcribe`,
       headers: key,
     })
     expect(res.statusCode).toBe(200)
@@ -125,7 +125,7 @@ describe('blast + STT routes (integration)', () => {
     })
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/NOREC/transcribe`,
+      url: `/v1/calls/NOREC/transcribe`,
       headers: key,
     })
     expect(res.statusCode).toBe(400)
@@ -134,43 +134,23 @@ describe('blast + STT routes (integration)', () => {
   it('transcribe returns 404 for unknown call', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/missing-call/transcribe`,
+      url: `/v1/calls/missing-call/transcribe`,
       headers: key,
     })
     expect(res.statusCode).toBe(404)
   })
 
-  it('forbids other instance key on blast', async () => {
-    // seed second instance with different key
-    ctx.repo.seed({ name: 'other', apiKey: 'zr_other_key_min16xx', status: 'open' })
+  it('forbids admin key on blast (instance key only)', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
-      headers: { 'x-api-key': 'zr_other_key_min16xx' },
-      payload: {
-        to: '5511888888888',
-        audioUrl: 'https://example.com/prompt.wav',
-      },
-    })
-    expect([403, 401]).toContain(res.statusCode)
-  })
-
-  it('admin key can blast any instance', async () => {
-    const res = await ctx.app.inject({
-      method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: { 'x-api-key': ADMIN_KEY },
       payload: {
         to: '5511888888888',
         audioUrl: 'https://example.com/prompt.wav',
-        responseTimeoutMs: 20,
-        callTimeoutMs: 2000,
-        recordResponse: false,
-        transcribe: false,
       },
     })
-    expect(res.statusCode).toBe(200)
-    expect((res.json() as { audioPlayed: boolean }).audioPlayed).toBe(true)
+    expect(res.statusCode).toBe(403)
   })
 })
 
@@ -193,7 +173,7 @@ describe('blast routes without STT configured', () => {
   it('transcribe returns 503 when STT disabled', async () => {
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/some/transcribe`,
+      url: `/v1/calls/some/transcribe`,
       headers: { 'x-api-key': INSTANCE_KEY },
     })
     expect(res.statusCode).toBe(503)
@@ -203,7 +183,7 @@ describe('blast routes without STT configured', () => {
     mockFetchWav(silenceWav())
     const res = await ctx.app.inject({
       method: 'POST',
-      url: `/v1/instances/${INSTANCE}/calls/blast`,
+      url: `/v1/calls/blast`,
       headers: { 'x-api-key': INSTANCE_KEY },
       payload: {
         to: '5511888888888',

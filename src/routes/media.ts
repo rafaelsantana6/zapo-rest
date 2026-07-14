@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync, FastifyReply } from 'fastify'
 import { z } from 'zod'
-import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
+import { requireInstanceAccess, resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { ErrorBodySchema, InstanceNameParams } from '~/http/openapi-schemas'
+import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest, notFound } from '~/lib/errors'
 import { getLogger } from '~/lib/logger'
@@ -191,7 +191,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
           '- **`?download=1`:** attachment disposition.',
         ].join('\n'),
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams.extend({ messageId: z.string().min(1) }),
+        params: z.object({ messageId: z.string().min(1) }),
         querystring: z.object({
           download: z
             .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
@@ -207,7 +207,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
       },
     },
     async (request, reply) => {
-      const params = InstanceNameParams.extend({ messageId: z.string() }).parse(request.params)
+      const params = z.object({ messageId: z.string() }).parse(request.params)
       const q = z
         .object({
           download: z
@@ -220,7 +220,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
             .transform((v) => v === true || v === 'true' || v === '1'),
         })
         .parse(request.query ?? {})
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
 
       const preferRedirect = deps.env.MEDIA_REDIRECT_DOWNLOADS !== false && !q.proxy
       // Ensure object exists (storage hit, or rehydrate from WA if deleted)
@@ -249,7 +249,12 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
     },
     async (request, reply) => {
       const params = z.object({ instance: z.string(), key: z.string() }).parse(request.params)
-      const name = resolveInstanceName(request, params.instance)
+      const name = resolveInstanceName(request)
+      // Path prefix must match the instance that owns the API key
+      requireInstanceAccess(request, params.instance)
+      if (params.instance !== name) {
+        throw badRequest(`media instance mismatch: expected ${name}`)
+      }
       // Fastify already URL-decodes path params; a 2nd decode would smuggle traversal.
       if (!/^[a-zA-Z0-9._/-]+$/.test(params.key) || params.key.includes('..')) {
         throw badRequest(`invalid media key: ${params.key}`)
@@ -279,7 +284,6 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
           'Downloads media for a message id (from storage if present, else live decrypt via client). ' +
           'Mirrors `chat/getBase64FromMediaMessage`.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           messageId: z.string().min(1).optional(),
           message: z
@@ -294,8 +298,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
       },
     },
     async (request) => {
-      const params = InstanceNameParams.parse(request.params)
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = z
         .object({
           messageId: z.string().optional(),
@@ -320,7 +323,6 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
         tags: ['Media'],
         summary: 'Alias: getBase64FromMediaMessage (legacy path)',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           messageId: z.string().min(1).optional(),
           message: z
@@ -331,8 +333,7 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
       },
     },
     async (request) => {
-      const params = InstanceNameParams.parse(request.params)
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const body = z
         .object({
           messageId: z.string().optional(),

@@ -18,7 +18,7 @@ describe('route handlers with mocked WA client', () => {
     it('POST text sends via client and stores message', async () => {
       const res = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/text`,
+        url: `/v1/messages/text`,
         headers: key,
         payload: { to: '5511999999999', text: 'hello sprint c' },
       })
@@ -34,7 +34,7 @@ describe('route handlers with mocked WA client', () => {
     it('POST location / poll / react hit client', async () => {
       const loc = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/location`,
+        url: `/v1/messages/location`,
         headers: key,
         payload: { to: '5511888888888', latitude: -23.5, longitude: -46.6, name: 'SP' },
       })
@@ -42,7 +42,7 @@ describe('route handlers with mocked WA client', () => {
 
       const poll = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/poll`,
+        url: `/v1/messages/poll`,
         headers: key,
         payload: { to: '5511888888888', name: 'lunch?', options: ['a', 'b'] },
       })
@@ -50,7 +50,7 @@ describe('route handlers with mocked WA client', () => {
 
       const react = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/react`,
+        url: `/v1/messages/react`,
         headers: key,
         payload: { to: '5511888888888', messageId: 'MSGX', emoji: '👍' },
       })
@@ -81,7 +81,7 @@ describe('route handlers with mocked WA client', () => {
 
       const list = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/chats`,
+        url: `/v1/chats`,
         headers: key,
       })
       expect(list.statusCode).toBe(200)
@@ -89,14 +89,14 @@ describe('route handlers with mocked WA client', () => {
 
       const one = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/chats/${encodeURIComponent('5511888888888@s.whatsapp.net')}`,
+        url: `/v1/chats/${encodeURIComponent('5511888888888@s.whatsapp.net')}`,
         headers: key,
       })
       expect(one.statusCode).toBe(200)
 
       const msgs = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/chats/${encodeURIComponent('5511888888888@s.whatsapp.net')}/messages`,
+        url: `/v1/chats/${encodeURIComponent('5511888888888@s.whatsapp.net')}/messages`,
         headers: key,
       })
       expect(msgs.statusCode).toBe(200)
@@ -115,7 +115,7 @@ describe('route handlers with mocked WA client', () => {
       })
       const list = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/contacts`,
+        url: `/v1/contacts`,
         headers: key,
       })
       expect(list.statusCode).toBe(200)
@@ -123,7 +123,7 @@ describe('route handlers with mocked WA client', () => {
 
       const jid = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/contacts/jid`,
+        url: `/v1/contacts/jid`,
         headers: key,
         payload: { numbers: ['11999999999'] },
       })
@@ -133,7 +133,7 @@ describe('route handlers with mocked WA client', () => {
     it('check/resolve uses profile.getLidsByPhoneNumbers', async () => {
       const check = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/contacts/check`,
+        url: `/v1/contacts/check`,
         headers: key,
         payload: { phones: ['5511999999999'] },
       })
@@ -142,7 +142,7 @@ describe('route handlers with mocked WA client', () => {
 
       const resolve = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/contacts/resolve`,
+        url: `/v1/contacts/resolve`,
         headers: key,
         payload: { numbers: ['5511888888888'] },
       })
@@ -157,7 +157,7 @@ describe('route handlers with mocked WA client', () => {
     it('lists groups from client as an array of group objects', async () => {
       const res = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/groups`,
+        url: `/v1/groups`,
         headers: key,
       })
       expect(res.statusCode).toBe(200)
@@ -175,7 +175,7 @@ describe('route handlers with mocked WA client', () => {
     it('returns blocklist from client as an array', async () => {
       const res = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/blocklist`,
+        url: `/v1/blocklist`,
         headers: key,
       })
       expect(res.statusCode).toBe(200)
@@ -190,7 +190,7 @@ describe('route handlers with mocked WA client', () => {
     it('CRUD labels via store + chat.set on create', async () => {
       const create = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/labels`,
+        url: `/v1/labels`,
         headers: key,
         payload: { id: 'vip', name: 'VIP', color: 1 },
       })
@@ -199,7 +199,7 @@ describe('route handlers with mocked WA client', () => {
 
       const list = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/labels`,
+        url: `/v1/labels`,
         headers: key,
       })
       expect(list.statusCode).toBe(200)
@@ -218,7 +218,7 @@ describe('route handlers with mocked WA client', () => {
       })
       const list = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/lids`,
+        url: `/v1/lids`,
         headers: key,
       })
       expect(list.statusCode).toBe(200)
@@ -226,7 +226,7 @@ describe('route handlers with mocked WA client', () => {
 
       const count = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/lids/count`,
+        url: `/v1/lids/count`,
         headers: key,
       })
       expect(count.statusCode).toBe(200)
@@ -238,7 +238,7 @@ describe('route handlers with mocked WA client', () => {
     it('sets presence and chatstate', async () => {
       const p = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/presence`,
+        url: `/v1/presence`,
         headers: key,
         payload: { type: 'available' },
       })
@@ -247,7 +247,7 @@ describe('route handlers with mocked WA client', () => {
 
       const cs = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/chats/5511888888888/chatstate`,
+        url: `/v1/chats/5511888888888/chatstate`,
         headers: key,
         payload: { state: 'composing' },
       })
@@ -268,7 +268,7 @@ describe('route handlers with mocked WA client', () => {
       })
       const edit = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/edit`,
+        url: `/v1/messages/edit`,
         headers: key,
         payload: { to: '5511888888888', messageId: 'EDITME', text: 'new text' },
       })
@@ -277,7 +277,7 @@ describe('route handlers with mocked WA client', () => {
 
       const rev = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/revoke`,
+        url: `/v1/messages/revoke`,
         headers: key,
         payload: { to: '5511888888888', messageId: 'EDITME' },
       })
@@ -287,7 +287,7 @@ describe('route handlers with mocked WA client', () => {
     it('reply quotes a message', async () => {
       const res = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/messages/reply`,
+        url: `/v1/messages/reply`,
         headers: key,
         payload: {
           to: '5511888888888',
@@ -304,21 +304,21 @@ describe('route handlers with mocked WA client', () => {
       const jid = encodeURIComponent('5511888888888@s.whatsapp.net')
       const arch = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/chats/${jid}/archive`,
+        url: `/v1/chats/${jid}/archive`,
         headers: key,
       })
       expect(arch.statusCode).toBe(200)
 
       const unarch = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/chats/${jid}/unarchive`,
+        url: `/v1/chats/${jid}/unarchive`,
         headers: key,
       })
       expect(unarch.statusCode).toBe(200)
 
       const read = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/chats/${jid}/messages/read`,
+        url: `/v1/chats/${jid}/messages/read`,
         headers: key,
         payload: { messageIds: ['CHATMSG1'] },
       })
@@ -329,7 +329,7 @@ describe('route handlers with mocked WA client', () => {
     it('get single message by id', async () => {
       const res = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/chats/${encodeURIComponent('5511888888888@s.whatsapp.net')}/messages/CHATMSG1`,
+        url: `/v1/chats/${encodeURIComponent('5511888888888@s.whatsapp.net')}/messages/CHATMSG1`,
         headers: key,
       })
       expect(res.statusCode).toBe(200)
@@ -340,7 +340,7 @@ describe('route handlers with mocked WA client', () => {
     it('get and set privacy settings', async () => {
       const get = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/${INSTANCE}/privacy`,
+        url: `/v1/privacy`,
         headers: key,
       })
       expect(get.statusCode).toBe(200)
@@ -348,7 +348,7 @@ describe('route handlers with mocked WA client', () => {
 
       const set = await ctx.app.inject({
         method: 'POST',
-        url: `/v1/instances/${INSTANCE}/privacy`,
+        url: `/v1/privacy`,
         headers: key,
         payload: { setting: 'last', value: 'contacts' },
       })
@@ -357,13 +357,13 @@ describe('route handlers with mocked WA client', () => {
   })
 
   describe('auth scoping', () => {
-    it('instance key cannot access other instance', async () => {
+    it('admin cannot call instance operational routes', async () => {
       const res = await ctx.app.inject({
         method: 'GET',
-        url: `/v1/instances/other/chats`,
-        headers: key,
+        url: `/v1/chats`,
+        headers: admin,
       })
-      expect([403, 404].includes(res.statusCode)).toBe(true)
+      expect(res.statusCode).toBe(403)
     })
 
     it('admin can list instances', async () => {
@@ -388,7 +388,7 @@ describe('route handlers with mocked WA client', () => {
     it('PUT /instances/:name/profile/name accepts pushName alias', async () => {
       const res = await ctx.app.inject({
         method: 'PUT',
-        url: `/v1/instances/${INSTANCE}/profile/name`,
+        url: `/v1/profile/name`,
         headers: key,
         payload: { pushName: 'Alias Name' },
       })
@@ -419,7 +419,7 @@ describe('route handlers with mocked WA client', () => {
       const jpegB64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9, 0x02]).toString('base64')
       const res = await ctx.app.inject({
         method: 'PUT',
-        url: `/v1/instances/${INSTANCE}/profile/picture`,
+        url: `/v1/profile/picture`,
         headers: key,
         payload: { mediaBase64: jpegB64 },
       })

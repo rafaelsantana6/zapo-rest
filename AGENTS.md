@@ -108,17 +108,14 @@ Contract changes must update README, `docs-site/src/content/*`, OpenAPI, dashboa
 | Admin | `ADMIN_API_KEY` env (≥ 16 chars) | All instances |
 | Instance | per-row `apiKey` (plaintext, always on GET) | Own instance only |
 
-Enforce with `resolveInstanceName` / `canAccessInstance` / `isAdmin` (`src/auth/plugin.ts`, `src/auth/types.ts`).
+Enforce with `resolveInstanceName` / `requireAdmin` (`src/auth/plugin.ts`).
 
-**Dual instance paths** (both registered for the same handlers):
+| Actor | Allowed surface |
+| ----- | ---------------- |
+| **Admin** | `POST/GET /v1/instances`, `DELETE /v1/instances/:name`, `POST /v1/instances/:name/keys/rotate` only |
+| **Instance key** | All session ops under short paths — resources `/v1/...`, lifecycle `/v1/instance/...` (name from key) |
 
-| Form | Example | Rule |
-| ---- | ------- | ---- |
-| Named | `/v1/instances/:name/...` | Admin **must** use this; instance key may use it for its own name |
-| Short resource | `/v1/...` (e.g. `/v1/messages/text`) | Instance key only — name inferred from the key |
-| Short lifecycle | `/v1/instance/...` (singular) | Instance key only — avoids colliding with `/v1/instances` |
-
-Helpers: `scopedInstancePaths`, `scopedSelfPaths`, `enableMultiUrlRoutes` in `src/app.ts`. `/docs` OpenAPI UI is public by design — network-ACL in prod if needed.
+Helpers: `scopedInstancePaths`, `scopedSelfPaths`, `resolveInstanceName`. `/docs` OpenAPI UI is public by design — network-ACL in prod if needed.
 
 ---
 

@@ -297,7 +297,7 @@ export function Softphone() {
       callIdRef.current = callId
 
       const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
-      const wsUrl = `${proto}://${window.location.host}/v1/instances/${encodeURIComponent(instanceName)}/calls/${encodeURIComponent(callId)}/stream?apiKey=${encodeURIComponent(key)}`
+      const wsUrl = `${proto}://${window.location.host}/v1/calls/${encodeURIComponent(callId)}/stream?apiKey=${encodeURIComponent(key)}`
       const ws = new WebSocket(wsUrl)
       ws.binaryType = 'arraybuffer'
       wsRef.current = ws

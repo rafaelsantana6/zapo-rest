@@ -7,8 +7,7 @@ import { InstanceManager } from '~/instances/manager'
 import { WebhookDispatcher } from '~/webhooks/dispatcher'
 
 /**
- * Lightweight integration: dryRun manager + in-memory-ish repo mock via real SQL only if DB up.
- * Falls back to skip when DATABASE unreachable.
+ * Lightweight integration: dryRun manager + memory repo.
  */
 
 class MemoryRepo {
@@ -142,7 +141,7 @@ describe('auth + instance routes (dryRun)', () => {
     expect(list.json().instances.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('instance key cannot list all; can get own', async () => {
+  it('instance key cannot list; uses /v1/instance for own get', async () => {
     const create = await app.inject({
       method: 'POST',
       url: '/v1/instances',
@@ -160,81 +159,58 @@ describe('auth + instance routes (dryRun)', () => {
 
     const get = await app.inject({
       method: 'GET',
-      url: '/v1/instances/scoped',
+      url: '/v1/instance',
       headers: { 'x-api-key': apiKey },
     })
     expect(get.statusCode).toBe(200)
     expect(get.json().instance.name).toBe('scoped')
     expect(get.json().instance.apiKey).toBe(apiKey)
-    expect(get.json().instance).toHaveProperty('pushName')
-    expect(get.json().instance).toHaveProperty('avatarUrl')
+  })
 
-    const other = await app.inject({
+  it('admin cannot call instance methods (403)', async () => {
+    const res = await app.inject({
       method: 'GET',
-      url: '/v1/instances/demo-1',
+      url: '/v1/instance',
+      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().error?.message ?? res.json().message ?? '').toMatch(/Admin API key cannot call instance/i)
+  })
+
+  it('admin can delete by name', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/v1/instances',
+      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
+      payload: { name: 'to-delete' },
+    })
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/v1/instances/to-delete',
+      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
+    })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('named operational paths are gone (404)', async () => {
+    const create = await app.inject({
+      method: 'POST',
+      url: '/v1/instances',
+      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
+      payload: { name: 'no-named' },
+    })
+    const apiKey = create.json().instance.apiKey as string
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/instances/no-named',
       headers: { 'x-api-key': apiKey },
     })
-    expect(other.statusCode).toBe(403)
+    expect(res.statusCode).toBe(404)
   })
 
   it('health is public', async () => {
     const res = await app.inject({ method: 'GET', url: '/health' })
     expect(res.statusCode).toBe(200)
     expect(res.json().status).toBe('ok')
-  })
-
-  it('instance key can omit name via short /v1/instance path', async () => {
-    const create = await app.inject({
-      method: 'POST',
-      url: '/v1/instances',
-      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
-      payload: { name: 'inferred' },
-    })
-    expect(create.statusCode).toBe(200)
-    const apiKey = create.json().instance.apiKey as string
-
-    const short = await app.inject({
-      method: 'GET',
-      url: '/v1/instance',
-      headers: { 'x-api-key': apiKey },
-    })
-    expect(short.statusCode).toBe(200)
-    expect(short.json().instance.name).toBe('inferred')
-    expect(short.json().instance.apiKey).toBe(apiKey)
-
-    // Named path still works
-    const named = await app.inject({
-      method: 'GET',
-      url: '/v1/instances/inferred',
-      headers: { 'x-api-key': apiKey },
-    })
-    expect(named.statusCode).toBe(200)
-    expect(named.json().instance.name).toBe('inferred')
-  })
-
-  it('admin must supply instance name (short form without name → 400)', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/v1/instance',
-      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
-    })
-    expect(res.statusCode).toBe(400)
-    expect(res.json().error?.message ?? res.json().message ?? '').toMatch(/Instance name is required/i)
-  })
-
-  it('admin can still use named path', async () => {
-    await app.inject({
-      method: 'POST',
-      url: '/v1/instances',
-      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
-      payload: { name: 'admin-named' },
-    })
-    const res = await app.inject({
-      method: 'GET',
-      url: '/v1/instances/admin-named',
-      headers: { 'x-api-key': 'test-admin-api-key-min-16' },
-    })
-    expect(res.statusCode).toBe(200)
-    expect(res.json().instance.name).toBe('admin-named')
   })
 })

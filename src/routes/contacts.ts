@@ -9,7 +9,6 @@ import {
   CheckContactsBodySchema,
   CheckContactsResponseSchema,
   ErrorBodySchema,
-  InstanceNameParams,
   ProfilePictureParamsSchema,
   ProfilePictureQuerySchema,
   ProfilePictureResponseSchema,
@@ -64,7 +63,6 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         tags: ['Contacts'],
         summary: 'List stored contacts',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: z.object({
           limit: z.coerce.number().int().positive().max(500).optional(),
           offset: z.coerce.number().int().nonnegative().optional(),
@@ -72,7 +70,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const q = request.query
       if (!contacts) return { contacts: [] }
       const rows = await contacts.list(name, { limit: q.limit, offset: q.offset })
@@ -95,14 +93,13 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
           'For the **server-confirmed** JID, use `POST.../contacts/resolve` or `.../check`.\n\n' +
           'Example: `5568981159096` → `556881159096@s.whatsapp.net`',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({
           numbers: z.array(z.string().min(1)).min(1).max(100),
         }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       await manager.get(name)
       const body = request.body
       return {
@@ -137,12 +134,11 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
           '- returns the WA-confirmed `jid` when `exists`\n' +
           '- caches results (Redis/memory) for 24h',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: ResolveBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const results = await resolveWhatsAppNumbers(client, body.numbers, {
@@ -196,7 +192,6 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
           'Batch existence check with BR/MX/AR digit variants. Uses a **single** usync call for all numbers+variants.\n\n' +
           'Alias of resolve with a flatter response shape ( compatible fields).',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: CheckContactsBodySchema,
         response: {
           200: CheckContactsResponseSchema,
@@ -206,7 +201,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const resolved = await resolveWhatsAppNumbers(client, body.phones, {
@@ -237,14 +232,13 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         summary: 'Check one number (query)',
         description: 'single-number check: `?phone=5568981159096`',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         querystring: z.object({
           phone: z.string().min(1),
         }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const q = request.query
       const client = manager.requireRegisteredClient(name)
       const [r] = await resolveWhatsAppNumbers(client, [q.phone], {
@@ -273,12 +267,11 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         summary: 'whatsappNumbers alias',
         description: 'Same as `POST.../contacts/resolve` (legacy naming).',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: ResolveBody,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const results = await resolveWhatsAppNumbers(client, body.numbers, {
@@ -306,12 +299,12 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         tags: ['Contacts'],
         summary: 'Get contact',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams.extend({ jid: z.string() }),
+        params: z.object({ jid: z.string() }),
       },
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       if (!contacts) return { contact: null }
       const client = manager.tryGetClient(name)
       const jid = await resolveRecipientJid(client, params.jid, cache)
@@ -345,7 +338,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const query = request.query
       const picType = (query.type ?? 'preview') as ProfilePictureType
       const refresh = Boolean(query.refresh)
@@ -420,7 +413,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request, reply) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       if (!avatars || !mediaStorage) throw notFound('avatar storage not configured')
       const query = request.query
       const picType = (query.type ?? 'preview') as ProfilePictureType
@@ -468,7 +461,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
     },
     async (request) => {
       const params = request.params
-      const name = resolveInstanceName(request, params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const [resolved] = await resolveWhatsAppNumbers(client, [params.phone], { cache })
       const jid = resolved?.exists ? resolved.jid : toRecipientJid(params.phone)
@@ -496,12 +489,11 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         tags: ['Contacts'],
         summary: 'Block contact',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({ jid: z.string().min(1) }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, body.jid, cache)
@@ -518,12 +510,11 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         tags: ['Contacts'],
         summary: 'Unblock contact',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
         body: z.object({ jid: z.string().min(1) }),
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await resolveRecipientJid(client, body.jid, cache)
@@ -540,11 +531,10 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         tags: ['Contacts'],
         summary: 'Get blocklist',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
-        params: InstanceNameParams,
       },
     },
     async (request) => {
-      const name = resolveInstanceName(request, request.params.name)
+      const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const result = await client.privacy.getBlocklist()
       return { blocklist: result }
