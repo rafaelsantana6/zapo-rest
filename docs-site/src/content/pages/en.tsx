@@ -1142,7 +1142,7 @@ const dec = new TextDecoder
 
   voip: {
     title: 'VoIP & softphone',
-    description: 'JSON signaling, 16 kHz PCM and recording.',
+    description: 'JSON signaling, 16 kHz PCM, recording, audio blast and STT.',
     body: (
       <>
         <h2 id="control">Control plane — /v1/voip</h2>
@@ -1203,6 +1203,66 @@ const dec = new TextDecoder
           <li>
             Recording: <code>PUT.../settings/call-recording</code> + storage ready → PCM only after answer (
             <code>connecting</code>/<code>active</code>) → WAV at <code>GET.../recording</code>
+          </li>
+        </ul>
+
+        <h2 id="blast">Audio blast + STT</h2>
+        <p>For automated outbound prompts (IVR-style), use REST instead of the softphone WS:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <code>POST /v1/instances/:name/calls/blast</code>
+              </td>
+              <td>
+                Dial → play a WAV from <code>audioUrl</code> when answered → optional remote-leg record + Whisper
+                transcription
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/instances/:name/calls/:callId/transcribe</code>
+              </td>
+              <td>STT on an existing stored recording (blast or call-recording)</td>
+            </tr>
+          </tbody>
+        </table>
+        <CodeBlock
+          language="bash"
+          code={`curl -s -X POST "$BASE/v1/instances/sales-1/calls/blast" \\
+  -H "X-Api-Key: $KEY" -H "content-type: application/json" \\
+  -d '{
+    "to": "5511999999999",
+    "audioUrl": "https://cdn.example.com/prompt.wav",
+    "responseTimeoutMs": 5000,
+    "recordResponse": true,
+    "transcribe": true,
+    "sttLanguage": "pt"
+  }'`}
+        />
+        <ul>
+          <li>
+            <strong>WAV only</strong> (PCM/float); resampled to 16 kHz mono. <code>audioUrl</code> is SSRF-guarded
+            (public HTTPS, no redirects, size/time caps).
+          </li>
+          <li>
+            Recording is linked on the call row — <code>GET .../recording</code> and <code>.../transcribe</code> work
+            after a successful blast.
+          </li>
+          <li>
+            STT needs <code>STT_ENABLED=true</code>, <code>STT_API_URL</code> (e.g.{' '}
+            <code>https://api.groq.com/openai</code>), <code>STT_API_KEY</code>. Optional <code>STT_MODEL</code> /
+            <code>STT_LANGUAGE</code>.
+          </li>
+          <li>
+            HTTP stays open until the blast finishes — raise client timeouts for long WAVs. See Scalar{' '}
+            <ExternalLink href="/docs">/docs</ExternalLink> (Calls tag).
           </li>
         </ul>
       </>
@@ -1320,7 +1380,14 @@ const dec = new TextDecoder
         <h3 id="q-storage">Call recording 404?</h3>
         <p>
           Storage must be configured and <code>storageReady: true</code>. Enable <code>call-recording</code> on the
-          instance.
+          instance (softphone) or use <code>POST .../calls/blast</code> with <code>recordResponse: true</code>.
+        </p>
+
+        <h3 id="q-blast">How do I play a WAV and get the answer transcribed?</h3>
+        <p>
+          <code>POST /v1/instances/:name/calls/blast</code> with <code>audioUrl</code> (public HTTPS WAV). Set{' '}
+          <code>STT_*</code> env for inline Whisper STT, or call <code>POST .../calls/:callId/transcribe</code> later.
+          Details on the <a href="/guide/voip#blast">VoIP</a> page.
         </p>
 
         <h3 id="q-wam">What is WAM / how do I turn it off?</h3>

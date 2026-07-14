@@ -1206,6 +1206,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -1570,6 +1571,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -1795,6 +1797,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -2216,6 +2219,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -2582,6 +2586,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -3003,6 +3008,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -3288,6 +3294,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -3627,6 +3634,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -4030,6 +4038,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -4202,6 +4211,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -4345,6 +4355,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -4480,6 +4491,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -4709,6 +4721,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -4808,6 +4821,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5050,6 +5064,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5149,6 +5164,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5391,6 +5407,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5633,6 +5650,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5701,6 +5719,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5775,6 +5794,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5845,6 +5865,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5909,6 +5930,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -5968,6 +5990,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6058,6 +6081,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6123,6 +6147,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6193,6 +6218,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6228,6 +6254,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6291,6 +6318,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6351,6 +6379,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6415,6 +6444,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6488,6 +6518,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6730,6 +6761,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6794,6 +6826,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -6829,6 +6862,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -7448,6 +7482,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -7502,6 +7537,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -7537,6 +7573,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -7602,6 +7639,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -8332,6 +8370,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -8394,6 +8433,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -8729,6 +8769,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -8765,26 +8806,91 @@
                           },
                           "peerJid": {
                             "example": "5511888888888@s.whatsapp.net",
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "peerJidRaw": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "peerLid": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "callerPn": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "direction": {
                             "description": "outgoing | incoming",
                             "example": "outgoing",
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "mediaType": {
                             "description": "audio",
                             "example": "audio",
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "createdAt": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "additionalProperties": true
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "state": {
                             "description": "ringing | connecting | active | ended | …",
                             "example": "active",
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "isActive": {
                             "type": "boolean"
@@ -8798,14 +8904,38 @@
                           "canAccept": {
                             "type": "boolean"
                           },
-                          "audioMuted": {
+                          "acceptBlocked": {
                             "type": "boolean"
                           },
+                          "audioMuted": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "durationSecs": {
-                            "type": "number"
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "endReason": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -9131,6 +9261,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -9166,6 +9297,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -9218,6 +9350,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -9300,26 +9433,91 @@
                             },
                             "peerJid": {
                               "example": "5511888888888@s.whatsapp.net",
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "peerJidRaw": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "peerLid": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "callerPn": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "direction": {
                               "description": "outgoing | incoming",
                               "example": "outgoing",
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "mediaType": {
                               "description": "audio",
                               "example": "audio",
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "createdAt": {
-                              "type": "object",
-                              "additionalProperties": true
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "additionalProperties": true
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "state": {
                               "description": "ringing | connecting | active | ended | …",
                               "example": "active",
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "isActive": {
                               "type": "boolean"
@@ -9333,14 +9531,38 @@
                             "canAccept": {
                               "type": "boolean"
                             },
-                            "audioMuted": {
+                            "acceptBlocked": {
                               "type": "boolean"
                             },
+                            "audioMuted": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
                             "durationSecs": {
-                              "type": "number"
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             },
                             "endReason": {
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
@@ -10990,6 +11212,846 @@
         }
       }
     },
+    "/v1/instances/{name}/calls/blast": {
+      "post": {
+        "summary": "Audio blast — call + play predefined audio + record response",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Outbound VoIP **audio blast**: dial → wait for answer → play WAV → optional remote-leg record + Whisper STT.\n\n### Audio\n- **WAV only** (PCM 8/16/24/32-bit or float32). Any rate/channels → resampled to **16 kHz mono**.\n- `audioUrl` is fetched server-side with **SSRF protection** (public HTTPS only, no redirects, size/time caps).\n\n### Recording & STT\n- With `recordResponse` (default true) the remote PCM is stored and linked on the call row — `GET .../calls/{callId}/recording` and `POST .../transcribe` work afterwards.\n- Transcription runs when `transcribe` is not false **and** `STT_ENABLED` + `STT_API_URL` + `STT_API_KEY` are set (Groq Whisper recommended).\n\n### Timeouts\nThe HTTP request stays open until the blast finishes. Raise your client timeout for long WAVs (`callTimeoutMs` + audio duration + `responseTimeoutMs`).\n\n**Example**\n```bash\ncurl -s -X POST \"$BASE/v1/instances/sales-1/calls/blast\" \\\n  -H \"X-Api-Key: $KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"audioUrl\":\"https://cdn.example.com/prompt.wav\",\"responseTimeoutMs\":5000,\"recordResponse\":true,\"transcribe\":true,\"sttLanguage\":\"pt\"}'\n```",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone number (or JID) to call",
+                    "example": "5511999999999"
+                  },
+                  "audioUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "HTTPS URL of a WAV file (PCM 8/16/24/32-bit or float32; any sample rate/channels — resampled to 16 kHz mono). Server-side download is **SSRF-guarded** (public hosts only, no redirects, size/time caps). Prefer hosting on your CDN.",
+                    "example": "https://example.com/message.wav"
+                  },
+                  "responseTimeoutMs": {
+                    "default": 5000,
+                    "description": "Time to wait for a spoken response after the audio finishes (ms)",
+                    "example": 5000,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 60000
+                  },
+                  "callTimeoutMs": {
+                    "default": 30000,
+                    "description": "Max time to wait for the callee to answer (ms)",
+                    "example": 30000,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 120000
+                  },
+                  "recordResponse": {
+                    "default": true,
+                    "description": "Record the remote audio leg. Requires media storage. Persists on the call row so `GET .../recording` and `POST .../transcribe` work.",
+                    "example": true,
+                    "type": "boolean"
+                  },
+                  "transcribe": {
+                    "description": "When true (default if omitted) and `STT_ENABLED` + `STT_API_URL` + `STT_API_KEY` are set, run Whisper STT on the recorded response. Set false to skip.",
+                    "example": true,
+                    "type": "boolean"
+                  },
+                  "sttLanguage": {
+                    "description": "Language hint for STT (ISO 639-1, e.g. `pt`). Overrides `STT_LANGUAGE` env.",
+                    "example": "pt",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "to",
+                  "audioUrl"
+                ],
+                "description": "Outbound VoIP **audio blast**: dial, play a WAV when answered, optionally record the remote leg and transcribe via Groq/OpenAI-compatible Whisper. HTTP stays open until the blast finishes — raise client timeouts for long WAVs. Env: `STT_*` for transcription.",
+                "example": {
+                  "to": "5511888888888",
+                  "audioUrl": "https://example.com/message.wav",
+                  "responseTimeoutMs": 5000,
+                  "callTimeoutMs": 30000,
+                  "recordResponse": true,
+                  "transcribe": true,
+                  "sttLanguage": "pt"
+                }
+              }
+            }
+          },
+          "description": "Outbound VoIP **audio blast**: dial, play a WAV when answered, optionally record the remote leg and transcribe via Groq/OpenAI-compatible Whisper. HTTP stays open until the blast finishes — raise client timeouts for long WAVs. Env: `STT_*` for transcription."
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "example": "sales-1"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "description": "Unique instance name / zapo sessionId (e.g. `sales-1`). Alphanumeric, `_` and `-` only."
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "callId": {
+                      "type": "string",
+                      "description": "VoIP call id",
+                      "example": "ABCDEF0123456789"
+                    },
+                    "peerJid": {
+                      "type": "string",
+                      "example": "5511888888888@s.whatsapp.net"
+                    },
+                    "audioPlayed": {
+                      "type": "boolean",
+                      "description": "True only if the full WAV was fed to the live buffer (false if aborted mid-play or not answered)",
+                      "example": true
+                    },
+                    "recordingUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "URL for the stored remote-leg WAV when recording succeeded (`GET .../calls/{callId}/recording` or storage URL). Null if not recorded.",
+                      "example": "/v1/instances/sales-1/calls/ABCDEF0123456789/recording"
+                    },
+                    "responseDurationMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "example": 3200
+                    },
+                    "totalDurationMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "example": 18400
+                    },
+                    "transcription": {
+                      "description": "STT text when transcription ran successfully",
+                      "example": "Olá, tudo bem? Gostaria de confirmar...",
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "error": {
+                      "description": "e.g. `call not answered`",
+                      "example": "call not answered",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "callId",
+                    "peerJid",
+                    "audioPlayed",
+                    "recordingUrl",
+                    "responseDurationMs",
+                    "totalDurationMs"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "callId": "ABCDEF0123456789",
+                    "peerJid": "5511888888888@s.whatsapp.net",
+                    "audioPlayed": true,
+                    "recordingUrl": "/v1/instances/sales-1/calls/ABCDEF0123456789/recording",
+                    "responseDurationMs": 3200,
+                    "totalDurationMs": 18400,
+                    "transcription": "Olá, tudo bem? Gostaria de confirmar minha consulta."
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/instances/{name}/calls/{callId}/transcribe": {
+      "post": {
+        "summary": "Transcribe a call recording (STT via Groq / OpenAI-compatible)",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Runs speech-to-text on a **stored call recording** (`recordingStatus=ready`) via a Groq/OpenAI-compatible API.\n\n### Env\n| Var | Role |\n| --- | --- |\n| `STT_ENABLED` | must be `true` |\n| `STT_API_URL` | base URL, e.g. `https://api.groq.com/openai` |\n| `STT_API_KEY` | Bearer token |\n| `STT_MODEL` | default `whisper-large-v3` |\n| `STT_LANGUAGE` | optional ISO 639-1 hint |\n\nRecordings come from **audio blast** (`POST .../calls/blast`) or softphone call-recording.\n\n**Example**\n```bash\ncurl -s -X POST \"$BASE/v1/instances/sales-1/calls/$CALL_ID/transcribe\" \\\n  -H \"X-Api-Key: $KEY\"\n```",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "sales-1"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "description": "Instance name"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Speech-to-text over an existing call recording (`recordingStatus=ready`). Requires `STT_ENABLED`, `STT_API_URL`, `STT_API_KEY`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string",
+                      "description": "Transcribed text from the recording",
+                      "example": "Olá, tudo bem?"
+                    },
+                    "language": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "example": "pt"
+                    },
+                    "durationSecs": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "example": 3.2
+                    },
+                    "callId": {
+                      "type": "string",
+                      "example": "ABCDEF0123456789"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "language",
+                    "durationSecs",
+                    "callId"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Speech-to-text over an existing call recording (`recordingStatus=ready`). Requires `STT_ENABLED`, `STT_API_URL`, `STT_API_KEY`.",
+                  "example": {
+                    "text": "Olá, tudo bem? Eu gostaria de confirmar minha consulta.",
+                    "language": "pt",
+                    "durationSecs": 3.2,
+                    "callId": "ABCDEF0123456789"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/instances/{name}/chats": {
       "get": {
         "summary": "List chats",
@@ -11053,6 +12115,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11164,6 +12227,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11199,6 +12263,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11314,6 +12379,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11402,6 +12468,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11467,6 +12534,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11616,6 +12684,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11680,6 +12749,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11725,6 +12795,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11770,6 +12841,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11842,6 +12914,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -11887,6 +12960,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12026,6 +13100,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12061,6 +13136,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12105,6 +13181,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12169,6 +13246,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12238,6 +13316,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12282,6 +13361,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12326,6 +13406,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12389,6 +13470,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12433,6 +13515,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12490,6 +13573,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12556,6 +13640,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12622,6 +13707,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12688,6 +13774,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12744,6 +13831,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12805,6 +13893,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12847,6 +13936,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12915,6 +14005,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -12995,6 +14086,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13057,6 +14149,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13101,6 +14194,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13227,6 +14321,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13281,6 +14376,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13335,6 +14431,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13368,6 +14465,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13403,6 +14501,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13486,6 +14585,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13545,6 +14645,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13580,6 +14681,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13685,6 +14787,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13758,6 +14861,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13833,6 +14937,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13891,6 +14996,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13927,6 +15033,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -13995,6 +15102,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14059,6 +15167,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14101,6 +15210,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14242,6 +15352,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14284,6 +15395,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14328,6 +15440,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14392,6 +15505,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14427,6 +15541,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14462,6 +15577,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14505,6 +15621,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14601,6 +15718,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14751,6 +15869,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14786,6 +15905,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14912,6 +16032,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -14954,6 +16075,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -15041,6 +16163,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -15218,6 +16341,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",
@@ -15343,6 +16467,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
+              "pattern": "^[a-zA-Z0-9_-]+$",
               "example": "sales-1"
             },
             "in": "path",

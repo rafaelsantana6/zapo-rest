@@ -567,12 +567,16 @@ export const MuteBodySchema = z
 
 export const BlastBodySchema = z
   .object({
-    to: RecipientToSchema.meta({ description: 'Phone number to call' }),
-    audioUrl: z.string().url().meta({
-      description:
-        'URL to a WAV audio file (PCM, 16 kHz mono recommended). Other sample rates and channel counts are resampled.',
-      example: 'https://example.com/message.wav',
-    }),
+    to: RecipientToSchema.meta({ description: 'Phone number (or JID) to call' }),
+    audioUrl: z
+      .string()
+      .url()
+      .meta({
+        description:
+          'HTTPS URL of a WAV file (PCM 8/16/24/32-bit or float32; any sample rate/channels — resampled to 16 kHz mono). ' +
+          'Server-side download is **SSRF-guarded** (public hosts only, no redirects, size/time caps). Prefer hosting on your CDN.',
+        example: 'https://example.com/message.wav',
+      }),
     responseTimeoutMs: z.coerce
       .number()
       .int()
@@ -589,35 +593,48 @@ export const BlastBodySchema = z
       .optional()
       .default(30_000)
       .meta({ description: 'Max time to wait for the callee to answer (ms)', example: 30000 }),
-    recordResponse: z
-      .boolean()
-      .optional()
-      .default(true)
-      .meta({ description: 'Record the remote audio response. Requires media storage.', example: true }),
-    transcribe: z
-      .boolean()
-      .optional()
-      .meta({ description: 'Transcribe the recorded response via STT (Groq/OpenAI). Auto-enabled when STT env vars are configured. Set false to opt out.', example: true }),
-    sttLanguage: z
-      .string()
-      .optional()
-      .meta({ description: 'Language hint for transcription (ISO 639-1, e.g. pt). Overrides STT_LANGUAGE env.', example: 'pt' }),
+    recordResponse: z.boolean().optional().default(true).meta({
+      description:
+        'Record the remote audio leg. Requires media storage. Persists on the call row so `GET .../recording` and `POST .../transcribe` work.',
+      example: true,
+    }),
+    transcribe: z.boolean().optional().meta({
+      description:
+        'When true (default if omitted) and `STT_ENABLED` + `STT_API_URL` + `STT_API_KEY` are set, run Whisper STT on the recorded response. Set false to skip.',
+      example: true,
+    }),
+    sttLanguage: z.string().optional().meta({
+      description: 'Language hint for STT (ISO 639-1, e.g. `pt`). Overrides `STT_LANGUAGE` env.',
+      example: 'pt',
+    }),
   })
   .meta({
-    description: 'Start an outbound VoIP call, play a WAV audio file when answered, and optionally record the response.',
+    description:
+      'Outbound VoIP **audio blast**: dial, play a WAV when answered, optionally record the remote leg and transcribe via Groq/OpenAI-compatible Whisper. ' +
+      'HTTP stays open until the blast finishes — raise client timeouts for long WAVs. Env: `STT_*` for transcription.',
     example: EXAMPLES.blast,
   })
 
 export const BlastResponseSchema = z
   .object({
-    callId: z.string().meta({ example: 'ABCDEF0123456789' }),
+    callId: z.string().meta({ description: 'VoIP call id', example: 'ABCDEF0123456789' }),
     peerJid: z.string().meta({ example: '5511888888888@s.whatsapp.net' }),
-    audioPlayed: z.boolean().meta({ example: true }),
-    recordingUrl: z.string().nullable().meta({ example: '/v1/instances/sales-1/calls/ABCDEF0123456789/recording' }),
+    audioPlayed: z.boolean().meta({
+      description: 'True only if the full WAV was fed to the live buffer (false if aborted mid-play or not answered)',
+      example: true,
+    }),
+    recordingUrl: z.string().nullable().meta({
+      description:
+        'URL for the stored remote-leg WAV when recording succeeded (`GET .../calls/{callId}/recording` or storage URL). Null if not recorded.',
+      example: '/v1/instances/sales-1/calls/ABCDEF0123456789/recording',
+    }),
     responseDurationMs: z.number().int().nonnegative().meta({ example: 3200 }),
     totalDurationMs: z.number().int().nonnegative().meta({ example: 18400 }),
-    transcription: z.string().nullable().optional().meta({ example: 'Olá, tudo bem? Gostaria de confirmar...' }),
-    error: z.string().optional(),
+    transcription: z.string().nullable().optional().meta({
+      description: 'STT text when transcription ran successfully',
+      example: 'Olá, tudo bem? Gostaria de confirmar...',
+    }),
+    error: z.string().optional().meta({ description: 'e.g. `call not answered`', example: 'call not answered' }),
   })
   .meta({ example: EXAMPLES.blastResponse })
 
@@ -628,7 +645,11 @@ export const TranscribeResponseSchema = z
     durationSecs: z.number().nullable().meta({ example: 3.2 }),
     callId: z.string().meta({ example: 'ABCDEF0123456789' }),
   })
-  .meta({ example: EXAMPLES.transcribeResponse })
+  .meta({
+    description:
+      'Speech-to-text over an existing call recording (`recordingStatus=ready`). Requires `STT_ENABLED`, `STT_API_URL`, `STT_API_KEY`.',
+    example: EXAMPLES.transcribeResponse,
+  })
 
 export const CallReasonBodySchema = z
   .object({
