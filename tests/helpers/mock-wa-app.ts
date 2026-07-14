@@ -62,6 +62,7 @@ export function createMockWaClient(overrides: Record<string, unknown> = {}) {
     getCredentials: vi.fn(() => ({
       meJid: '5511999999999:1@s.whatsapp.net',
       pushName: 'Test',
+      meDisplayName: 'Test',
     })),
     privacy: {
       getPrivacySettings: vi.fn(async () => ({ last: 'all', status: 'contacts' })),
