@@ -108,6 +108,14 @@ const envSchema = z
 
     /** Profile picture cache TTL (seconds). default 24h. 0 = disable cache. */
     PROFILE_PICTURE_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(86_400),
+    /**
+     * Which avatar size(s) to auto-fetch on own-profile sync and picture notifications.
+     * - `both` (default): full-res first, then preview — best quality + list thumbnail
+     * - `image`: full-res only
+     * - `preview`: compact only (lowest bandwidth / fewest WA IQs)
+     * On-demand `GET .../profile-picture?type=` always wins for that request.
+     */
+    AVATAR_FETCH_TYPES: z.enum(['preview', 'image', 'both']).default('both'),
 
     // Object storage: local  | s3 (works with MinIO / R2 / AWS S3)
     MEDIA_STORAGE: z.enum(['local', 's3']).default('local'),

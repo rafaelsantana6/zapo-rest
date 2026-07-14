@@ -8,6 +8,29 @@ import type { CacheClient } from '~/redis/client'
 
 export type ProfilePictureType = 'preview' | 'image'
 
+/** Auto-fetch policy for own profile + picture notifications (env `AVATAR_FETCH_TYPES`). */
+export type AvatarFetchTypes = 'preview' | 'image' | 'both'
+
+/**
+ * Types to download on background/auto paths. `image` is listed first so
+ * full-res is preferred when both are fetched.
+ */
+export function typesToFetch(mode: AvatarFetchTypes): ProfilePictureType[] {
+  switch (mode) {
+    case 'preview':
+      return ['preview']
+    case 'image':
+      return ['image']
+    case 'both':
+      return ['image', 'preview']
+  }
+}
+
+/** Prefer full-res when choosing which stored avatar URL to expose. */
+export function preferredAvatarReadOrder(): ProfilePictureType[] {
+  return ['image', 'preview']
+}
+
 export type CachedProfilePicture = {
   picture: unknown | null
   /** When picture is null: not-authorized, item-not-found, … */
