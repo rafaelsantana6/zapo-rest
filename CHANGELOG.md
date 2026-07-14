@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-14
+
 ### Changed
 
 - **Breaking (0.x):** Operational routes no longer accept `/v1/instances/:name/...`.
   Session methods require an **instance API key** and use short paths (`/v1/messages/...`,
   `/v1/instance/connect`, …). Admin key is limited to create/list/delete/rotate under
-  `/v1/instances` (+ `DELETE|.../keys/rotate` with `:name`).
+  `/v1/instances` (+ `DELETE` / `.../keys/rotate` with `:name`) (#47).
+- **pushName / avatarUrl** on list/get: resolve display name from `meDisplayName` as well
+  as `pushName`, and revalidate own avatar from WhatsApp (TTL + durable storage) (#47).
 
 ## [0.4.0] - 2026-07-14
 
@@ -234,7 +238,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.1.4...v0.2.0
