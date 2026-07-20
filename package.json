@@ -69,7 +69,7 @@
     "@fastify/multipart": "^10.1.0",
     "@fastify/rate-limit": "^11.1.0",
     "@fastify/static": "^10.1.0",
-    "@fastify/swagger": "^9.5.1",
+    "@fastify/swagger": "^9.8.1",
     "@fastify/websocket": "^11.1.0",
     "@roamhq/wrtc": "^0.10.0",
     "@scalar/fastify-api-reference": "^1.62.5",
