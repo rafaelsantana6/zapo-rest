@@ -72,7 +72,7 @@ jobs:
         run: cp docs-site/dist/index.html docs-site/dist/404.html
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs-site/dist
 
