@@ -62,7 +62,7 @@
     "postversion": "echo \"Tagged v$npm_package_version — update CHANGELOG.md then: git push && git push --tags\""
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1085.0",
+    "@aws-sdk/client-s3": "^3.1090.0",
     "@aws-sdk/lib-storage": "^3.1085.0",
     "@aws-sdk/s3-request-presigner": "^3.1085.0",
     "@fastify/cors": "^11.0.1",
