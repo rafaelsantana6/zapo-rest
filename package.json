@@ -72,7 +72,7 @@
     "@fastify/swagger": "^9.5.1",
     "@fastify/websocket": "^11.1.0",
     "@roamhq/wrtc": "^0.10.0",
-    "@scalar/fastify-api-reference": "^1.62.5",
+    "@scalar/fastify-api-reference": "^1.62.9",
     "@zapo-js/media-utils": "^1.0.0",
     "@zapo-js/store-postgres": "^1.0.2",
     "@zapo-js/voip": "^1.0.0",
