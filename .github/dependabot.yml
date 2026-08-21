@@ -1,38 +1,29 @@
 version: 2
+
+# One consolidated PR per ecosystem, once a week.
+#
+# `open-pull-requests-limit: 1` means Dependabot will not raise a new PR for an
+# ecosystem while its previous one is still open — the backlog cannot pile up.
+# Security updates are exempt from this limit and still arrive immediately.
 updates:
+  # All three npm projects (API, dashboard, docs-site) share one entry, so a
+  # single weekly run covers every manifest instead of three separate schedules.
   - package-ecosystem: npm
-    directory: /
+    directories:
+      - /
+      - /dashboard
+      - /docs-site
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 1
     labels:
       - dependencies
     groups:
-      api-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: npm
-    directory: /dashboard
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    groups:
-      dashboard-dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: npm
-    directory: /docs-site
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    groups:
-      docs-site-dependencies:
+      npm-dependencies:
+        applies-to: version-updates
         patterns:
           - "*"
 
@@ -40,20 +31,30 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 1
     labels:
       - dependencies
     groups:
       github-actions:
+        applies-to: version-updates
         patterns:
           - "*"
 
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 1
     labels:
       - dependencies
     groups:
       docker:
+        applies-to: version-updates
         patterns:
           - "*"
