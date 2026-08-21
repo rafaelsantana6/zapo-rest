@@ -10,7 +10,7 @@ import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fas
 import type { Pool } from 'pg'
 import { authPlugin } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { isRateLimitEnabled, isV1ApiPath, resolveCorsOrigin } from '~/http/cors'
+import { isRateLimitEnabled, isV1ApiPath, resolveCorsOrigin, resolveTrustProxy } from '~/http/cors'
 import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
 import type { MediaStorage } from '~/media/storage'
@@ -67,7 +67,7 @@ export type BuildAppDeps = {
 }
 
 export async function buildApp(deps: BuildAppDeps) {
-  const trustProxy = deps.env.TRUST_PROXY ? deps.env.TRUST_PROXY_HOPS : false
+  const trustProxy = resolveTrustProxy(deps.env)
   // Default Fastify bodyLimit is 1 MiB — too small for multipart avatars/media uploads.
   // Align with MEDIA_UPLOAD_MAX_BYTES (multipart fileSize also falls back to bodyLimit).
   const bodyLimit = deps.env.MEDIA_UPLOAD_MAX_BYTES

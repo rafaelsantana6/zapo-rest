@@ -35,3 +35,23 @@ export function isV1ApiPath(url: string): boolean {
   const path = (url.split('?')[0] ?? '').replace(/\/+$/, '') || '/'
   return path === '/v1' || path.startsWith('/v1/')
 }
+
+/**
+ * Resolve Fastify's `trustProxy` option from env.
+ *
+ * - `TRUST_PROXY` false → `false` (process is exposed directly; XFF is spoofable)
+ * - `TRUST_PROXY_CIDRS` set → that allowlist, so only those peers are trusted
+ * - otherwise → `true` (trust any peer)
+ *
+ * Hop counts are deliberately not supported: fastify 5.12.1 fails closed on a
+ * numeric `trustProxy` because a hop count cannot validate the immediate peer,
+ * which silently disabled `X-Forwarded-*` for everyone still passing one.
+ */
+export function resolveTrustProxy(env: Pick<Env, 'TRUST_PROXY' | 'TRUST_PROXY_CIDRS'>): boolean | string[] {
+  if (!env.TRUST_PROXY) return false
+  const list = (env.TRUST_PROXY_CIDRS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return list.length > 0 ? list : true
+}

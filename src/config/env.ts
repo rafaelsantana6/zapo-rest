@@ -174,10 +174,20 @@ const envSchema = z
     /**
      * Trust `X-Forwarded-*` from a reverse proxy (rate-limit / client IP).
      * Default true. Set false if the process is exposed directly (clients can spoof XFF).
-     * Fastify also accepts a hop count via TRUST_PROXY_HOPS when trust is on.
      */
     TRUST_PROXY: boolFromString.default(true),
-    /** When TRUST_PROXY is true: number of trusted proxy hops (default 1). */
+    /**
+     * When TRUST_PROXY is true: comma-separated IPs/CIDRs of the reverse proxies
+     * to trust, e.g. `10.0.0.0/8,172.16.0.0/12`. Preferred over TRUST_PROXY_HOPS —
+     * it validates the immediate peer, so a directly-connected client cannot spoof
+     * `X-Forwarded-*`. When unset, every peer is trusted (see resolveTrustProxy).
+     */
+    TRUST_PROXY_CIDRS: z.string().trim().min(1).optional(),
+    /**
+     * @deprecated Ignored since fastify 5.12.1, which fails closed on hop-count-only
+     * trust because it cannot validate the immediate peer. Kept so existing
+     * deployments still parse; set TRUST_PROXY_CIDRS instead.
+     */
     TRUST_PROXY_HOPS: z.coerce.number().int().positive().default(1),
 
     /** Max concurrent SSE connections process-wide (default 200). */
