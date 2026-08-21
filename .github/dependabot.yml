@@ -2,12 +2,22 @@ version: 2
 
 # One consolidated PR per ecosystem, once a week.
 #
-# `open-pull-requests-limit: 1` means Dependabot will not raise a new PR for an
-# ecosystem while its previous one is still open — the backlog cannot pile up.
-# Security updates are exempt from this limit and still arrive immediately.
+# Each ecosystem splits its updates into two groups:
+#
+#   *-dependencies  patch + minor — safe to merge as a batch. Security
+#                   patches land here, so they are never held hostage by
+#                   an unrelated major sitting in the same PR.
+#   *-major         major only — reviewed one batch at a time, since a
+#                   breaking change in a runtime dependency (ioredis,
+#                   pino) can pass CI and still fail in production.
+#
+# `open-pull-requests-limit: 2` allows at most one of each group open per
+# ecosystem, so nothing accumulates. Security updates are exempt from the
+# limit and still arrive immediately.
 updates:
   # All three npm projects (API, dashboard, docs-site) share one entry, so a
-  # single weekly run covers every manifest instead of three separate schedules.
+  # single weekly run covers every manifest instead of three independent
+  # schedules. Dependabot groups across all of them in one pull request.
   - package-ecosystem: npm
     directories:
       - /
@@ -18,12 +28,21 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 2
     labels:
       - dependencies
     groups:
       npm-dependencies:
         applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+      npm-major:
+        applies-to: version-updates
+        update-types:
+          - major
         patterns:
           - "*"
 
@@ -34,12 +53,21 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 2
     labels:
       - dependencies
     groups:
       github-actions:
         applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+      github-actions-major:
+        applies-to: version-updates
+        update-types:
+          - major
         patterns:
           - "*"
 
@@ -50,11 +78,20 @@ updates:
       day: monday
       time: "06:00"
       timezone: America/Sao_Paulo
-    open-pull-requests-limit: 1
+    open-pull-requests-limit: 2
     labels:
       - dependencies
     groups:
       docker:
         applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+        patterns:
+          - "*"
+      docker-major:
+        applies-to: version-updates
+        update-types:
+          - major
         patterns:
           - "*"
