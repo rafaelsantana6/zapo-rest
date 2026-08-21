@@ -74,7 +74,7 @@
     "@roamhq/wrtc": "^0.10.0",
     "@scalar/fastify-api-reference": "^1.66.1",
     "@zapo-js/media-utils": "^1.0.0",
-    "@zapo-js/store-postgres": "^1.0.2",
+    "@zapo-js/store-postgres": "^1.2.0",
     "@zapo-js/voip": "^1.0.0",
     "@zapo-js/wam": "^0.1.1",
     "fastify": "^5.5.0",
