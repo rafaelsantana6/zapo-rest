@@ -7,6 +7,10 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - dependencies
+    groups:
+      api-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /dashboard
@@ -15,6 +19,10 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    groups:
+      dashboard-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /docs-site
@@ -23,6 +31,10 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    groups:
+      docs-site-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
@@ -30,6 +42,10 @@ updates:
       interval: weekly
     labels:
       - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directory: /
@@ -37,3 +53,7 @@ updates:
       interval: monthly
     labels:
       - dependencies
+    groups:
+      docker:
+        patterns:
+          - "*"
