@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-21
+
+### Security
+
+- **`@fastify/multipart` 10.1.0 → 10.1.1** — fixes [GHSA-62qx-hpj5-j6hc](https://github.com/fastify/fastify-multipart/security/advisories/GHSA-62qx-hpj5-j6hc)
+  and [GHSA-vmph-573x-85f6](https://github.com/fastify/fastify-multipart/security/advisories/GHSA-vmph-573x-85f6),
+  both on the multipart path this gateway uses for media and avatar uploads (#92).
+
+### Changed
+
+- **Trust proxy no longer uses a hop count.** `fastify@5.12.1` stopped honouring a numeric
+  `trustProxy` and now fails closed, because a hop count cannot validate the immediate peer
+  and a directly-connected client could spoof `X-Forwarded-*` by supplying enough hops.
+  Left as-is, `X-Forwarded-*` would have been silently ignored: `request.ip` would resolve to
+  the proxy's address, collapsing every client behind the proxy into a **single rate-limit
+  bucket** (`@fastify/rate-limit` keys on `request.ip`) and recording the proxy in request
+  logs. `TRUST_PROXY` now resolves through `resolveTrustProxy()` instead (#92).
+
+  | Config | Behaviour |
+  | ------ | --------- |
+  | `TRUST_PROXY=false` | Trust nothing — `X-Forwarded-*` ignored |
+  | `TRUST_PROXY=true` + `TRUST_PROXY_CIDRS` set | Trust only those proxy IPs/CIDRs; the immediate peer is validated |
+  | `TRUST_PROXY=true`, no CIDRs | Trust any peer |
+
+### Added
+
+- **`TRUST_PROXY_CIDRS`** — comma-separated proxy IPs/CIDRs to trust, e.g.
+  `10.0.0.0/8,172.16.0.0/12`. Preferred over the old hop count: it validates the immediate
+  peer, so `X-Forwarded-*` cannot be spoofed by a client connecting directly (#92).
+
+### Deprecated
+
+- **`TRUST_PROXY_HOPS`** — still parsed so existing deployments keep booting, but no longer
+  reaches Fastify and has no effect. Set `TRUST_PROXY_CIDRS` instead. **Deployments relying on
+  a hop count now trust any peer by default** — set `TRUST_PROXY_CIDRS` to restore a validated
+  allowlist (#92).
+
+### Dependencies
+
+- **Runtime**: `zapo-js` 1.5.0 → 1.8.0 · `@zapo-js/store-postgres` 1.0.2 → 1.2.0 ·
+  `fastify` 5.5.0 → 5.12.0 · `@fastify/swagger` 9.5.1 → 9.8.1 · `@fastify/static` 10.1.0 → 10.1.3 ·
+  `@fastify/rate-limit` 11.1.0 → 11.2.0 · `@scalar/fastify-api-reference` 1.62.5 → 1.66.1 ·
+  `@aws-sdk/*` 3.1085.0 → 3.1115.0 · `pg` 8.16.3 → 8.23.0 · `file-type` 22.0.1 → 22.0.2
+- **Dev**: `@biomejs/biome` 2.1.1 → 2.5.9 · `@zapo-js/fake-server` 1.0.0 → 1.3.0 ·
+  `tsc-alias` 1.8.16 → 1.9.2 · `ws` 8.18.2 → 8.21.3 · `@types/node` 26.1.1 → 26.2.0 ·
+  `@types/pg` 8.15.4 → 8.23.1 · `tsx` 4.23.1 → 4.23.12
+- **Frontends**: `react`/`react-dom` 19.1.0 → 19.2.8 · `vite` 8.1.4 → 8.2.2 ·
+  `@vitejs/plugin-react` 5.2.0 → 6.1.0 (dashboard) · `react-router-dom` 7.6.2 → 7.18.2 ·
+  `tailwindcss` 4.1.8 → 4.3.3
+- **CI**: `actions/setup-node` v6 → v7 · `actions/upload-pages-artifact` v3 → v5 ·
+  `actions/deploy-pages` v4 → v5
+
+  The `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` bumps had to land together —
+  split across separate PRs their types diverged and `src/media/storage.ts` failed to
+  typecheck (#88).
+
+### Internal
+
+- Dependabot now opens **one grouped PR per ecosystem per week**, split by patch/minor vs
+  major, capped so a new PR cannot open while its group's previous one is still open. Replaces
+  the one-PR-per-dependency flood that had reached 22 open PRs (#88, #91).
+
 ## [0.7.2] - 2026-07-14
 
 ### Fixed
@@ -290,7 +352,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.6.0...v0.7.0
