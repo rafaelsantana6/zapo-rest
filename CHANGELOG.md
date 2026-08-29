@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-29
+
 ### Dependencies
 
 - **Runtime**: `zapo-js` 1.8.0 → [1.8.1](https://github.com/vinikjkkj/zapo/releases/tag/v1.8.1) (#96) —
@@ -14,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   resend (vinikjkkj/zapo#262), the streaming sidecar is skipped for non-streamable mp4
   (vinikjkkj/zapo#263), and stored history messages resolve the author from the top-level
   participant (vinikjkkj/zapo#264).
+- **Runtime**: `ioredis` 5.11.1 → 6.0.0 · `pino` 9.14.0 → 10.3.1 (#94)
+- **Dev**: `vitest` 3.2.7 → 4.1.11 · `@vitest/coverage-v8` 3.2.7 → 4.1.11 (#94)
 
 ## [0.8.0] - 2026-08-21
 
@@ -360,7 +364,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.7.0...v0.7.1
