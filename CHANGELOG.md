@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Dependencies
+
+- **Runtime**: `zapo-js` 1.8.0 → [1.8.1](https://github.com/vinikjkkj/zapo/releases/tag/v1.8.1) (#95) —
+  upstream fixes only, no API changes: retry ladder now reaches count 3 before the placeholder
+  resend (vinikjkkj/zapo#262), the streaming sidecar is skipped for non-streamable mp4
+  (vinikjkkj/zapo#263), and stored history messages resolve the author from the top-level
+  participant (vinikjkkj/zapo#264).
+
 ## [0.8.0] - 2026-08-21
 
 ### Security
