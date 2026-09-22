@@ -12,7 +12,8 @@ describe('media GET rehydrate', () => {
   let mediaStorage: MemoryMediaStorage
   let messages: MemoryMessageStore
   let manager: InstanceManager
-  const downloadBytes = vi.fn(async () => Buffer.from('rehydrated-file-bytes'))
+  const downloadBytes = vi.fn(async (_source?: unknown) => Buffer.from('rehydrated-file-bytes'))
+  const requestMediaReupload = vi.fn()
 
   beforeAll(async () => {
     const env = makeEnv({
@@ -37,7 +38,7 @@ describe('media GET rehydrate', () => {
     await manager.init()
 
     vi.spyOn(manager, 'requireRegisteredClient').mockReturnValue({
-      message: { downloadBytes },
+      message: { downloadBytes, requestMediaReupload },
     } as never)
 
     // Message points at a missing CAS object + has raw for rehydrate
@@ -134,5 +135,65 @@ describe('media GET rehydrate', () => {
       headers: { 'x-api-key': 'zr_test_sales_1' },
     })
     expect(res.statusCode).toBe(404)
+    expect(requestMediaReupload).not.toHaveBeenCalled()
+  })
+
+  it('asks the sender to re-upload when the CDN blob expired, then stores the fresh bytes', async () => {
+    for (const k of [...mediaStorage.objects.keys()]) {
+      await mediaStorage.delete(k)
+    }
+    await messages.setMedia('sales-1', 'MSG_MEDIA_1', {
+      url: '/x',
+      storageKey: 'sales-1/cas/sha256/expired.pdf',
+      mime: 'application/pdf',
+      filename: 'report.pdf',
+    })
+    downloadBytes.mockReset()
+    downloadBytes.mockImplementation(async (source: unknown) => {
+      const path = (source as { documentMessage?: { directPath?: string } }).documentMessage?.directPath
+      if (path === '/v/fresh.pdf') return Buffer.from('fresh-bytes')
+      throw new Error('download failed with status 404 for https://mmg.whatsapp.net/old')
+    })
+    requestMediaReupload.mockReset()
+    requestMediaReupload.mockResolvedValue({ result: 'success', directPath: '/v/fresh.pdf' })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/messages/MSG_MEDIA_1/media',
+      headers: { 'x-api-key': 'zr_test_sales_1' },
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['x-media-source']).toBe('rehydrated')
+    expect(res.body).toBe('fresh-bytes')
+    expect(requestMediaReupload).toHaveBeenCalledTimes(1)
+    const asked = requestMediaReupload.mock.calls[0]?.[0] as { key: { id: string } }
+    expect(asked.key.id).toBe('MSG_MEDIA_1')
+  })
+
+  it('returns 404 when the sender no longer has the expired blob', async () => {
+    for (const k of [...mediaStorage.objects.keys()]) {
+      await mediaStorage.delete(k)
+    }
+    await messages.setMedia('sales-1', 'MSG_MEDIA_1', {
+      url: '/x',
+      storageKey: 'sales-1/cas/sha256/gone.pdf',
+      mime: 'application/pdf',
+      filename: 'report.pdf',
+    })
+    downloadBytes.mockReset()
+    downloadBytes.mockRejectedValue(new Error('download failed with status 410 for https://mmg.whatsapp.net/old'))
+    requestMediaReupload.mockReset()
+    requestMediaReupload.mockResolvedValue({ result: 'not_found' })
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/messages/MSG_MEDIA_1/media',
+      headers: { 'x-api-key': 'zr_test_sales_1' },
+    })
+
+    expect(res.statusCode).toBe(404)
+    expect(downloadBytes).toHaveBeenCalledTimes(1)
+    expect(requestMediaReupload).toHaveBeenCalledTimes(1)
   })
 })

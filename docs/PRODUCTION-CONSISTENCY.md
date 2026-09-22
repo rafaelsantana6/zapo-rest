@@ -53,6 +53,7 @@ Realtime SSE (`GET /v1/events`) mirrors the same bus for the dashboard; it does 
 | Storage | local filesystem or S3-compatible; **CAS** key per instance `…/cas/sha256/{hash}{ext}` |
 | Download GET | Prefer **302** to storage (presign); ensure object exists first |
 | Missing object | Re-download from WhatsApp (`raw` + mediaKey), re-store, then deliver |
+| Expired CDN blob | Download status 404/410 → one sender re-upload, then the new `directPath`. `not_found` fails without further CDN retries |
 | Base64 | `POST .../getBase64FromMediaMessage` (same ensure path) |
 | Fallback failure | 404 only if storage empty **and** WA cannot provide media |
 

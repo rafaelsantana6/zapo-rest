@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Inbound auto-download and `GET .../messages/:id/media` rehydrate now ask the sender to re-upload when the WhatsApp CDN returns 404 or 410 (expired blob, typical of history). The new `directPath` is downloaded once; `not_found` fails without repeating the dead URL. Transient errors still retry 5×.
+- Meta AI rich responses are stored as text (submessage text, image captions, and code blocks). A bot-forwarded message uses the inner type, so a forwarded image stays media instead of `unknown`.
+
+### Dependencies
+
+- **Runtime**: `zapo-js` 1.8.1 → [1.9.0](https://github.com/vinikjkkj/zapo/releases/tag/v1.9.0).
+  Also picks up [1.8.2](https://github.com/vinikjkkj/zapo/releases/tag/v1.8.2): offline resume now
+  pulls the next stanza batch until the queue drains (vinikjkkj/zapo#269), and group phash no
+  longer fails once a group resolves past 2048 devices (vinikjkkj/zapo#271). 1.9.0 classifies AI
+  rich-response messages as text so they deliver (vinikjkkj/zapo#273), honours an HTTP proxy on
+  the mobile transport after SMS registration (vinikjkkj/zapo#276), and adds iOS to the
+  mobile-primary login payload (vinikjkkj/zapo#285). No zapo-rest API change.
+- **Runtime**: `@zapo-js/voip` 1.0.0 → [1.1.0](https://github.com/vinikjkkj/zapo/blob/v1.9.0/packages/voip/CHANGELOG.md)
+  (shipped with zapo v1.9.0). Relay dials move to the web-client port 3480 so calls are no longer
+  silently one-way (vinikjkkj/zapo#254), incoming offers expose `callerPn`, and the plugin adds
+  bidirectional video. The REST/WS call surface is unchanged.
+
 ## [0.8.1] - 2026-08-29
 
 ### Dependencies

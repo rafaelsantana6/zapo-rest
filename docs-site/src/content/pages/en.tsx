@@ -174,7 +174,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>Cheaper media</strong> — CAS (SHA-256 per instance); forwards/stickers do not multiply objects
           </li>
           <li>
-            <strong>Recoverable media</strong> — if the object is missing, re-download from WhatsApp and re-store
+            <strong>Recoverable media</strong> — if the object is missing, re-download from WhatsApp; an expired CDN
+            blob (404/410) asks the sender to re-upload once
           </li>
           <li>
             <strong>Reliable webhooks</strong> — persist chat first, outbox + retry, HMAC, no double-fire
@@ -216,6 +217,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <tr>
               <td>Rehydrate if object is missing</td>
               <td>Recoverable media without re-pairing; 404 only if WA cannot deliver</td>
+            </tr>
+            <tr>
+              <td>Expired CDN blob (404/410) → one sender re-upload</td>
+              <td>History media WhatsApp already dropped can still be fetched from the sender's phone</td>
             </tr>
             <tr>
               <td>302 + presign</td>
@@ -440,7 +445,7 @@ curl -s -X POST "$BASE/v1/messages/text" \\
           </li>
           <li>
             GET <code>.../messages/:id/media</code> prefers a <strong>302</strong> to storage; if missing, re-download
-            from WhatsApp and re-store
+            from WhatsApp and re-store. A CDN 404/410 asks the sender to re-upload once before giving up
           </li>
         </ol>
 
@@ -466,6 +471,10 @@ curl -s -X POST "$BASE/v1/messages/text" \\
             <tr>
               <td>Rehydrate if object is missing</td>
               <td>Recoverable media without re-pairing; 404 only if WA cannot deliver</td>
+            </tr>
+            <tr>
+              <td>Expired CDN blob (404/410) → one sender re-upload</td>
+              <td>History media WhatsApp already dropped can still be fetched from the sender's phone</td>
             </tr>
             <tr>
               <td>302 + presign</td>
@@ -976,6 +985,11 @@ curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
           </tbody>
         </table>
         <p>
+          Meta AI rich responses are stored as <code>type: text</code> (submessage text, image captions, and code
+          blocks). A bot-forwarded image or document keeps the inner media type. When the CDN returns 404 or 410,
+          download asks the sender's phone to re-upload the file once before <code>message.media.failed</code>.
+        </p>
+        <p>
           One inbound can fire more than one event if the webhook allow-list includes several names — subscribe only to
           what you need. For media bots that only care about permanent files, subscribe to{' '}
           <code>message.media.stored</code> alone.
@@ -1055,7 +1069,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
         <ol>
           <li>Object already in storage (CAS)</li>
           <li>If missing → re-download from WhatsApp, store again</li>
-          <li>404 only if WhatsApp can no longer provide the media</li>
+          <li>If the CDN answers 404/410 → ask the sender to re-upload once, then download the new path</li>
+          <li>404 only if WhatsApp and the sender can no longer provide the media</li>
         </ol>
 
         <h2 id="two-stage">Two-stage webhooks</h2>

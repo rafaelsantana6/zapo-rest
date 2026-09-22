@@ -200,6 +200,38 @@ describe('EventProcessor', () => {
     expect(downloadBytes).toHaveBeenCalledTimes(1)
   })
 
+  it('downloadAndStoreMedia refreshes an expired CDN blob once, then stores it', async () => {
+    const downloadBytes = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('download failed with status 404 for https://mmg.whatsapp.net/old'))
+      .mockResolvedValueOnce(Buffer.from('jpeg-bytes'))
+    const requestMediaReupload = vi.fn(async () => ({ result: 'success', directPath: '/v/fresh.jpg' }))
+    const client = { message: { downloadBytes, requestMediaReupload } } as never
+
+    await processor.onMessage('sales-1', imageMessageEvent({ id: 'IMG404' }))
+    await processor.downloadAndStoreMedia('sales-1', client, imageMessageEvent({ id: 'IMG404' }), 'IMG404')
+
+    expect(requestMediaReupload).toHaveBeenCalledTimes(1)
+    expect(downloadBytes).toHaveBeenCalledTimes(2)
+    const refreshed = downloadBytes.mock.calls[1]?.[0] as { imageMessage: { directPath: string } }
+    expect(refreshed.imageMessage.directPath).toBe('/v/fresh.jpg')
+    expect((await messages.get('sales-1', 'IMG404'))?.mediaStorageKey).toMatch(/^sales-1\/cas\/sha256\//)
+  })
+
+  it('downloadAndStoreMedia stops when the sender no longer has the expired blob', async () => {
+    const downloadBytes = vi.fn(async () => {
+      throw new Error('download failed with status 410 for https://mmg.whatsapp.net/old')
+    })
+    const requestMediaReupload = vi.fn(async () => ({ result: 'not_found' }))
+    const client = { message: { downloadBytes, requestMediaReupload } } as never
+
+    await processor.downloadAndStoreMedia('sales-1', client, imageMessageEvent({ id: 'IMG410' }), 'IMG410')
+
+    expect(downloadBytes).toHaveBeenCalledTimes(1)
+    expect(requestMediaReupload).toHaveBeenCalledTimes(1)
+    expect((await messages.get('sales-1', 'IMG410'))?.mediaStorageKey).toBeFalsy()
+  })
+
   it('downloadAndStoreMedia retries then gives up', async () => {
     vi.useFakeTimers()
     const downloadBytes = vi.fn(async () => {
