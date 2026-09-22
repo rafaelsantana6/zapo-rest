@@ -53,7 +53,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 **At a glance**
 
 - **Cheaper media** — CAS dedup (SHA-256 per instance); forwards/stickers do not multiply objects
-- **Recoverable media** — missing object re-downloads from WhatsApp, then re-stores
+- **Recoverable media** — missing object re-downloads from WhatsApp; an expired CDN blob (404/410) asks the sender to re-upload once
 - **Reliable webhooks** — persist chat first, outbox + retries, HMAC, no double-fire on redelivery
 - **Right realtime** — SSE for app events; WebSocket only for VoIP
 - **Modern WA identity** — LID ↔ PN map + reconcile (no split history)
@@ -65,6 +65,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | -------- | ------- |
 | **Content-addressed media (CAS)** — `{instance}/cas/sha256/{hash}{ext}` | Same bytes inside one instance are stored **once**. Less object storage; stable identity. |
 | **Rehydrate from WhatsApp** if the object is missing | Media stays recoverable after storage loss; 404 only when WA itself cannot provide the file. |
+| **Expired CDN blob → sender re-upload** | History media WhatsApp already dropped (404/410) is fetched once from the sender's phone, then stored. |
 | **302 + presigned GET** | Clients download from S3/R2 directly; the API is not a permanent bandwidth middleman. |
 | **Two-stage media events** (`mediaStage: meta` → `stored`) | Fast “message arrived”, then permanent URL after CAS (`message.media.stored`). |
 | **Persist projections before webhooks** | Chat store stays consistent even if a receiver is down; outbox retries separately. |

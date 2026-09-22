@@ -5,6 +5,12 @@ import type { InstanceRecord } from '~/instances/types'
 import { isLidJid, isPnJid, toPnJid } from '~/lib/jid-canon'
 import { getLogger } from '~/lib/logger'
 import { Semaphore } from '~/lib/semaphore'
+import {
+  createMediaDownloadState,
+  downloadMediaBytes,
+  isExpiredCdnError,
+  type MediaDownloadClient,
+} from '~/media/cdn-reupload'
 import type { MediaStorage } from '~/media/storage'
 import type { ChatStore } from '~/store/chats'
 import type { ContactStore } from '~/store/contacts'
@@ -637,7 +643,8 @@ export class EventProcessor {
   }
 
   /**
-   * Download media with retries (retry with backoff pattern: 5×, 1–3s backoff).
+   * Download media with retries (5×, backoff 1–3s).
+   * A CDN 404/410 asks the sender to re-upload once, then downloads the new path.
    * On success: store in local/S3, set media_url, emit `message.media.stored` (live).
    * On failure: leave WA CDN url fallback; emit `message.media.failed` (live).
    */
@@ -657,9 +664,11 @@ export class EventProcessor {
   ): Promise<void> {
     const retries = 5
     let lastErr: unknown
+    const download = createMediaDownloadState(event)
+    const downloader = client as unknown as MediaDownloadClient
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        const buf = await client.message.downloadBytes(event as never)
+        const buf = await downloadMediaBytes(downloader, download)
         // biome-ignore lint/suspicious/noExplicitAny: media meta
         const msg = (event as any)?.message
         const mime =
@@ -709,6 +718,10 @@ export class EventProcessor {
         return
       } catch (err) {
         lastErr = err
+        // Expired blob: one reupload already ran. Another 404, or a terminal
+        // `not_found` / decryption error, will not start working on the next sleep.
+        const terminalReupload = err instanceof Error && err.message.startsWith('media reupload ')
+        if (terminalReupload || (download.askedReupload && isExpiredCdnError(err))) break
         if (attempt < retries) {
           const delay = Math.min(3000, 1000 * attempt)
           await new Promise((r) => setTimeout(r, delay))

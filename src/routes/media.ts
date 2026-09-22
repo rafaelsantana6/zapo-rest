@@ -6,8 +6,8 @@ import { ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { badRequest, notFound } from '~/lib/errors'
 import { getLogger } from '~/lib/logger'
+import { createMediaDownloadState, downloadMediaBytes, type MediaDownloadClient } from '~/media/cdn-reupload'
 import { contentDisposition, resolveDownloadFilename } from '~/media/filename'
-import { prepareMediaDownloadSource } from '~/media/revive-raw'
 import type { MediaStorage } from '~/media/storage'
 import type { AppMessage, MessageStore } from '~/store/messages'
 
@@ -87,10 +87,11 @@ export const mediaRoutes: FastifyPluginAsync<MediaRoutesDeps> = async (app, deps
       const client = manager.requireRegisteredClient(instanceName)
       const raw = msg.raw ?? rawHint
       if (!raw) throw notFound(`no raw message payload to rehydrate media for message ${messageId}`)
-      // JSONB round-trip turns mediaKey/hashes into plain objects — revive to Uint8Array
-      // and pass the proto `message` (not the full event) so zapo resolveMediaPayload works.
-      const downloadSource = prepareMediaDownloadSource(raw)
-      const bytes = Buffer.from(await client.message.downloadBytes(downloadSource as never))
+      // JSONB round-trip turns mediaKey/hashes into plain objects. The helper revives
+      // them and, on CDN 404/410, asks the sender for a fresh directPath once.
+      const bytes = Buffer.from(
+        await downloadMediaBytes(client as unknown as MediaDownloadClient, createMediaDownloadState(raw)),
+      )
       const stored = await mediaStorage.put(instanceName, bytes, {
         mimeType: msg.mediaMime ?? undefined,
         filename: msg.mediaFilename ?? fileName,

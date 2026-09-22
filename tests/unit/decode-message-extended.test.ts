@@ -129,6 +129,82 @@ describe('decodeIncomingMessage — message types', () => {
     expect(rev && previewFromDecoded(rev)).toBe('')
   })
 
+  it('reads AI rich-response text and keeps bot-forwarded media typed', () => {
+    const rich = decodeIncomingMessage({
+      key: { ...key, id: 'AI1' },
+      message: {
+        richResponseMessage: {
+          submessages: [
+            { messageText: 'Olá' },
+            { messageText: 'mundo' },
+            { imageMetadata: { imageText: 'legenda' } },
+            { codeMetadata: { codeBlocks: [{ codeContent: 'const x = 1' }] } },
+          ],
+        },
+      },
+    })
+    expect(rich?.type).toBe('text')
+    expect(rich?.body).toBe('Olá\nmundo\nlegenda\nconst x = 1')
+    expect(rich && previewFromDecoded(rich)).toContain('Olá')
+
+    const forwardedImage = decodeIncomingMessage({
+      key: { ...key, id: 'FWD' },
+      message: {
+        botForwardedMessage: {
+          message: {
+            imageMessage: {
+              mimetype: 'image/jpeg',
+              caption: 'foto',
+              url: 'https://mmg.whatsapp.net/fwd.jpg',
+            },
+          },
+        },
+      },
+    })
+    expect(forwardedImage).toMatchObject({
+      type: 'image',
+      hasMedia: true,
+      caption: 'foto',
+      mediaMime: 'image/jpeg',
+    })
+    expect(forwardedImage?.mediaDirectUrl).toContain('mmg.whatsapp.net')
+
+    const forwardedText = decodeIncomingMessage({
+      key: { ...key, id: 'FWDT' },
+      message: { botForwardedMessage: { message: { conversation: 'encaminhada' } } },
+    })
+    expect(forwardedText).toMatchObject({ type: 'text', body: 'encaminhada' })
+
+    const bare = decodeIncomingMessage({
+      key: { ...key, id: 'BARE' },
+      message: { botForwardedMessage: {} },
+    })
+    expect(bare?.type).toBe('text')
+    expect(bare?.body).toBeNull()
+  })
+
+  it('unwraps ephemeral text and captioned documents', () => {
+    expect(
+      decodeIncomingMessage({
+        key: { ...key, id: 'EPH' },
+        message: { ephemeralMessage: { message: { conversation: 'some logo' } } },
+      }),
+    ).toMatchObject({ type: 'text', body: 'some logo' })
+
+    expect(
+      decodeIncomingMessage({
+        key: { ...key, id: 'DOCCAP' },
+        message: {
+          documentWithCaptionMessage: {
+            message: {
+              documentMessage: { mimetype: 'application/pdf', fileName: 'a.pdf', caption: 'doc' },
+            },
+          },
+        },
+      }),
+    ).toMatchObject({ type: 'document', mediaFilename: 'a.pdf', caption: 'doc', hasMedia: true })
+  })
+
   it('strips rawNode/messageBytes from raw', () => {
     const decoded = decodeIncomingMessage({
       key,

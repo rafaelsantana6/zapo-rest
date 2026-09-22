@@ -43,16 +43,16 @@ importers:
         version: 1.69.0
       '@zapo-js/media-utils':
         specifier: ^1.0.0
-        version: 1.0.0(file-type@22.1.1)(sharp@0.35.4(@types/node@26.6.1))(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
+        version: 1.0.0(file-type@22.1.1)(sharp@0.35.4(@types/node@26.6.1))(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
       '@zapo-js/store-postgres':
         specifier: ^1.2.0
-        version: 1.2.0(pg@8.23.0)(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
+        version: 1.2.0(pg@8.23.0)(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
       '@zapo-js/voip':
-        specifier: ^1.0.0
-        version: 1.0.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
+        specifier: ^1.1.0
+        version: 1.1.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
       '@zapo-js/wam':
         specifier: ^0.1.1
-        version: 0.1.1(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
+        version: 0.1.1(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
       fastify:
         specifier: ^5.12.5
         version: 5.12.5
@@ -87,8 +87,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2
       zapo-js:
-        specifier: ^1.8.2
-        version: 1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
+        specifier: ^1.9.0
+        version: 1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -110,7 +110,7 @@ importers:
         version: 4.1.11(vitest@4.1.11)
       '@zapo-js/fake-server':
         specifier: ^1.3.0
-        version: 1.3.0(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
+        version: 1.3.0(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))
       tsc-alias:
         specifier: ^1.9.5
         version: 1.9.5
@@ -1119,8 +1119,8 @@ packages:
       pg: '>=8.0.0'
       zapo-js: ^1.7.0
 
-  '@zapo-js/voip@1.0.0':
-    resolution: {integrity: sha512-BEhwxxdviFC5iIrRIk+kopuzFi/FOKJYvs1o3jx0siK0jVFAEPAA/2QyEiineqR4QQZzulsoQTzmS16Z2ub0PQ==}
+  '@zapo-js/voip@1.1.0':
+    resolution: {integrity: sha512-HQU2MhCNFUwLTAhqjXqAhYbAxwFub4GgmJrePIm5rWef/q/FVVcWvupGlLgd7eiuW71cmt5mPoe3bbM/XEkdlQ==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       '@roamhq/wrtc': '>=0.10.0'
@@ -2002,8 +2002,8 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
-  zapo-js@1.8.2:
-    resolution: {integrity: sha512-IwagNFsiC4OJWCK9HM8Cq196/NDI7zInKg0I0Q1TKeKM1a01lLRGGmQ4hqeBc+mhtWgDBw2B0Tu4cOKJ6SDuSw==}
+  zapo-js@1.9.0:
+    resolution: {integrity: sha512-6t68XsC2gMjG2zZ5yeAsDthrfmp0Af3gyaP4+bAueNdPnXBfA7cj+VP1NQNROm509hLAVHJwkU3kRqOgz3jOyQ==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       argo-codec: ^0.2.1
@@ -2919,36 +2919,36 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
-  '@zapo-js/fake-server@1.3.0(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
+  '@zapo-js/fake-server@1.3.0(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
     dependencies:
       ws: 8.21.3
-      zapo-js: 1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
+      zapo-js: 1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@zapo-js/media-utils@1.0.0(file-type@22.1.1)(sharp@0.35.4(@types/node@26.6.1))(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
+  '@zapo-js/media-utils@1.0.0(file-type@22.1.1)(sharp@0.35.4(@types/node@26.6.1))(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
     dependencies:
       sharp: 0.35.4(@types/node@26.6.1)
-      zapo-js: 1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
+      zapo-js: 1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
     optionalDependencies:
       file-type: 22.1.1
 
-  '@zapo-js/store-postgres@1.2.0(pg@8.23.0)(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
+  '@zapo-js/store-postgres@1.2.0(pg@8.23.0)(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
     dependencies:
       pg: 8.23.0
-      zapo-js: 1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
+      zapo-js: 1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
 
-  '@zapo-js/voip@1.0.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
+  '@zapo-js/voip@1.1.0(@roamhq/wrtc@0.10.0)(libmlow-wasm@0.1.1)(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
     dependencies:
       '@roamhq/wrtc': 0.10.0
       libmlow-wasm: 0.1.1
-      zapo-js: 1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
+      zapo-js: 1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
 
-  '@zapo-js/wam@0.1.1(zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
+  '@zapo-js/wam@0.1.1(zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3))':
     dependencies:
       '@vinikjkkj/wa-wam': 2.3000.1041713829-1ec0d3b
-      zapo-js: 1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
+      zapo-js: 1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3)
 
   abstract-logging@2.0.1: {}
 
@@ -3797,7 +3797,7 @@ snapshots:
 
   yaml@2.9.1: {}
 
-  zapo-js@1.8.2(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3):
+  zapo-js@1.9.0(pino-pretty@13.1.3)(pino@10.3.1)(ws@8.21.3):
     optionalDependencies:
       pino: 10.3.1
       pino-pretty: 13.1.3

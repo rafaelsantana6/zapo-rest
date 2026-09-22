@@ -50,7 +50,9 @@ export function decodeIncomingMessage(event: any): DecodedMessage | null {
   const finalChatJid = remoteJid && isGroupJid(remoteJid) ? bareUserJid(remoteJid) : chatJid
 
   const lidPnPair = extractLidPnPair(remoteJid, remoteJidAlt)
-  const message = event.message ?? event
+  // Descend the same wrappers zapo uses on the wire (ephemeral, bot-forwarded, …)
+  // so a forwarded image stays media and an AI rich response is not `unknown`.
+  const message = unwrapInboundMessage(event.message ?? event)
   const type = detectType(message)
   const body = extractBody(message)
   const caption = extractCaption(message)
@@ -93,9 +95,62 @@ export function decodeIncomingMessage(event: any): DecodedMessage | null {
 
 const MEDIA_TYPES = new Set(['image', 'video', 'audio', 'document', 'sticker', 'ptv'])
 
+/** Envelopes whose real payload lives on `.message`. Mirrors zapo `unwrapMessage`. */
+const INBOUND_WRAPPERS = [
+  'ephemeralMessage',
+  'groupMentionedMessage',
+  'botInvokeMessage',
+  'deviceSentMessage',
+  'viewOnceMessage',
+  'viewOnceMessageV2',
+  'documentWithCaptionMessage',
+  'groupStatusMessage',
+  'groupStatusMessageV2',
+  'botForwardedMessage',
+] as const
+
+// biome-ignore lint/suspicious/noExplicitAny: proto bag
+function unwrapInboundMessage(message: any): any {
+  let current = message
+  for (let depth = 0; depth < 8 && current && typeof current === 'object'; depth++) {
+    let inner: unknown
+    for (const field of INBOUND_WRAPPERS) {
+      inner = current[field]?.message
+      if (inner) break
+    }
+    if (!inner) return current
+    current = inner
+  }
+  return current
+}
+
+function pushText(parts: string[], value: unknown) {
+  if (typeof value === 'string' && value.trim()) parts.push(value)
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: proto bag
+function richResponseText(message: any): string | null {
+  const subs = message?.richResponseMessage?.submessages
+  if (!Array.isArray(subs)) return null
+  const parts: string[] = []
+  for (const sub of subs) {
+    pushText(parts, sub?.messageText)
+    pushText(parts, sub?.imageMetadata?.imageText)
+    const blocks = sub?.codeMetadata?.codeBlocks
+    if (Array.isArray(blocks)) {
+      const code = blocks
+        .map((block: { codeContent?: unknown }) => (typeof block?.codeContent === 'string' ? block.codeContent : ''))
+        .join('')
+      pushText(parts, code)
+    }
+  }
+  return parts.length ? parts.join('\n') : null
+}
+
 // biome-ignore lint/suspicious/noExplicitAny: proto bag
 function detectType(message: any): string {
   if (!message || typeof message !== 'object') return 'unknown'
+  if (message.richResponseMessage || message.botForwardedMessage) return 'text'
   if (message.conversation || message.extendedTextMessage) return 'text'
   if (message.imageMessage) return 'image'
   if (message.videoMessage) return 'video'
@@ -122,6 +177,8 @@ function detectType(message: any): string {
 // biome-ignore lint/suspicious/noExplicitAny: proto bag
 function extractBody(message: any): string | null {
   if (!message) return null
+  const rich = richResponseText(message)
+  if (rich) return rich
   if (typeof message.text === 'string') return message.text
   if (typeof message.conversation === 'string') return message.conversation
   if (message.extendedTextMessage?.text) return String(message.extendedTextMessage.text)

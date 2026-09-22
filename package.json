@@ -75,7 +75,7 @@
     "@scalar/fastify-api-reference": "^1.69.0",
     "@zapo-js/media-utils": "^1.0.0",
     "@zapo-js/store-postgres": "^1.2.0",
-    "@zapo-js/voip": "^1.0.0",
+    "@zapo-js/voip": "^1.1.0",
     "@zapo-js/wam": "^0.1.1",
     "fastify": "^5.12.5",
     "fastify-plugin": "^6.0.0",
@@ -88,7 +88,7 @@
     "pino-pretty": "^13.0.0",
     "sharp": "^0.35.4",
     "ulid": "^3.0.2",
-    "zapo-js": "^1.8.2",
+    "zapo-js": "^1.9.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {

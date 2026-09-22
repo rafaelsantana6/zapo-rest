@@ -107,6 +107,7 @@ where `hash` is SHA-256 of the bytes. Same payload inside one instance → **sam
 
 - Prefer **302** to storage (presigned or public base URL) over streaming through Node.
 - If the object is gone, **re-download from WhatsApp**, re-store, then serve — not a silent permanent failure.
+- If that download gets CDN **404/410** (blob expired, typical of history), ask the sender's phone to re-upload **once** (`requestMediaReupload`) and download the new `directPath`. The media key and hashes stay valid. `not_found` stops; transient errors still use the 5× backoff.
 - Private R2/S3 API hosts are not exposed as browser `mediaUrl` (not fetchable); fall back to the authenticated API media path.
 
 Env: `MEDIA_STORAGE`, `MEDIA_AUTO_DOWNLOAD`, S3/MinIO/R2 vars. See guide **Media** and README.

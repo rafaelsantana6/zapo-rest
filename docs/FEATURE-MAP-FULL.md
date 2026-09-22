@@ -36,7 +36,7 @@ Last updated: 2026-07-14
 ## 2. Media pipeline
 
 1. Inbound message with media → optional auto-download (`MEDIA_AUTO_DOWNLOAD`).
-2. Retry download (5×, backoff) then store in local or S3-compatible storage.
+2. Retry download (5×, backoff). CDN 404/410 asks the sender to re-upload once, then stores in local or S3-compatible storage.
 3. Projection + webhook payload prefer durable `mediaUrl`.
 4. `GET .../messages/:id/media` and `POST .../media/getBase64FromMediaMessage`.
 
