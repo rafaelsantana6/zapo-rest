@@ -23,6 +23,7 @@ import { callRoutes } from '~/routes/calls'
 import { chatRoutes } from '~/routes/chats'
 import { contactRoutes } from '~/routes/contacts'
 import { eventsSseRoutes } from '~/routes/events-sse'
+import { groupHistoryRoutes } from '~/routes/group-history'
 import { groupRoutes } from '~/routes/groups'
 import { healthRoutes } from '~/routes/health'
 import { instanceRoutes } from '~/routes/instances'
@@ -35,6 +36,7 @@ import { metricsRoutes } from '~/routes/metrics'
 import { presenceRoutes } from '~/routes/presence'
 import { privacyRoutes } from '~/routes/privacy'
 import { profileRoutes } from '~/routes/profile'
+import { profileUsernameRoutes } from '~/routes/profile-username'
 import { statusRoutes } from '~/routes/status'
 import { voipWsRoutes } from '~/routes/voip-ws'
 import { webhookRoutes } from '~/routes/webhooks'
@@ -189,7 +191,9 @@ export async function buildApp(deps: BuildAppDeps) {
   }
 
   await app.register(groupRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
+  await app.register(groupHistoryRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(profileRoutes, { manager: deps.manager, env: deps.env })
+  await app.register(profileUsernameRoutes, { manager: deps.manager })
   await app.register(privacyRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(statusRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
 

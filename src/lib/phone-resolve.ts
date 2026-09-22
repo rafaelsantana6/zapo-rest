@@ -1,9 +1,11 @@
 import type { WaClient } from 'zapo-js'
+import { badRequest } from '~/lib/errors'
 import type { CacheClient } from '~/redis/client'
 import { cacheKey } from '~/redis/client'
 import type { LidMapStore } from '~/store/lid-map'
 import { bareUserJid, isLidJid } from './jid-canon'
 import { createJid, digitsOnly, ensureDefaultCountryCode, phoneCheckVariants, toRecipientJid } from './phone'
+import { isUsernameRecipient } from './username'
 
 export type ResolvedNumber = {
   /** Original input as provided by the client */
@@ -227,6 +229,22 @@ function orderLike(inputs: string[], results: ResolvedNumber[]): ResolvedNumber[
 }
 
 /**
+ * `@handle` → LID from `client.profile.resolveUsername`.
+ * `key-required` and `not-found` fail the send instead of inventing a JID.
+ */
+async function resolveUsernameJid(client: WaClient | null, input: string): Promise<string> {
+  if (!client) {
+    throw badRequest(`cannot resolve username "${input}" without a connected session`)
+  }
+  const lookup = await client.profile.resolveUsername({ username: input.trim() })
+  if (lookup.status === 'found') return lookup.jid
+  if (lookup.status === 'key-required') {
+    throw badRequest(`username "${input}" needs a key — retry as @handle:1234`)
+  }
+  throw badRequest(`username "${input}" was not found`)
+}
+
+/**
  * Resolve a single recipient for outbound send: prefers WA-confirmed JID when
  * client is available; falls back to local createJid.
  */
@@ -237,6 +255,9 @@ export async function resolveRecipientJid(
 ): Promise<string> {
   if (input.includes('@g.us') || input.includes('@lid') || input.includes('@broadcast')) {
     return toRecipientJid(input)
+  }
+  if (isUsernameRecipient(input)) {
+    return resolveUsernameJid(client, input)
   }
   // Digits-only PN JID: still run through 55 + nono dígito + WA resolve
   if (!client) {

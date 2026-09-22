@@ -259,6 +259,8 @@ export class EventProcessor {
       mediaStorageKey: msg.mediaStorageKey,
       mediaDirectUrl: decoded.mediaDirectUrl,
       pushName: msg.pushName,
+      senderUsername: decoded.senderUsername,
+      recipientUsername: decoded.recipientUsername,
       ack: msg.ack,
       lid: decoded.lidPnPair?.lid ?? null,
       pn: decoded.lidPnPair?.pn ?? (isPnJid(chatJid) ? chatJid : null),
@@ -343,6 +345,47 @@ export class EventProcessor {
         }
       }
     }
+  }
+
+  /** Own handle changed on another device. PIN is never forwarded. */
+  async onOwnUsername(instanceName: string, event: { kind?: string; username?: string | null }): Promise<void> {
+    const row = await this.deps.instanceRepo.getByName(instanceName)
+    if (!row) return
+    await this.deps.webhooks.emit(row, 'profile.username', {
+      kind: event.kind ?? 'modify',
+      username: event.username ?? null,
+    })
+  }
+
+  /**
+   * A member shared group history after this account joined. zapo already
+   * persisted the bundle in the mailbox when `history.groupBundles` is on;
+   * the debounced import copies it into `app_*`.
+   */
+  async onGroupHistoryBundle(instanceName: string, event: unknown, client: WaClient | null): Promise<void> {
+    const row = await this.deps.instanceRepo.getByName(instanceName)
+    const bundle = event as {
+      groupJid?: string
+      senderJid?: string
+      bundleMessageId?: string
+      messagesCount?: number
+      outOfWindowPinsCount?: number
+      droppedCount?: number
+      oldestTimestampMs?: number
+    }
+    if (row) {
+      await this.deps.webhooks.emit(row, 'history.group', {
+        groupJid: bundle.groupJid ?? null,
+        senderJid: bundle.senderJid ?? null,
+        bundleMessageId: bundle.bundleMessageId ?? null,
+        messagesCount: bundle.messagesCount ?? 0,
+        outOfWindowPinsCount: bundle.outOfWindowPinsCount ?? 0,
+        droppedCount: bundle.droppedCount ?? 0,
+        oldestTimestampMs: bundle.oldestTimestampMs ?? null,
+      })
+    }
+    if (!client) return
+    this.scheduleHistoryImport(instanceName, client)
   }
 
   async onHistorySync(instanceName: string, event: unknown, client: WaClient | null): Promise<void> {

@@ -352,7 +352,8 @@ export const QrResponseSchema = z
   .meta({ example: EXAMPLES.qr })
 
 export const RecipientToSchema = z.string().min(1).meta({
-  description: 'Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)',
+  description:
+    'Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)',
   example: '5511999999999',
 })
 
@@ -534,7 +535,9 @@ export const ChatstateParamsSchema = z.object({
 
 export const StartCallBodySchema = z
   .object({
-    to: RecipientToSchema.meta({ description: 'Peer to call — audio-only live VoIP' }),
+    to: RecipientToSchema.meta({
+      description: 'Peer to call — digits, JID, or @handle. Audio-only live VoIP',
+    }),
   })
   .meta({
     description: 'Start outbound voice call (stream PCM over WebSocket; no file autoplay)',
@@ -598,7 +601,7 @@ export const MuteBodySchema = z
 
 export const BlastBodySchema = z
   .object({
-    to: RecipientToSchema.meta({ description: 'Phone number (or JID) to call' }),
+    to: RecipientToSchema.meta({ description: 'Phone, JID, or @handle to call' }),
     audioUrl: z
       .string()
       .url()
@@ -748,16 +751,19 @@ export const OPENAPI_TAGS = [
     name: 'Messages',
     description:
       'Send WhatsApp messages through a connected instance (`status: open`).\n\n' +
-      'Supports **text**, **image**, **audio** (incl. PTT), and **document**. Video is not exposed in this API.\n\n' +
-      '`to` accepts digits with country code or full JID. Media: provide `mediaUrl` (HTTPS) or `mediaBase64`.',
+      'Supports **text**, **image**, **audio** (incl. PTT), **video**, **document**, and **sticker**.\n\n' +
+      '`to` accepts digits with country code, a JID (`@s.whatsapp.net`, `@g.us`, `@lid`), or a username (`@handle`, optional `:key`). Media: `mediaUrl`, `mediaBase64`, or multipart.',
   },
   {
     name: 'Profile',
     description:
-      'Own WhatsApp profile for a session: get snapshot, set **push name**, set/delete **avatar**, set about status.\n\n' +
+      'Own WhatsApp profile for a session: snapshot, **push name**, **avatar**, about status, and **username** (`@handle`).\n\n' +
       '- `PUT /v1/profile/name` — display name (`name` or `pushName`, max 25)\n' +
       '- `PUT /v1/profile/image` — JPEG via `mediaUrl` or `mediaBase64` (alias: `/profile/picture`)\n' +
-      '- `DELETE /v1/profile/image` — remove avatar\n\n' +
+      '- `DELETE /v1/profile/image` — remove avatar\n' +
+      '- `GET/PUT/DELETE /v1/profile/username` — own handle (recovery PIN is not returned)\n' +
+      '- `GET /v1/profile/username/check` — availability and suggestions\n' +
+      '- `POST /v1/profile/username/resolve` — handle → JID (`found`, `key-required`, `not-found`)\n\n' +
       'Named paths under `/v1/instances/:name/profile/...` work for admin; short form needs an instance key.',
   },
   {
@@ -801,7 +807,10 @@ export const OPENAPI_TAGS = [
       '}\n' +
       '```\n\n' +
       '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.logged_out`, ' +
-      '`message.inbound`, `call.incoming`, `call.state`, `call.ended`.\n\n' +
+      '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
+      '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
+      '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
+      '`call.incoming`, `call.state`, `call.ended`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
   },
 ] as const

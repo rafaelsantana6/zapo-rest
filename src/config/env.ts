@@ -100,6 +100,12 @@ const envSchema = z
     // History sync on first pair / reconnect
     HISTORY_SYNC_ENABLED: boolFromString.default(true),
     HISTORY_REQUIRE_FULL_SYNC: boolFromString.default(false),
+    /**
+     * Download group-history bundles a member shares after this account joins.
+     * Off in zapo by default because a third party triggers the download.
+     * On here so those messages reach `app_*` and `history.group`.
+     */
+    HISTORY_GROUP_BUNDLES: boolFromString.default(true),
     // Auto-download inbound media into object storage
     MEDIA_AUTO_DOWNLOAD: boolFromString.default(true),
 

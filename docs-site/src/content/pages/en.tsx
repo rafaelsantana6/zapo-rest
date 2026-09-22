@@ -197,6 +197,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>Instance from API key</strong> — with an instance key the name may be omitted from the URL; admin
             always supplies <code>:name</code>
           </li>
+          <li>
+            <strong>@handle and late group history</strong> — send to <code>@handle</code>; history shared after you
+            join a group is imported (<code>HISTORY_GROUP_BUNDLES</code>, default on)
+          </li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -253,6 +257,14 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Named path always valid; short <code>/v1/…</code> and <code>/v1/instance/…</code> with instance key.
                 Admin must pass <code>:name</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Group history bundles (<code>HISTORY_GROUP_BUNDLES</code>, default on)
+              </td>
+              <td>
+                History shared after you join is stored. A third party triggers the download — set false to skip it
               </td>
             </tr>
             <tr>
@@ -507,6 +519,14 @@ curl -s -X POST "$BASE/v1/messages/text" \\
               <td>
                 Named path always valid; short <code>/v1/…</code> and <code>/v1/instance/…</code> with instance key.
                 Admin must pass <code>:name</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Group history bundles (<code>HISTORY_GROUP_BUNDLES</code>, default on)
+              </td>
+              <td>
+                History shared after you join is stored. A third party triggers the download — set false to skip it
               </td>
             </tr>
             <tr>
@@ -875,8 +895,20 @@ curl -s -X PUT "$BASE/v1/profile/image" \\
 curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
   -F file=@./avatar.jpg
 
-# Alias: /profile/picture · remove: DELETE /v1/profile/image`}
+# Alias: /profile/picture · remove: DELETE /v1/profile/image
+
+# Username (@handle). PIN is never returned.
+curl -s "$BASE/v1/profile/username" -H "X-Api-Key: $INSTANCE_API_KEY"
+curl -s -X PUT "$BASE/v1/profile/username" -H "X-Api-Key: $INSTANCE_API_KEY" \\
+  -H "content-type: application/json" -d '{"username":"loja"}'
+curl -s "$BASE/v1/profile/username/check?username=loja" -H "X-Api-Key: $INSTANCE_API_KEY"
+curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API_KEY" \\
+  -H "content-type: application/json" -d '{"username":"@loja"}'`}
         />
+        <p>
+          Another device changing the handle emits <code>profile.username</code>. Send to <code>@handle</code> on any{' '}
+          <code>to</code> field; <code>key-required</code> means retry as <code>@handle:1234</code>.
+        </p>
         <Callout title="Media: URL · base64 · multipart">
           Avatar, media messages, status, and blast accept <strong>one</strong> source: <code>mediaUrl</code>,{' '}
           <code>mediaBase64</code> (JSON), or <code>multipart/form-data</code> upload field <code>file</code> (aliases:{' '}
@@ -934,8 +966,10 @@ curl -s -X PUT "$BASE/v1/profile/image" -H "X-Api-Key: $INSTANCE_API_KEY" \\
           Field <code>to</code>
         </h2>
         <p>
-          Accepts digits with country code (<code>5511…</code>), PN JID, <code>@g.us</code>, <code>@lid</code>. The API
-          normalizes via resolve/JID helpers.
+          Accepts digits with country code (<code>5511…</code>), PN JID, <code>@g.us</code>, <code>@lid</code>, and a
+          username (<code>@handle</code> or <code>@handle:key</code>). The API normalizes via resolve/JID helpers.
+          Inbound payloads include <code>senderUsername</code> and <code>recipientUsername</code> when WhatsApp sent
+          them.
         </p>
 
         <h2 id="inbound-events">Three message events</h2>
@@ -1108,7 +1142,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
         </ul>
         <Callout title="history-sync">
           <code>POST.../history-sync</code> requests backfill from WhatsApp; chunks arrive as <code>history.sync</code>{' '}
-          events, not in the synchronous HTTP response.
+          events, not in the synchronous HTTP response. A bundle shared after this account joins a group is imported
+          when <code>HISTORY_GROUP_BUNDLES</code> is on (default) and announced as <code>history.group</code>.
         </Callout>
       </>
     ),
@@ -1244,7 +1279,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
           <li>
             Chat/presence: <code>chat.update</code>, <code>presence.update</code>, <code>chatstate</code>,{' '}
-            <code>group.update</code>, <code>history.sync</code>
+            <code>group.update</code>, <code>history.sync</code>, <code>history.group</code>,{' '}
+            <code>profile.username</code>
           </li>
           <li>
             Calls: <code>call.incoming</code>, <code>call.state</code>, <code>call.ended</code>
@@ -1439,6 +1475,11 @@ const dec = new TextDecoder
         <p>
           Full CRUD under <code>/v1/instances/:name/groups</code>: create, metadata, leave, subject/description,
           invite-code, participants add/remove, promote/demote, picture, settings (announcement, restrict, ephemeral…).
+        </p>
+        <p>
+          <code>POST .../groups/:groupId/share-history</code> sends recent history to members who joined later (the
+          account needs <code>group_history_send</code>). Incoming bundles are on by default (
+          <code>HISTORY_GROUP_BUNDLES</code>) and show up as <code>history.group</code> plus normal message projections.
         </p>
         <p>
           Detailed reference: <a href="/guide/api/Groups">Groups API</a>.

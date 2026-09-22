@@ -60,6 +60,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **Ops-friendly boot** — HTTP listens before long reconnect/reconcile (healthchecks stay green)
 - **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
 - **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
+- **@handle and late group history** — send to `@handle`; members who join a group later still receive shared history (`HISTORY_GROUP_BUNDLES`)
 
 | Decision | Benefit |
 | -------- | ------- |
@@ -77,6 +78,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **LID ↔ PN map + reconcile** | Modern WhatsApp identities without split chat history. |
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
+| **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
 
 ---
 
@@ -298,6 +300,8 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 
 `HISTORY_SYNC_ENABLED=true` (default). zapo processes history notifications; we mirror mailbox → `app_*` and emit `history.sync` webhooks. On-demand: `POST.../chats/:chatId/history-sync`.
 
+`HISTORY_GROUP_BUNDLES=true` (default) does the same for a bundle another member shares after this account joins a group (`history.group`). Send one with `POST .../groups/:groupId/share-history` when the account has `group_history_send`.
+
 ### WAM telemetry (session wire parity)
 
 WhatsApp Web clients send analytics batches on the `w:stats` channel (**WAM**). zapo-rest attaches [`@zapo-js/wam`](https://zapo.to/guides/wam) on every session **by default** so the wire footprint is closer to a real browser tab (protocol events + synthetic UI telemetry). This is **not** your app’s metrics and does **not** change the public API.
@@ -366,10 +370,16 @@ GET  /v1/instance/qr
 POST /v1/instances/:name/messages/{text,reply,image,…}
 POST /v1/messages/{text,reply,image,…}          # instance key
 
-# Own profile (push name + avatar) — instance key + short paths
+# Own profile (push name, avatar, @handle) — instance key + short paths
 PUT /v1/profile/name
 PUT /v1/profile/image                           # JSON mediaUrl|mediaBase64 OR multipart -F file=@…
 DELETE /v1/profile/image                        # alias: /profile/picture
+GET/PUT/DELETE /v1/profile/username
+GET /v1/profile/username/check?username=loja
+POST /v1/profile/username/resolve               # { "username": "@loja" }
+
+# Group history shared with members who joined later
+POST /v1/groups/:groupId/share-history          # { "to": ["@lid-or-phone"], "count": 50 }
 
 # Chats / history — named or short
 GET /v1/instances/:name/chats

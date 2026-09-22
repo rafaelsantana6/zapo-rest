@@ -22,6 +22,8 @@ Last updated: 2026-07-14
 | Audio blast + STT (`/calls/blast`, `/calls/:id/transcribe`) | ✅ |
 | WAM telemetry (`@zapo-js/wam`, `WAM_ENABLED` default on) | ✅ |
 | Profile / presence / privacy / status stories | ✅ |
+| Username `@handle` (get/set/check/resolve, `@handle` on send) | ✅ |
+| Group history receive (`HISTORY_GROUP_BUNDLES`) + share | ✅ |
 | Profile set push name + avatar (`/profile/name`, `/profile/image` — URL/base64/multipart) | ✅ |
 | Media send: URL · base64 · multipart (`MEDIA_UPLOAD_MAX_BYTES`) | ✅ |
 | Media local/S3 + stream + getBase64 | ✅ |

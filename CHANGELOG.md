@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Username (`@handle`).** `GET/PUT/DELETE /v1/profile/username`, `GET /v1/profile/username/check`, and `POST /v1/profile/username/resolve`. Message `to` accepts `@handle` (and `@handle:key`). Inbound events include `senderUsername` and `recipientUsername`. Another device changing the handle emits `profile.username`. The recovery PIN is not returned.
+- **Group history for members who joined later.** `HISTORY_GROUP_BUNDLES` defaults on, so a shared bundle is downloaded, imported into `app_*`, and announced as `history.group`. `POST /v1/groups/:groupId/share-history` sends a bundle to specific members when the account has `group_history_send`.
+
 ### Changed
 
 - Inbound auto-download and `GET .../messages/:id/media` rehydrate now ask the sender to re-upload when the WhatsApp CDN returns 404 or 410 (expired blob, typical of history). The new `directPath` is downloaded once; `not_found` fails without repeating the dead URL. Transient errors still retry 5×.

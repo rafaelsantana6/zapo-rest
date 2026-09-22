@@ -182,6 +182,48 @@ describe('EventProcessor', () => {
     )
   })
 
+  it('onOwnUsername emits profile.username without a pin', async () => {
+    await processor.onOwnUsername('sales-1', { kind: 'set', username: 'loja', pin: '9999' } as {
+      kind: string
+      username: string
+    })
+    expect(webhooks.emit).toHaveBeenCalledWith(expect.anything(), 'profile.username', {
+      kind: 'set',
+      username: 'loja',
+    })
+    const payload = webhooks.emit.mock.calls.at(-1)?.[2] as Record<string, unknown>
+    expect(payload.pin).toBeUndefined()
+  })
+
+  it('onGroupHistoryBundle emits history.group and imports the mailbox', async () => {
+    const client = {
+      store: {
+        session: () => ({
+          contacts: { list: async () => [] },
+          threads: { list: async () => [] },
+          messages: { listByThread: async () => [] },
+        }),
+      },
+    }
+    await processor.onGroupHistoryBundle(
+      'sales-1',
+      {
+        groupJid: '120363@g.us',
+        senderJid: '5511888888888@s.whatsapp.net',
+        bundleMessageId: 'B1',
+        messagesCount: 4,
+        outOfWindowPinsCount: 1,
+        droppedCount: 2,
+      },
+      client as never,
+    )
+    expect(webhooks.emit).toHaveBeenCalledWith(
+      expect.anything(),
+      'history.group',
+      expect.objectContaining({ groupJid: '120363@g.us', messagesCount: 4, bundleMessageId: 'B1' }),
+    )
+  })
+
   it('onHistorySync emits history.sync webhook', async () => {
     await processor.onHistorySync('sales-1', { chunk: 1 }, null)
     expect(webhooks.emit).toHaveBeenCalledWith(expect.anything(), 'history.sync', { chunk: 1 })

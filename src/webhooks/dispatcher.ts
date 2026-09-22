@@ -32,6 +32,8 @@ export type WebhookEvent =
   | 'call.state'
   | 'call.ended'
   | 'history.sync'
+  | 'history.group'
+  | 'profile.username'
   | string
 
 export type WebhookPayload = {

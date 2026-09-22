@@ -551,6 +551,29 @@ export class InstanceManager {
       })
     })
 
+    client.on('group_history_bundle', (event) => {
+      runSafe('group_history_bundle', async () => {
+        if (this.opts.events) await this.opts.events.onGroupHistoryBundle(name, event, client)
+      })
+    })
+
+    client.on('own_username', (event) => {
+      runSafe('own_username', async () => {
+        if (this.opts.events) await this.opts.events.onOwnUsername(name, event)
+      })
+    })
+
+    client.on('mex_notification', (event) => {
+      if (event.kind !== 'own_username_sync') return
+      runSafe('own_username_sync', async () => {
+        if (!this.opts.events) return
+        await this.opts.events.onOwnUsername(name, {
+          kind: event.username ? 'set' : 'delete',
+          username: event.username,
+        })
+      })
+    })
+
     client.on('presence', (event) => {
       runSafe('presence', () => this.onPresence(name, event))
     })

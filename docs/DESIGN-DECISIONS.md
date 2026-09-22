@@ -161,6 +161,19 @@ Without this, integrators see split history and broken typing/presence.
 
 ---
 
+## Group history bundles
+
+**Decision:** `HISTORY_GROUP_BUNDLES` defaults **on**. A bundle another member shares after this account joins a group is downloaded, copied into `app_*`, and emitted as `history.group`.
+
+**Why**
+
+- Without it, someone who enters a group later has an empty thread here even when WhatsApp delivered the backfill.
+- zapo leaves the download off because a **third party** triggers it. The env flag is the off switch for operators who do not want that fetch.
+
+Sending (`POST .../groups/:id/share-history`) stays explicit and fails when the account lacks `group_history_send`.
+
+---
+
 ## Startup and ops
 
 - **`app.listen()` before** full WA auto-connect + large `lid_map` reconcile — so Docker/Swarm healthchecks do not kill the task during long boot.

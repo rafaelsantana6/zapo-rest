@@ -32,6 +32,10 @@ export type DecodedMessage = {
    */
   mediaDirectUrl: string | null
   pushName: string | null
+  /** Author handle without `@`. Absent on self-authored 1:1, where `recipientUsername` is the peer. */
+  senderUsername: string | null
+  /** Recipient handle without `@`. */
+  recipientUsername: string | null
   raw: unknown
 }
 
@@ -89,8 +93,16 @@ export function decodeIncomingMessage(event: any): DecodedMessage | null {
     mediaFilename: extractFilename(message),
     mediaDirectUrl: extractMediaDirectUrl(message),
     pushName: (event.pushName as string) ?? null,
+    senderUsername: handleOrNull(key.senderUsername),
+    recipientUsername: handleOrNull(key.recipientUsername),
     raw: sanitizeRawForStorage(event),
   }
+}
+
+function handleOrNull(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const handle = value.trim().replace(/^@/, '')
+  return handle || null
 }
 
 const MEDIA_TYPES = new Set(['image', 'video', 'audio', 'document', 'sticker', 'ptv'])
