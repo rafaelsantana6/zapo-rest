@@ -27,6 +27,42 @@ function asWa(client: MockClient): WaClient {
   return client as unknown as WaClient
 }
 
+describe('resolveRecipientJid username', () => {
+  it('addresses @handle with the LID zapo returns', async () => {
+    const resolveUsername = vi.fn(async () => ({
+      status: 'found' as const,
+      jid: 'abc@lid',
+      username: 'loja',
+      isBusiness: false,
+      pnJid: '5511999999999@s.whatsapp.net',
+    }))
+    const client = { profile: { resolveUsername, getLidsByPhoneNumbers: vi.fn() } }
+    const jid = await resolveRecipientJid(client as unknown as WaClient, '@loja')
+    expect(jid).toBe('abc@lid')
+    expect(resolveUsername).toHaveBeenCalledWith({ username: '@loja' })
+    expect(client.profile.getLidsByPhoneNumbers).not.toHaveBeenCalled()
+  })
+
+  it('refuses a missing handle and a key-required handle', async () => {
+    const client = {
+      profile: {
+        resolveUsername: vi.fn(async () => ({ status: 'not-found' as const })),
+      },
+    }
+    await expect(resolveRecipientJid(client as unknown as WaClient, '@missing')).rejects.toThrow(/not found/)
+
+    client.profile.resolveUsername.mockResolvedValueOnce({
+      status: 'key-required',
+      username: 'loja',
+    } as never)
+    await expect(resolveRecipientJid(client as unknown as WaClient, '@loja')).rejects.toThrow(/needs a key/)
+  })
+
+  it('does not invent a JID when the session is disconnected', async () => {
+    await expect(resolveRecipientJid(null, '@loja')).rejects.toThrow(/connected session/)
+  })
+})
+
 describe('resolveWhatsAppNumbers', () => {
   it('skips usync for group / lid JIDs', async () => {
     const client = mockClient()

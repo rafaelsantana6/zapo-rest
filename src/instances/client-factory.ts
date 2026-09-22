@@ -108,6 +108,8 @@ export function createWaClient(
     history: {
       enabled: env.HISTORY_SYNC_ENABLED,
       requireFullSync: env.HISTORY_REQUIRE_FULL_SYNC,
+      // A third party triggers the download; operators can turn it off.
+      groupBundles: env.HISTORY_GROUP_BUNDLES,
     },
     plugins: [
       voipPlugin({ maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS }),

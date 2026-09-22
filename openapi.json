@@ -231,76 +231,52 @@
                               "example": "open"
                             },
                             "meJid": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
                               "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                              "example": "5511999999999:12@s.whatsapp.net"
+                              "example": "5511999999999:12@s.whatsapp.net",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "pushName": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
                               "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                              "example": "Loja Sales"
+                              "example": "Loja Sales",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "avatarUrl": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
                               "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                              "example": "/v1/contacts/5511999999999/profile-picture"
+                              "example": "/v1/contacts/5511999999999/profile-picture",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "pairPhone": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
                               "description": "Optional phone hint for pairing-code flows",
-                              "example": null
+                              "example": null,
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "lastQr": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
                               "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                              "example": null
+                              "example": null,
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "lastQrAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ],
                               "description": "ISO-8601 time when lastQr was updated",
-                              "example": null
+                              "example": null,
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             },
                             "callRecordingEnabled": {
                               "description": "Whether call PCM recording is enabled for this instance",
@@ -499,16 +475,12 @@
                     }
                   },
                   "pairPhone": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ],
                     "description": "Optional phone digits for later pairing-code use",
-                    "example": "5511999999999"
+                    "example": "5511999999999",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
@@ -599,76 +571,52 @@
                           "example": "open"
                         },
                         "meJid": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                          "example": "5511999999999:12@s.whatsapp.net"
+                          "example": "5511999999999:12@s.whatsapp.net",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pushName": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                          "example": "Loja Sales"
+                          "example": "Loja Sales",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "avatarUrl": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                          "example": "/v1/contacts/5511999999999/profile-picture"
+                          "example": "/v1/contacts/5511999999999/profile-picture",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pairPhone": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Optional phone hint for pairing-code flows",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQr": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQrAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "ISO-8601 time when lastQr was updated",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
@@ -1052,76 +1000,52 @@
                             "example": "open"
                           },
                           "meJid": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
                             "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                            "example": "5511999999999:12@s.whatsapp.net"
+                            "example": "5511999999999:12@s.whatsapp.net",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "pushName": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
                             "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                            "example": "Loja Sales"
+                            "example": "Loja Sales",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "avatarUrl": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
                             "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                            "example": "/v1/contacts/5511999999999/profile-picture"
+                            "example": "/v1/contacts/5511999999999/profile-picture",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "pairPhone": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
                             "description": "Optional phone hint for pairing-code flows",
-                            "example": null
+                            "example": null,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "lastQr": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
                             "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                            "example": null
+                            "example": null,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "lastQrAt": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
                             "description": "ISO-8601 time when lastQr was updated",
-                            "example": null
+                            "example": null,
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "callRecordingEnabled": {
                             "description": "Whether call PCM recording is enabled for this instance",
@@ -1629,76 +1553,52 @@
                           "example": "open"
                         },
                         "meJid": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                          "example": "5511999999999:12@s.whatsapp.net"
+                          "example": "5511999999999:12@s.whatsapp.net",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pushName": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                          "example": "Loja Sales"
+                          "example": "Loja Sales",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "avatarUrl": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                          "example": "/v1/contacts/5511999999999/profile-picture"
+                          "example": "/v1/contacts/5511999999999/profile-picture",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pairPhone": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Optional phone hint for pairing-code flows",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQr": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQrAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "ISO-8601 time when lastQr was updated",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
@@ -2027,76 +1927,52 @@
                           "example": "open"
                         },
                         "meJid": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                          "example": "5511999999999:12@s.whatsapp.net"
+                          "example": "5511999999999:12@s.whatsapp.net",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pushName": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                          "example": "Loja Sales"
+                          "example": "Loja Sales",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "avatarUrl": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                          "example": "/v1/contacts/5511999999999/profile-picture"
+                          "example": "/v1/contacts/5511999999999/profile-picture",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pairPhone": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Optional phone hint for pairing-code flows",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQr": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQrAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "ISO-8601 time when lastQr was updated",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
@@ -2425,76 +2301,52 @@
                           "example": "open"
                         },
                         "meJid": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                          "example": "5511999999999:12@s.whatsapp.net"
+                          "example": "5511999999999:12@s.whatsapp.net",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pushName": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                          "example": "Loja Sales"
+                          "example": "Loja Sales",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "avatarUrl": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                          "example": "/v1/contacts/5511999999999/profile-picture"
+                          "example": "/v1/contacts/5511999999999/profile-picture",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pairPhone": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Optional phone hint for pairing-code flows",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQr": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQrAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "ISO-8601 time when lastQr was updated",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
@@ -2878,76 +2730,52 @@
                           "example": "open"
                         },
                         "meJid": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                          "example": "5511999999999:12@s.whatsapp.net"
+                          "example": "5511999999999:12@s.whatsapp.net",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pushName": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                          "example": "Loja Sales"
+                          "example": "Loja Sales",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "avatarUrl": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                          "example": "/v1/contacts/5511999999999/profile-picture"
+                          "example": "/v1/contacts/5511999999999/profile-picture",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pairPhone": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Optional phone hint for pairing-code flows",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQr": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQrAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "ISO-8601 time when lastQr was updated",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
@@ -3276,76 +3104,52 @@
                           "example": "open"
                         },
                         "meJid": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Linked account JID after pairing (e.g. `5511999999999:12@s.whatsapp.net`)",
-                          "example": "5511999999999:12@s.whatsapp.net"
+                          "example": "5511999999999:12@s.whatsapp.net",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pushName": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "WhatsApp display / push name when known (from session credentials or profile update)",
-                          "example": "Loja Sales"
+                          "example": "Loja Sales",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "avatarUrl": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Own avatar URL when known (public storage or authenticated `.../contacts/{phone}/profile-picture` path). Prefers stored full-res (`image`) over `preview`.",
-                          "example": "/v1/contacts/5511999999999/profile-picture"
+                          "example": "/v1/contacts/5511999999999/profile-picture",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "pairPhone": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Optional phone hint for pairing-code flows",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQr": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "Raw QR payload from last `auth_qr` event — render as QR image on clients",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "lastQrAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ],
                           "description": "ISO-8601 time when lastQr was updated",
-                          "example": null
+                          "example": null,
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
@@ -3677,28 +3481,20 @@
                   "type": "object",
                   "properties": {
                     "qr": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
                       "description": "Raw QR string to encode as image; null if none cached",
-                      "example": "2@abc...,1,key..."
+                      "example": "2@abc...,1,key...",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "expiresAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
                       "description": "When the QR was last received (server rotates QR)",
-                      "example": "2026-07-11T12:01:00.000Z"
+                      "example": "2026-07-11T12:01:00.000Z",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "status": {
                       "type": "string",
@@ -4660,7 +4456,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "text": {
@@ -4871,7 +4667,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "text": {
@@ -4951,7 +4747,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5009,7 +4805,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5245,7 +5041,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5303,7 +5099,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5396,7 +5192,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5454,7 +5250,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5690,7 +5486,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5748,7 +5544,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -5984,7 +5780,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -6042,7 +5838,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), or LID (`…@lid`)",
+                    "description": "Recipient: digits (`5511999999999`), PN JID (`…@s.whatsapp.net`), group (`…@g.us`), LID (`…@lid`), or username (`@handle`, optional `:key`)",
                     "example": "5511999999999"
                   },
                   "mediaUrl": {
@@ -6803,15 +6599,11 @@
                             "description": "Canonical phone JID (use this for send when exists)"
                           },
                           "lidJid": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ],
-                            "description": "LID when mapped"
+                            "description": "LID when mapped",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "exists": {
                             "type": "boolean",
@@ -6819,13 +6611,9 @@
                           },
                           "matchedNumber": {
                             "description": "Digits form that matched on WA",
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "numberExists": {
@@ -6834,13 +6622,9 @@
                           },
                           "chatId": {
                             "description": "multi-config chat id when exists",
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           }
                         },
@@ -7193,15 +6977,11 @@
                       "type": "string"
                     },
                     "reason": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "description": "When picture is null: not-authorized | item-not-found | privacy | …"
+                      "description": "When picture is null: not-authorized | item-not-found | privacy | …",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "status": {
                       "type": "string",
@@ -7218,33 +6998,21 @@
                       "type": "boolean"
                     },
                     "storageKey": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "null"
                       ]
                     },
                     "sha256": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "null"
                       ]
                     },
                     "url": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "null"
                       ]
                     },
                     "cacheTtlSeconds": {
@@ -7255,13 +7023,9 @@
                       "type": "string"
                     },
                     "lastFetchedAt": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "null"
                       ]
                     },
                     "cached": {
@@ -8497,7 +8261,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Peer to call — audio-only live VoIP",
+                    "description": "Peer to call — digits, JID, or @handle. Audio-only live VoIP",
                     "example": "5511999999999"
                   }
                 },
@@ -8862,67 +8626,43 @@
                           },
                           "peerJid": {
                             "example": "5511888888888@s.whatsapp.net",
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "peerJidRaw": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "peerLid": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "callerPn": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "direction": {
                             "description": "outgoing | incoming",
                             "example": "outgoing",
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "mediaType": {
                             "description": "audio",
                             "example": "audio",
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "createdAt": {
@@ -8939,13 +8679,9 @@
                           "state": {
                             "description": "ringing | connecting | active | ended | …",
                             "example": "active",
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           },
                           "isActive": {
@@ -8964,33 +8700,21 @@
                             "type": "boolean"
                           },
                           "audioMuted": {
-                            "anyOf": [
-                              {
-                                "type": "boolean"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "boolean",
+                              "null"
                             ]
                           },
                           "durationSecs": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "number",
+                              "null"
                             ]
                           },
                           "endReason": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "null"
-                              }
+                            "type": [
+                              "string",
+                              "null"
                             ]
                           }
                         },
@@ -9435,67 +9159,43 @@
                             },
                             "peerJid": {
                               "example": "5511888888888@s.whatsapp.net",
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "peerJidRaw": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "peerLid": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "callerPn": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "direction": {
                               "description": "outgoing | incoming",
                               "example": "outgoing",
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "mediaType": {
                               "description": "audio",
                               "example": "audio",
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "createdAt": {
@@ -9512,13 +9212,9 @@
                             "state": {
                               "description": "ringing | connecting | active | ended | …",
                               "example": "active",
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             },
                             "isActive": {
@@ -9537,33 +9233,21 @@
                               "type": "boolean"
                             },
                             "audioMuted": {
-                              "anyOf": [
-                                {
-                                  "type": "boolean"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "boolean",
+                                "null"
                               ]
                             },
                             "durationSecs": {
-                              "anyOf": [
-                                {
-                                  "type": "number"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "number",
+                                "null"
                               ]
                             },
                             "endReason": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "null"
-                                }
+                              "type": [
+                                "string",
+                                "null"
                               ]
                             }
                           },
@@ -11183,7 +10867,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Phone number (or JID) to call",
+                    "description": "Phone, JID, or @handle to call",
                     "example": "5511999999999"
                   },
                   "audioUrl": {
@@ -11246,7 +10930,7 @@
                   "to": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Phone number (or JID) to call",
+                    "description": "Phone, JID, or @handle to call",
                     "example": "5511999999999"
                   },
                   "audioUrl": {
@@ -11346,16 +11030,12 @@
                       "example": true
                     },
                     "recordingUrl": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
                       "description": "URL for the stored remote-leg WAV when recording succeeded (`GET .../calls/{callId}/recording` or storage URL). Null if not recorded.",
-                      "example": "/v1/instances/sales-1/calls/ABCDEF0123456789/recording"
+                      "example": "/v1/instances/sales-1/calls/ABCDEF0123456789/recording",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "responseDurationMs": {
                       "type": "integer",
@@ -11372,13 +11052,9 @@
                     "transcription": {
                       "description": "STT text when transcription ran successfully",
                       "example": "Olá, tudo bem? Gostaria de confirmar...",
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "null"
                       ]
                     },
                     "error": {
@@ -11729,26 +11405,18 @@
                       "example": "Olá, tudo bem?"
                     },
                     "language": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "example": "pt"
+                      "example": "pt",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     },
                     "durationSecs": {
-                      "anyOf": [
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "example": 3.2
+                      "example": 3.2,
+                      "type": [
+                        "number",
+                        "null"
+                      ]
                     },
                     "callId": {
                       "type": "string",
@@ -12081,13 +11749,9 @@
           },
           {
             "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string"
-                }
+              "type": [
+                "boolean",
+                "string"
               ]
             },
             "in": "query",
@@ -12096,13 +11760,9 @@
           },
           {
             "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string"
-                }
+              "type": [
+                "boolean",
+                "string"
               ]
             },
             "in": "query",
@@ -12395,13 +12055,9 @@
           },
           {
             "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "string"
-                }
+              "type": [
+                "boolean",
+                "string"
               ]
             },
             "in": "query",
@@ -13078,13 +12734,9 @@
                 "type": "object",
                 "properties": {
                   "description": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
+                    "type": [
+                      "string",
+                      "null"
                     ]
                   }
                 },
@@ -13800,6 +13452,330 @@
         }
       }
     },
+    "/v1/groups/{groupId}/share-history": {
+      "post": {
+        "summary": "Share group history with members who joined later",
+        "tags": [
+          "Groups"
+        ],
+        "description": "Sends a history bundle only to `to` (`client.message.shareGroupHistory`), then a hidden notice to the whole group.\n\n`to` accepts the same forms as message send, including `@handle`. Each JID must be a current member in the **group addressing mode** (LID groups want `@lid`).\n\nThe account must have the `group_history_send` property. Admin-only groups reject a share from a regular member. An absent `noticeMessageId` means the bundle was delivered and must not be retried.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Members who should receive the bundle."
+                  },
+                  "count": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1000
+                  },
+                  "sinceMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "to"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "bundleMessageId": {
+                      "type": "string"
+                    },
+                    "noticeMessageId": {
+                      "type": "string"
+                    },
+                    "messagesCount": {
+                      "type": "number"
+                    },
+                    "historyReceivers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "nonHistoryReceivers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "bundleMessageId",
+                    "messagesCount",
+                    "historyReceivers",
+                    "nonHistoryReceivers"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/profile": {
       "get": {
         "summary": "Get own profile snapshot",
@@ -14399,16 +14375,10 @@
                       ]
                     },
                     "pictureId": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "number",
+                        "null"
                       ]
                     }
                   },
@@ -14953,16 +14923,10 @@
                       ]
                     },
                     "pictureId": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "null"
-                        }
+                      "type": [
+                        "string",
+                        "number",
+                        "null"
                       ]
                     }
                   },
@@ -15470,6 +15434,1402 @@
                   "example": {
                     "ok": true
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/profile/username": {
+      "get": {
+        "summary": "Get own username",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Current account handle (`client.profile.getOwnUsername`). `null` when none is set.\n\nChanges made on another device arrive as the `profile.username` webhook (`own_username`, or the MEX account-sync equivalent).",
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "state": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "username",
+                    "state"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set own username",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Reserves or publishes a handle (`client.profile.setUsername`). `409` when the server rejects it (taken, rate-limited). Check suggestions first.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Handle without requiring a leading @. `@loja` and `loja` are both accepted.",
+                    "example": "loja"
+                  },
+                  "reserved": {
+                    "description": "Reserve the handle instead of publishing it.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "username"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "username"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete own username",
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/profile/username/check": {
+      "get": {
+        "summary": "Check username availability",
+        "tags": [
+          "Profile"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "loja"
+            },
+            "in": "query",
+            "name": "username",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": {
+                      "type": "boolean"
+                    },
+                    "suggestions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "available",
+                    "suggestions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/profile/username/resolve": {
+      "post": {
+        "summary": "Resolve a username to a JID",
+        "tags": [
+          "Profile"
+        ],
+        "description": "`found` includes the LID (`jid`) and phone JID when WhatsApp revealed it. `key-required` means retry with `usernameKey` or `@handle:1234`. Sending to `@handle` uses this same lookup.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Handle. A `:1234` suffix is a username key.",
+                    "example": "@loja"
+                  },
+                  "usernameKey": {
+                    "description": "Key when the server answered `key-required`.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "username"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "found",
+                        "key-required",
+                        "not-found"
+                      ]
+                    },
+                    "username": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "jid": {
+                      "type": "string"
+                    },
+                    "pnJid": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "isBusiness": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -17426,15 +18786,6 @@
         }
       }
     },
-    "/guide": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/v1/instances/{name}/calls/{callId}/stream": {
       "get": {
         "tags": [
@@ -17531,11 +18882,11 @@
     },
     {
       "name": "Messages",
-      "description": "Send WhatsApp messages through a connected instance (`status: open`).\n\nSupports **text**, **image**, **audio** (incl. PTT), and **document**. Video is not exposed in this API.\n\n`to` accepts digits with country code or full JID. Media: provide `mediaUrl` (HTTPS) or `mediaBase64`."
+      "description": "Send WhatsApp messages through a connected instance (`status: open`).\n\nSupports **text**, **image**, **audio** (incl. PTT), **video**, **document**, and **sticker**.\n\n`to` accepts digits with country code, a JID (`@s.whatsapp.net`, `@g.us`, `@lid`), or a username (`@handle`, optional `:key`). Media: `mediaUrl`, `mediaBase64`, or multipart."
     },
     {
       "name": "Profile",
-      "description": "Own WhatsApp profile for a session: get snapshot, set **push name**, set/delete **avatar**, set about status.\n\n- `PUT /v1/profile/name` — display name (`name` or `pushName`, max 25)\n- `PUT /v1/profile/image` — JPEG via `mediaUrl` or `mediaBase64` (alias: `/profile/picture`)\n- `DELETE /v1/profile/image` — remove avatar\n\nNamed paths under `/v1/instances/:name/profile/...` work for admin; short form needs an instance key."
+      "description": "Own WhatsApp profile for a session: snapshot, **push name**, **avatar**, about status, and **username** (`@handle`).\n\n- `PUT /v1/profile/name` — display name (`name` or `pushName`, max 25)\n- `PUT /v1/profile/image` — JPEG via `mediaUrl` or `mediaBase64` (alias: `/profile/picture`)\n- `DELETE /v1/profile/image` — remove avatar\n- `GET/PUT/DELETE /v1/profile/username` — own handle (recovery PIN is not returned)\n- `GET /v1/profile/username/check` — availability and suggestions\n- `POST /v1/profile/username/resolve` — handle → JID (`found`, `key-required`, `not-found`)\n\nNamed paths under `/v1/instances/:name/profile/...` work for admin; short form needs an instance key."
     },
     {
       "name": "Contacts",
@@ -17555,7 +18906,7 @@
     },
     {
       "name": "Webhooks",
-      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n \"data\": { }\n}\n```\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.logged_out`, `message.inbound`, `call.incoming`, `call.state`, `call.ended`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`."
+      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n \"data\": { }\n}\n```\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`."
     }
   ],
   "externalDocs": {

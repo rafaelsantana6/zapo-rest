@@ -21,6 +21,10 @@ export const WEBHOOK_EVENTS = [
   'call.state',
   'call.ended',
   'history.sync',
+  /** Group history bundle shared with this account after it joined. */
+  'history.group',
+  /** Own @handle changed on another device. */
+  'profile.username',
   /** Contact/group avatar set/delete from WA picture notification */
   'contact.picture',
   // legacy aliases kept for backward compat

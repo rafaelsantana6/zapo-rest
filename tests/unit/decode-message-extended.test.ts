@@ -205,6 +205,20 @@ describe('decodeIncomingMessage — message types', () => {
     ).toMatchObject({ type: 'document', mediaFilename: 'a.pdf', caption: 'doc', hasMedia: true })
   })
 
+  it('keeps sender and recipient handles', () => {
+    const decoded = decodeIncomingMessage({
+      key: {
+        ...key,
+        id: 'UN',
+        senderUsername: '@Loja',
+        recipientUsername: 'peer',
+      },
+      message: { conversation: 'oi' },
+    })
+    expect(decoded?.senderUsername).toBe('Loja')
+    expect(decoded?.recipientUsername).toBe('peer')
+  })
+
   it('strips rawNode/messageBytes from raw', () => {
     const decoded = decodeIncomingMessage({
       key,

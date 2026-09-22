@@ -56,6 +56,8 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Delete chat (local store) | ✅ |
 | History sync on pair | ✅ |
 | On-demand history | ✅ `.../history-sync` |
+| Group history receive | ✅ `HISTORY_GROUP_BUNDLES` (default on) → `history.group` |
+| Share group history | ✅ `POST .../groups/:groupId/share-history` |
 | Media download / base64 / stream | ✅ |
 
 ---
@@ -69,6 +71,8 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | LID map list/count/get | ✅ |
 | Groups full lifecycle | ✅ |
 | Profile get/update | ✅ |
+| Username get/set/delete/check/resolve | ✅ `/profile/username` |
+| Send to `@handle` | ✅ `to` on messages, calls, blast |
 
 ---
 

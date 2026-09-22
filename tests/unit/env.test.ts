@@ -15,6 +15,7 @@ describe('parseEnv', () => {
     })
     expect(env.PORT).toBe(3000)
     expect(env.AUTO_CONNECT_ON_BOOT).toBe(false)
+    expect(env.HISTORY_GROUP_BUNDLES).toBe(true)
     expect(env.ADMIN_API_KEY.length).toBeGreaterThanOrEqual(16)
   })
 
@@ -43,6 +44,14 @@ describe('parseEnv', () => {
     expect(env.STT_API_KEY).toBeUndefined()
     expect(env.STT_MODEL).toBeUndefined()
     expect(env.STT_LANGUAGE).toBeUndefined()
+    expect(
+      parseEnv({
+        NODE_ENV: 'test',
+        ADMIN_API_KEY: 'test-admin-api-key-min-16',
+        DATABASE_URL: 'postgresql://zapo:zapo@localhost:5432/zapo',
+        HISTORY_GROUP_BUNDLES: 'false',
+      }).HISTORY_GROUP_BUNDLES,
+    ).toBe(false)
   })
 
   it('accepts a valid STT_API_URL when set', () => {
