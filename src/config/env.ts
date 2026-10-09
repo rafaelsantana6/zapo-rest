@@ -106,6 +106,14 @@ const envSchema = z
      * On here so those messages reach `app_*` and `history.group`.
      */
     HISTORY_GROUP_BUNDLES: boolFromString.default(true),
+    /**
+     * In-process L1 read cache in front of the Postgres session, identity,
+     * sender-key and privacy-token rows (zapo `cacheLayer`). Safe only while one
+     * process owns each instance, the deployment model here. Off by default.
+     */
+    STORE_L1_CACHE: boolFromString.default(false),
+    /** Idle TTL of an L1 entry, in seconds. `0` keeps entries until the size cap evicts them. */
+    STORE_L1_IDLE_TTL_SECONDS: z.coerce.number().int().nonnegative().max(2_592_000).default(1800),
     // Auto-download inbound media into object storage
     MEDIA_AUTO_DOWNLOAD: boolFromString.default(true),
 

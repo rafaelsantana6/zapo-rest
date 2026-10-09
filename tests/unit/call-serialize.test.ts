@@ -59,3 +59,24 @@ describe('serializeCallInfo', () => {
     expect(snap.callerPn).toBe('556881159096')
   })
 })
+
+describe('serializeCallInfo interactions (voip 1.2)', () => {
+  it('exposes peer mic, local hand and remote raised hands', () => {
+    const snap = serializeCallInfo({
+      callId: 'h1',
+      peerJid: '5511888888888@s.whatsapp.net',
+      stateData: { state: 'active', peerAudioMuted: true, handRaised: true },
+      raisedHands: new Set(['5511888888888:2@s.whatsapp.net']),
+    })
+    expect(snap.peerAudioMuted).toBe(true)
+    expect(snap.handRaised).toBe(true)
+    expect(snap.raisedHands).toEqual(['5511888888888:2@s.whatsapp.net'])
+  })
+
+  it('defaults before the peer announces anything', () => {
+    const snap = serializeCallInfo({ callId: 'h2', stateData: { state: 'ringing' } })
+    expect(snap.peerAudioMuted).toBeNull()
+    expect(snap.handRaised).toBe(false)
+    expect(snap.raisedHands).toEqual([])
+  })
+})

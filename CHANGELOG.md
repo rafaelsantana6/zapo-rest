@@ -11,11 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Username (`@handle`).** `GET/PUT/DELETE /v1/profile/username`, `GET /v1/profile/username/check`, and `POST /v1/profile/username/resolve`. Message `to` accepts `@handle` (and `@handle:key`). Inbound events include `senderUsername` and `recipientUsername`. Another device changing the handle emits `profile.username`. The recovery PIN is not returned.
 - **Group history for members who joined later.** `HISTORY_GROUP_BUNDLES` defaults on, so a shared bundle is downloaded, imported into `app_*`, and announced as `history.group`. `POST /v1/groups/:groupId/share-history` sends a bundle to specific members when the account has `group_history_send`.
+- **In-call hand raise and emoji reactions.** `POST /v1/calls/:callId/hand` (`{ "raised": true }`) raises or lowers the local hand — durable until lowered, announced to the peer; 404 on an unknown call. `POST /v1/calls/:callId/reaction` (`{ "reaction": "👍" }`, 1–32 chars) sends a momentary emoji reaction; 409 when the call is not active or its reaction channel is not open yet. Same ops on the VoIP control WS: `call:hand`, `call:reaction`. Peer-side interactions arrive as webhook/WS `call.peer_mute`, `call.hand_raise`, `call.reaction`. The call snapshot gains `peerAudioMuted`, `handRaised`, `raisedHands`; `endReason` can now also be `accepted_elsewhere`, `rejected_elsewhere`, or `relay_lost`.
+- **`STORE_L1_CACHE`** (default `false`). In-process L1 read cache in front of the Postgres-backed Signal session, identity, sender-key, and privacy-token rows — fewer Postgres reads on the decrypt/encrypt hot path. Safe only with a single process or sticky sessions per instance (the supported deployment model). `STORE_L1_IDLE_TTL_SECONDS` (default `1800`, `0` = only the size cap evicts) bounds how long an idle peer stays cached.
 
 ### Changed
 
 - Inbound auto-download and `GET .../messages/:id/media` rehydrate now ask the sender to re-upload when the WhatsApp CDN returns 404 or 410 (expired blob, typical of history). The new `directPath` is downloaded once; `not_found` fails without repeating the dead URL. Transient errors still retry 5×.
 - Meta AI rich responses are stored as text (submessage text, image captions, and code blocks). A bot-forwarded message uses the inner type, so a forwarded image stays media instead of `unknown`.
+- `POST .../calls/:callId/mute` now also announces the mute state to the peer (upstream `@zapo-js/voip` 1.2 behavior).
+- Media reupload now fails immediately — `media reupload re-encrypted: ...` → `message.media.failed`, no retry — when the re-served blob still fails `media MAC mismatch` / `file hash mismatch`: some primaries re-encrypt on reupload and nothing in the response carries the new key.
 
 ### Dependencies
 
@@ -30,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (shipped with zapo v1.9.0). Relay dials move to the web-client port 3480 so calls are no longer
   silently one-way (vinikjkkj/zapo#254), incoming offers expose `callerPn`, and the plugin adds
   bidirectional video. The REST/WS call surface is unchanged.
+- **Runtime**: `zapo-js` 1.9.0 → [1.10.0](https://github.com/vinikjkkj/zapo/releases/tag/v1.10.0).
+  Fixes one-way/silent audio on incoming calls, ends a call here when another linked device
+  answers or declines it elsewhere (`endReason: "accepted_elsewhere"` / `"rejected_elsewhere"`),
+  stops `ignoreKey` from dropping genuine own-device peer messages, and sends the group member
+  list as media.
+- **Runtime**: `@zapo-js/voip` 1.1.0 → [1.2.0](https://github.com/vinikjkkj/zapo/releases/tag/v1.10.0).
+  Call media moves to `@zapo-js/voip-media`; adds hand raise and in-call emoji reactions, and
+  `setMute` now announces the local mic state to the peer. zapo-rest exposes the new interactions
+  as described in Added, above.
+- **Runtime**: peer dependency `libmlow-wasm` → `libmlow-wasm-fork` ^0.2.0 — voip 1.2 moved call
+  media to `@zapo-js/voip-media`, which forks this native dependency. No zapo-rest API change.
 
 ## [0.8.1] - 2026-08-29
 
