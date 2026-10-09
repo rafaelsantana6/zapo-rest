@@ -19,6 +19,7 @@ import { securityHeadersPlugin } from '~/plugins/security-headers'
 import { swaggerPlugin } from '~/plugins/swagger'
 import type { CacheClient } from '~/redis/client'
 import { blastRoutes } from '~/routes/blast'
+import { callInteractionRoutes } from '~/routes/call-interactions'
 import { callRoutes } from '~/routes/calls'
 import { chatRoutes } from '~/routes/chats'
 import { contactRoutes } from '~/routes/contacts'
@@ -171,6 +172,7 @@ export async function buildApp(deps: BuildAppDeps) {
     mediaStorage: deps.mediaStorage,
     cache: deps.cache,
   })
+  await app.register(callInteractionRoutes, { manager: deps.manager })
   await app.register(blastRoutes, {
     manager: deps.manager,
     env: deps.env,
