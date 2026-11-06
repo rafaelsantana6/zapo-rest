@@ -19,6 +19,8 @@ Last updated: 2026-07-14
 | Groups (full lifecycle) | ✅ |
 | Group member modes (add, invite link, history bundles) | ✅ Admin-only `PUT /v1/groups/:groupId/settings/{member-add-mode,member-link-mode,history-share-mode}` with `{ mode }`; metadata single/list exposes `memberAddMode`, `memberLinkMode`, `historyShareMode` |
 | Group member mode events | 🟡 `group.update` includes `memberAddMode`; zapo-js 1.11.0 has no decoded link/history mode notifications — read metadata |
+| Group membership requests | ✅ `GET .../groups/:groupId/membership-requests`; `POST .../approve`, `.../reject`, `.../cancel` (our requests); existing `membership_approval_mode` setting |
+| Membership request notifications | ✅ `group.update` with membership `type`, `requesterJid` or `requests[].jid` when supplied upstream |
 | Labels | ✅ |
 | Calls / VoIP (offer/accept/reject/end/mute/stream) | ✅ |
 | In-call hand raise + emoji reactions (`/calls/:id/hand`, `/calls/:id/reaction`) | ✅ |

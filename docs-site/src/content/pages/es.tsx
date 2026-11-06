@@ -1342,6 +1342,13 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
         </ul>
 
+        <p>
+          Solicitudes de ingreso a grupos: consulta <a href="/guide/groups#join-requests">Solicitudes de ingreso</a> —{' '}
+          <code>group.update</code>, <code>payload.type</code>, <code>payload.requesterJid</code> /{' '}
+          <code>payload.requests[].jid</code>. SSE usa <code>data.type</code>, <code>data.requesterJid</code> y{' '}
+          <code>data.requests[].jid</code>.
+        </p>
+
         <h2 id="hmac">HMAC y retries</h2>
         <p>
           Cuando está configurado, el worker firma el POST (<code>X-Webhook-Hmac</code> /{' '}
@@ -1754,6 +1761,32 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           Referencia detallada: <a href="/guide/api/Groups">Groups API</a>.
+        </p>
+        <h2 id="join-requests">Solicitudes de ingreso</h2>
+        <p>
+          Activa la aprobación por admins con <code>PUT /v1/groups/:groupId/settings/membership_approval_mode</code> y{' '}
+          <code>{'{ "enabled": true }'}</code>. Lista las solicitudes pendientes con{' '}
+          <code>GET /v1/groups/:groupId/membership-requests</code>. La respuesta es{' '}
+          <code>{'{ "requests": [{ "jid": "111@lid", "requestedAt": "2026-11-06T12:00:00.000Z" }] }'}</code>. Campos
+          opcionales: <code>phoneNumber</code> (JID PN del upstream), <code>method</code>, <code>requestor</code>,{' '}
+          <code>requestorUsername</code> y <code>parentGroupJid</code>. Las fechas usan ISO 8601; si el upstream omite
+          la fecha, se representa con la época Unix.
+        </p>
+        <p>
+          Usa <code>POST .../membership-requests/approve</code> o <code>.../reject</code> como admin del grupo;
+          <code>.../cancel</code> retira solicitudes enviadas por esta cuenta. Todos reciben{' '}
+          <code>{'{ "participants": ["5511999999999", "111@lid"] }'}</code> (teléfonos/JIDs, resueltos como add/remove).
+          Listas vacías devuelven 400, grupos desconocidos 404, falta de permisos 403 y aprobación desactivada 409; se
+          conservan los mensajes de error del upstream. Autentica con la clave de instancia en <code>X-Api-Key</code>.
+        </p>
+        <p>
+          Las notificaciones usan <code>group.update</code> en webhooks y SSE. Los campos actuales del upstream,
+          incluido <code>action</code>, se conservan. <code>payload.type</code> es{' '}
+          <code>membership_approval_request</code> con <code>payload.requesterJid</code> del autor del upstream, o{' '}
+          <code>created_membership_requests</code> / <code>revoked_membership_requests</code> con{' '}
+          <code>payload.requests[].jid</code> (<code>phoneJid</code>/<code>username</code> opcionales). Se omiten las
+          identidades que el upstream no proporciona; consulta las solicitudes pendientes para reconciliar la cola. SSE
+          usa <code>data.type</code>, <code>data.requesterJid</code> y <code>data.requests[].jid</code>.
         </p>
       </>
     ),

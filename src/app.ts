@@ -26,6 +26,7 @@ import { contactRoutes } from '~/routes/contacts'
 import { eventsSseRoutes } from '~/routes/events-sse'
 import { groupHistoryRoutes } from '~/routes/group-history'
 import { groupRoutes } from '~/routes/groups'
+import { groupMembershipRoutes } from '~/routes/group-membership'
 import { healthRoutes } from '~/routes/health'
 import { instanceRoutes } from '~/routes/instances'
 import { labelRoutes } from '~/routes/labels'
@@ -196,6 +197,7 @@ export async function buildApp(deps: BuildAppDeps) {
   }
 
   await app.register(groupRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
+  await app.register(groupMembershipRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(groupHistoryRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(profileRoutes, { manager: deps.manager, env: deps.env })
   await app.register(profileUsernameRoutes, { manager: deps.manager })

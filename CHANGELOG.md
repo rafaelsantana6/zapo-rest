@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Group member modes.** Admin-only `PUT /v1/groups/:groupId/settings/member-add-mode`, `.../member-link-mode`, and `.../history-share-mode` accept `{ mode }` with the upstream enums. Metadata reads (single and list) expose `memberAddMode`, `memberLinkMode`, and `historyShareMode` when reported. The last controls who can send `share-history` bundles, independently of receiving via `HISTORY_GROUP_BUNDLES`. Invalid modes return 400 with accepted values; WhatsApp missing-group and admin errors map to 404/403.
 - `group.update` for upstream `member_add_mode` changes now also carries `memberAddMode`, retaining `action` and `mode`. zapo-js 1.11.0 does not decode link/history-share mode notifications; query metadata to observe those changes.
+- **Group join requests.** `GET /v1/groups/:groupId/membership-requests` lists pending requests with ISO timestamps and optional requester metadata. `POST .../membership-requests/approve`, `/reject`, and `/cancel` accept `{ "participants": ["phone-or-jid"] }`; cancel withdraws requests sent by this account. The existing `membership_approval_mode` setting enables approval. Known upstream permission, missing-group and approval-mode errors return 403/404/409 with the upstream message.
+
+### Changed
+
+- `group.update` preserves its upstream payload and adds `type` for membership notifications: `membership_approval_request` adds `requesterJid` from the upstream author, while `created_membership_requests` / `revoked_membership_requests` add `requests` with requester JIDs when supplied upstream. The event name and SSE transport stay the same.
+
+- Membership notification documentation distinguishes webhook `payload.*` from SSE `data.*`; the OpenAPI webhook example now matches the delivered envelope (`id`, numeric `timestamp`, `engine`, `payload`).
 
 ## [0.10.0] - 2026-11-06
 

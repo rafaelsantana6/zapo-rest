@@ -351,6 +351,7 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 - **Chats** — list, messages, read, archive, delete, history-sync
 - **Contacts** — list, check exists, about, profile picture, blocklist, BR 9th-digit aware resolve
 - **Groups** — create, metadata, invite, participants, promote/demote, picture; admin/member permissions to add members, share invite links, and share history
+- **Group join requests** — list, approve/reject, cancel our requests; `membership_approval_mode` toggle; notifications through `group.update`
 - **Profile / presence / privacy / status stories / labels / lids**
 - **Webhooks** — multi-config, HMAC-SHA512, exponential retries, custom headers
 - **Realtime SSE** + **VoIP WebSocket**
@@ -400,6 +401,11 @@ GET /v1/groups                                    # same fields in groups[]
 
 # Group history shared with members who joined later (subject to historyShareMode)
 POST /v1/groups/:groupId/share-history          # { "to": ["@lid-or-phone"], "count": 50 }
+GET  /v1/groups/:groupId/membership-requests   # { requests: [{ jid, requestedAt, ... }] }
+POST /v1/groups/:groupId/membership-requests/approve # { "participants": ["phone-or-jid"] }
+POST /v1/groups/:groupId/membership-requests/reject  # { "participants": ["phone-or-jid"] }
+POST /v1/groups/:groupId/membership-requests/cancel  # own pending requests only
+PUT  /v1/groups/:groupId/settings/membership_approval_mode # { "enabled": true }
 
 # Chats / history — named or short
 GET /v1/instances/:name/chats

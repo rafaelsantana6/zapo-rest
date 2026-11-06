@@ -951,10 +951,12 @@ export const OPENAPI_TAGS = [
       'When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n' +
       '```json\n' +
       '{\n' +
+      ' "id": "01K9D453G00000000000000000",\n' +
       ' "event": "message.inbound",\n' +
       ' "instance": "sales-1",\n' +
-      ' "timestamp": "2026-07-11T12:10:00.000Z",\n' +
-      ' "data": { }\n' +
+      ' "timestamp": 1793966400000,\n' +
+      ' "engine": "zapo",\n' +
+      ' "payload": { }\n' +
       '}\n' +
       '```\n\n' +
       '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, ' +
@@ -963,7 +965,13 @@ export const OPENAPI_TAGS = [
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
       '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
-      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
+      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
+      '`group.update` membership notifications preserve upstream `action` and add `payload.type`: ' +
+      '`membership_approval_request` has `payload.requesterJid` from the upstream author; ' +
+      '`created_membership_requests` / `revoked_membership_requests` have `payload.requests[].jid` ' +
+      '(optional `phoneJid` / `username`). Identities are omitted when upstream does not supply them. ' +
+      'SSE carries the same fields under `data` (`data.type`, `data.requesterJid`, `data.requests[].jid`). ' +
+      'Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests.',
   },
 ] as const
 
@@ -991,3 +999,31 @@ export const GroupMetadataSchema = z
   .meta({
     description: 'Upstream group metadata plus normalized member modes, omitted when not reported or unrecognized.',
   })
+export const GroupMembershipParamsSchema = z.object({
+  groupId: z.string().min(1).meta({ description: 'Group ID or full group JID', example: '120363000000000000@g.us' }),
+})
+
+export const GroupMembershipParticipantsSchema = z.object({
+  participants: z
+    .array(z.string().trim().min(1))
+    .min(1)
+    .meta({
+      description: 'Requester phones or JIDs; cancel is limited to requests sent by this account',
+      example: ['5511999999999@s.whatsapp.net'],
+    }),
+})
+
+export const GroupMembershipRequestSchema = z.object({
+  jid: z.string().meta({ description: 'Pending requester JID', example: '123456789@lid' }),
+  phoneNumber: z.string().optional().meta({ description: 'Upstream requestorPhone (PN JID when available)' }),
+  requestedAt: z.iso.datetime().meta({
+    description: 'Upstream requestTime in seconds converted to ISO 8601',
+    example: '2026-11-06T12:00:00.000Z',
+  }),
+  method: z.string().optional().meta({ description: 'Upstream requestMethod, e.g. invite_link' }),
+  requestor: z.string().optional().meta({ description: 'Upstream requestor identity' }),
+  requestorUsername: z.string().optional().meta({ description: 'Upstream requester username' }),
+  parentGroupJid: z.string().optional().meta({ description: 'Parent community JID when supplied upstream' }),
+})
+
+export const GroupMembershipRequestsSchema = z.object({ requests: z.array(GroupMembershipRequestSchema) })
