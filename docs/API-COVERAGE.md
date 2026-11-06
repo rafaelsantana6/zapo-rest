@@ -145,3 +145,5 @@ VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finis
 VoIP file playback: ✅ `POST /v1/calls/:callId/audio` (`loadAudio`), URL/base64/multipart via capped media helpers, ffmpeg required (503), selects file playback and removes temporary files after decoding.
 
 MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.
+
+Per-participant PCM (local only): `VOIP_PARTICIPANT_AUDIO=false` by default. Opt in via `/v1/calls/:callId/stream?participants=1`: every server frame gains a 4-byte header (`u8 version=1`, `u8 reserved=0`, `u16 BE streamId`), then f32le PCM. Mix id 0; participant ids announced with JSON `stream` (`participantJid`) and retired with `stream_end`. Client frames stay raw PCM. Without the flag, protocol unchanged. Disabled opt-in: close 4409. No PCM on SSE/webhooks; no separate participant recordings.

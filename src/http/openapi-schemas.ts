@@ -870,6 +870,10 @@ export const ReadyResponseSchema = z
   .meta({ example: EXAMPLES.ready })
 
 export const StreamQuerySchema = z.object({
+  participants: z
+    .enum(['0', '1'])
+    .optional()
+    .meta({ description: 'Audio stream only: opt into framed per-participant PCM (VOIP_PARTICIPANT_AUDIO required).' }),
   apiKey: z.string().optional().meta({
     description: 'API key for browsers (WebSocket cannot always set custom headers). Prefer X-Api-Key when possible.',
     example: 'zr_AbCdEfGhIjKlMnOpQrStUvWx',

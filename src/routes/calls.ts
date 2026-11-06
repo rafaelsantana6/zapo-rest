@@ -479,6 +479,10 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           '3. **Server → client** binary frames: same format (peer audio)\n' +
           '4. Backpressure JSON: `{ "op": "backpressure", "pause": true  | false, "bufferedMs": N }`\n' +
           '5. On end: `{ "op": "ended", "callId": "..." }` then close\n\n' +
+          'Opt-in `?participants=1` requires `VOIP_PARTICIPANT_AUDIO=true` (local only; otherwise close 4409). ' +
+          'Every server binary frame then has a 4-byte header: u8 version=1, u8 reserved=0, u16 BE stream id, followed by f32le PCM. ' +
+          'Id 0 is the mix; participant ids are announced as JSON `{ op: "stream", streamId, participantJid }` and retired with `stream_end`. ' +
+          'Client binary frames remain raw PCM. Without the flag the protocol is unchanged.\n\n' +
           'Engine enables `setExternalAudioMode(callId, true)` — no file autoplay.\n\n' +
           'If `VOIP_END_CALL_ON_WS_CLOSE=true`, closing the socket ends the call.\n\n' +
           'When call recording is enabled, mic frames are also written to the dual-channel WAV.',
@@ -491,7 +495,15 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     (socket, request) => {
       const target = callSocketTarget(socket, request)
       if (!target) return
-      void attachCallStream({ ...target, socket, manager, env, instanceRepo, callRecording })
+      void attachCallStream({
+        ...target,
+        socket,
+        manager,
+        env,
+        instanceRepo,
+        callRecording,
+        participants: (request.query as { participants?: string }).participants === '1',
+      })
     },
   )
 

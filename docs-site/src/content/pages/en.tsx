@@ -1664,6 +1664,15 @@ const dec = new TextDecoder
     description: 'JSON signaling, 16 kHz PCM, recording, audio blast and STT.',
     body: (
       <>
+        <h2 id="participant-audio">Per-participant audio</h2>
+        <p>
+          Enable <code>VOIP_PARTICIPANT_AUDIO=true</code> (default false, local media only; copies every frame). Connect
+          to <code>/v1/calls/:callId/stream?participants=1</code>: server binary frames gain a 4-byte header (version 1,
+          reserved 0, uint16 BE stream id) followed by mono 16 kHz f32le PCM. Id 0 is the mix; other ids are announced
+          by JSON <code>stream</code> with <code>participantJid</code>, retired by <code>stream_end</code> and never
+          reused. Client frames stay raw PCM. Without the flag, bytes are unchanged. Disabled opt-in closes with 4409.
+          PCM never reaches webhooks/SSE; separate recordings are not implemented.
+        </p>
         <h2 id="mlow-red">MLow redundancy</h2>
         <p>
           <code>VOIP_MLOW_RED=false</code> defaults off. Enable it for local media to send a low-rate copy of the

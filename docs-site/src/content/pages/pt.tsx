@@ -1685,6 +1685,16 @@ const dec = new TextDecoder
     description: 'Sinalização JSON, PCM 16 kHz, gravação, audio blast e STT.',
     body: (
       <>
+        <h2 id="participant-audio">Áudio por participante</h2>
+        <p>
+          Ative <code>VOIP_PARTICIPANT_AUDIO=true</code> (padrão false, somente local; copia cada quadro). Conecte em{' '}
+          <code>/v1/calls/:callId/stream?participants=1</code>: cada quadro binário do servidor ganha cabeçalho de 4
+          bytes (versão 1, reservado 0, id uint16 BE), seguido de PCM f32le mono 16 kHz. Id 0 é a mixagem; outros ids
+          são anunciados por JSON <code>stream</code> com <code>participantJid</code> e encerrados por{' '}
+          <code>stream_end</code>, sem reutilização. Quadros do cliente continuam PCM bruto. Sem o parâmetro, os bytes
+          não mudam. Opt-in desativado fecha com 4409. PCM nunca vai para webhooks/SSE; gravações separadas não
+          implementadas.
+        </p>
         <h2 id="mlow-red">Redundância MLow</h2>
         <p>
           <code>VOIP_MLOW_RED=false</code> vem desativado. Ative no modo local para enviar uma cópia de baixa taxa do

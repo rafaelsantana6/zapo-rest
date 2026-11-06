@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Local per-participant audio: `VOIP_PARTICIPANT_AUDIO=false` by default; opt in on the PCM WebSocket with `participants=1` for stream announcements and framed f32le PCM per participant (mix id 0). Existing clients keep the original raw PCM protocol. No PCM on SSE/webhooks.
+
 - Opt-in `VOIP_MLOW_RED=false` passes MLow RED to local call media: low-rate previous-frame redundancy, DTX disabled, higher bandwidth. Call harness: `CALL_HARNESS_MLOW_RED=true`.
 
 - `POST /v1/calls/:callId/audio` loads URL/base64/multipart audio through upstream ffmpeg (503 if missing), switches off external audio and cleans temporary files after decoding; completion arrives as `call.audio_finished`.

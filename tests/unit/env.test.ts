@@ -13,6 +13,7 @@ describe('parseEnv', () => {
       DATABASE_URL: 'postgresql://zapo:zapo@localhost:5432/zapo',
       AUTO_CONNECT_ON_BOOT: 'false',
     })
+    expect(env.VOIP_PARTICIPANT_AUDIO).toBe(false)
     expect(env.VOIP_MLOW_RED).toBe(false)
     expect(env.PORT).toBe(3000)
     expect(env.AUTO_CONNECT_ON_BOOT).toBe(false)
