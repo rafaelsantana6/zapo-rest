@@ -42,7 +42,14 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Reaction / edit / revoke | ✅ |
 | Star / unstar | ✅ `POST .../messages/star` |
 | Status / stories | ✅ send/revoke/privacy/mute |
-| Buttons / list / template (Cloud) | ❌ |
+| Buttons / native flow / single-select list | ✅ `/messages/buttons`, `/interactive`, `/list` (raw proto, not Cloud templates) |
+| Image/video carousel | ✅ `/messages/carousel` (2–10 cards; 1.11 has no carousel biz addon; verify on devices) |
+| Phone-created native form | ✅ `/messages/native-form` (1:1 only; returned flowToken) |
+| PIX key / review-and-pay charge | ✅ `/messages/pix`, `/messages/charge` |
+| Real catalog product | ✅ `/messages/product` (catalog membership required) |
+| Catalog CTA | ✅ `catalog`/`cta_catalog` inside `/messages/interactive` or carousel (mobile cards also need URL CTA) |
+| Standalone catalog_message | ❌ Pending upstream biz-name fix (1.11 selects mixed → unsupported); use catalog CTA above |
+| Cloud template send | ❌ |
 | Forward | ✅ |
 
 ---
@@ -100,3 +107,7 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | OpenAPI `/docs` + guide `/guide` | ✅ |
 | Docker Compose stack | ✅ |
 | Metrics routes | ✅ |
+
+### Interactive receive details
+
+Existing message webhook/SSE types: `buttons`, `list`, `interactive` (first native button name), `carousel`, `product`, `order`, `buttons_response`, `list_response`, `template_reply`, `native_flow_response`, `native_form_response`. Readable `body` plus optional `interactive` selection/params/form fields, answers, sensitivity and quoted flowToken. No additional event names. `groupSafe` is opt-in on buttons/interactive; amounts: charge major BRL units → cents/100, product prices in thousandths. See [README](../README.md#interactive-and-business-messages).

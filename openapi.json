@@ -6386,6 +6386,2341 @@
         }
       }
     },
+    "/v1/messages/buttons": {
+      "post": {
+        "summary": "Send buttons message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "Legacy response buttons (1–3). Quick replies are visible to the whole group unless groupSafe is true.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "footer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "groupSafe": {
+                    "description": "In groups, turn quick replies into private wa.me links to the connected phone. Default false.",
+                    "type": "boolean"
+                  },
+                  "buttons": {
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20
+                        }
+                      },
+                      "required": [
+                        "text"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "to",
+                  "text",
+                  "buttons"
+                ],
+                "description": "Legacy response buttons (1–3). Quick replies are visible to the whole group unless groupSafe is true.",
+                "example": {
+                  "to": "5511999999999",
+                  "text": "Continue?",
+                  "buttons": [
+                    {
+                      "id": "yes",
+                      "text": "Yes"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "description": "Legacy response buttons (1–3). Quick replies are visible to the whole group unless groupSafe is true."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/interactive": {
+      "post": {
+        "summary": "Send interactive message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "Native-flow quick reply, URL/webview, copy, call or catalog CTA (1–3). Catalog uses the connected PN, never LID.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "footer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "header": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "buttons": {
+                    "minItems": 1,
+                    "maxItems": 3,
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "quick_reply"
+                              ]
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "text"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "url"
+                              ]
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20
+                            },
+                            "url": {
+                              "type": "string",
+                              "format": "uri"
+                            },
+                            "webview": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "text",
+                            "url"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "copy"
+                              ]
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20
+                            },
+                            "code": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "text",
+                            "code"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "call"
+                              ]
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 20
+                            },
+                            "phoneNumber": {
+                              "type": "string",
+                              "minLength": 1,
+                              "pattern": "^\\+?[1-9]\\d{6,14}$"
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "text",
+                            "phoneNumber"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "catalog"
+                              ]
+                            },
+                            "productId": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "groupSafe": {
+                    "description": "In groups, turn quick replies into private wa.me links to the connected phone. Default false.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "to",
+                  "body",
+                  "buttons"
+                ],
+                "description": "Native-flow quick reply, URL/webview, copy, call or catalog CTA (1–3). Catalog uses the connected PN, never LID.",
+                "example": {
+                  "to": "5511999999999",
+                  "body": "Visit us",
+                  "buttons": [
+                    {
+                      "type": "url",
+                      "text": "Open",
+                      "url": "https://example.com"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "description": "Native-flow quick reply, URL/webview, copy, call or catalog CTA (1–3). Catalog uses the connected PN, never LID."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/list": {
+      "post": {
+        "summary": "Send list message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "single_select native flow: 1–10 sections, 1–10 rows in total; generated row IDs include section and row indexes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "footer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "buttonText": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "sections": {
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 24
+                        },
+                        "rows": {
+                          "minItems": 1,
+                          "maxItems": 10,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256
+                              },
+                              "title": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 24
+                              },
+                              "description": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 72
+                              }
+                            },
+                            "required": [
+                              "title"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "rows"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "to",
+                  "body",
+                  "buttonText",
+                  "sections"
+                ],
+                "description": "single_select native flow: 1–10 sections, 1–10 rows in total; generated row IDs include section and row indexes.",
+                "example": {
+                  "to": "5511999999999",
+                  "body": "Choose",
+                  "buttonText": "Menu",
+                  "sections": [
+                    {
+                      "title": "Products",
+                      "rows": [
+                        {
+                          "id": "hat",
+                          "title": "Hat"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "description": "single_select native flow: 1–10 sections, 1–10 rows in total; generated row IDs include section and row indexes."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/carousel": {
+      "post": {
+        "summary": "Send carousel message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "Carousel with 2–10 image/video cards, each with 1–3 native-flow buttons. Media is encrypted/uploaded by zapo-js before sending. The 1.11 addon resolver ignores carousel cards; device delivery/rendering needs verification and may require an upstream fix. Include a URL CTA before catalog on mobile cards.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "cards": {
+                    "minItems": 2,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "media": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "url": {
+                                  "type": "string",
+                                  "format": "uri"
+                                },
+                                "base64": {
+                                  "not": {}
+                                },
+                                "mimetype": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "url"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "base64": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "url": {
+                                  "not": {}
+                                },
+                                "mimetype": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "base64"
+                              ]
+                            }
+                          ],
+                          "description": "Exactly one HTTP(S) url or base64 (data URI accepted). Download limits and SSRF protection apply."
+                        },
+                        "mediaType": {
+                          "default": "image",
+                          "type": "string",
+                          "enum": [
+                            "image",
+                            "video"
+                          ]
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 60
+                        },
+                        "body": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1024
+                        },
+                        "buttons": {
+                          "minItems": 1,
+                          "maxItems": 3,
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "quick_reply"
+                                    ]
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 20
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "text"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "url"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 20
+                                  },
+                                  "url": {
+                                    "type": "string",
+                                    "format": "uri"
+                                  },
+                                  "webview": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "text",
+                                  "url"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "copy"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 20
+                                  },
+                                  "code": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "text",
+                                  "code"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "call"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 20
+                                  },
+                                  "phoneNumber": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^\\+?[1-9]\\d{6,14}$"
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "text",
+                                  "phoneNumber"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "catalog"
+                                    ]
+                                  },
+                                  "productId": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "media",
+                        "body",
+                        "buttons"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "to",
+                  "body",
+                  "cards"
+                ],
+                "description": "Carousel with 2–10 image/video cards, each with 1–3 native-flow buttons. Media is encrypted/uploaded by zapo-js before sending. The 1.11 addon resolver ignores carousel cards; device delivery/rendering needs verification and may require an upstream fix. Include a URL CTA before catalog on mobile cards.",
+                "example": {
+                  "to": "5511999999999",
+                  "body": "Products",
+                  "cards": [
+                    {
+                      "media": {
+                        "url": "https://example.com/1.jpg"
+                      },
+                      "body": "Product 1",
+                      "buttons": [
+                        {
+                          "type": "url",
+                          "text": "Open",
+                          "url": "https://example.com"
+                        }
+                      ]
+                    },
+                    {
+                      "media": {
+                        "url": "https://example.com/2.jpg"
+                      },
+                      "body": "Product 2",
+                      "buttons": [
+                        {
+                          "type": "url",
+                          "text": "Open",
+                          "url": "https://example.com"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "description": "Carousel with 2–10 image/video cards, each with 1–3 native-flow buttons. Media is encrypted/uploaded by zapo-js before sending. The 1.11 addon resolver ignores carousel cards; device delivery/rendering needs verification and may require an upstream fix. Include a URL CTA before catalog on mobile cards."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/native-form": {
+      "post": {
+        "summary": "Send native-form message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "Business app form created on the phone (galaxy_message, version 3). Direct chats only. Returns supplied flowToken or a generated UUID.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "flowId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "cta": {
+                    "default": "Open form",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30
+                  },
+                  "formType": {
+                    "default": "template",
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "screen": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "data": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/schema0"
+                    }
+                  },
+                  "flowToken": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "to",
+                  "flowId"
+                ],
+                "description": "Business app form created on the phone (galaxy_message, version 3). Direct chats only. Returns supplied flowToken or a generated UUID.",
+                "example": {
+                  "to": "5511999999999",
+                  "flowId": "1615193897066865",
+                  "body": "Please fill in the form"
+                }
+              }
+            }
+          },
+          "description": "Business app form created on the phone (galaxy_message, version 3). Direct chats only. Returns supplied flowToken or a generated UUID."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    },
+                    "flowToken": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result",
+                    "flowToken"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/pix": {
+      "post": {
+        "summary": "Send pix message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "Static PIX key card (payment_info). keyType inferred when absent; digits-only 11/14 are CPF/CNPJ. Shape validation only, no bank verification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 254
+                  },
+                  "keyType": {
+                    "type": "string",
+                    "enum": [
+                      "EMAIL",
+                      "PHONE",
+                      "CPF",
+                      "CNPJ",
+                      "EVP"
+                    ]
+                  },
+                  "merchantName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "footer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "reference": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "to",
+                  "key",
+                  "merchantName"
+                ],
+                "description": "Static PIX key card (payment_info). keyType inferred when absent; digits-only 11/14 are CPF/CNPJ. Shape validation only, no bank verification.",
+                "example": {
+                  "to": "5511999999999",
+                  "merchantName": "Shop",
+                  "key": "pix@example.com"
+                }
+              }
+            }
+          },
+          "description": "Static PIX key card (payment_info). keyType inferred when absent; digits-only 11/14 are CPF/CNPJ. Shape validation only, no bank verification."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/charge": {
+      "post": {
+        "summary": "Send charge message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "review_and_pay charge. BRL amounts in major units (two decimal places); converted to integer cents with offset 100. Totals computed; supplied totals must match.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 254
+                  },
+                  "keyType": {
+                    "type": "string",
+                    "enum": [
+                      "EMAIL",
+                      "PHONE",
+                      "CPF",
+                      "CNPJ",
+                      "EVP"
+                    ]
+                  },
+                  "merchantName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  "footer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "reference": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "items": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "amount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000000
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10000
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "amount",
+                        "quantity"
+                      ]
+                    }
+                  },
+                  "subtotal": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "total": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "discount": {
+                    "default": 0,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "shipping": {
+                    "default": 0,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "tax": {
+                    "default": 0,
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  }
+                },
+                "required": [
+                  "to",
+                  "key",
+                  "merchantName",
+                  "reference",
+                  "items"
+                ],
+                "description": "review_and_pay charge. BRL amounts in major units (two decimal places); converted to integer cents with offset 100. Totals computed; supplied totals must match.",
+                "example": {
+                  "to": "5511999999999",
+                  "merchantName": "Shop",
+                  "key": "pix@example.com",
+                  "reference": "ORDER-1",
+                  "items": [
+                    {
+                      "name": "Hat",
+                      "amount": 49.9,
+                      "quantity": 1
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "description": "review_and_pay charge. BRL amounts in major units (two decimal places); converted to integer cents with offset 100. Totals computed; supplied totals must match."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/product": {
+      "post": {
+        "summary": "Send product message",
+        "tags": [
+          "Messages"
+        ],
+        "description": "Native product card. Only renders for a REAL product in that business catalog. Owner defaults to connected PN. Prices use thousandths (49900 = BRL 49.90); optional productImage is uploaded first.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Phone, JID or @username, resolved like /messages/text",
+                    "example": "5511999999999"
+                  },
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "currencyCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  "priceAmount1000": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "salePriceAmount1000": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "retailerId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "productImage": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "base64": {
+                            "not": {}
+                          },
+                          "mimetype": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "url"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "base64": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "url": {
+                            "not": {}
+                          },
+                          "mimetype": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "base64"
+                        ]
+                      }
+                    ],
+                    "description": "Exactly one HTTP(S) url or base64 (data URI accepted). Download limits and SSRF protection apply."
+                  },
+                  "productImageCount": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "businessOwnerJid": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^\\d+(?::\\d+)?@s\\.whatsapp\\.net$"
+                  }
+                },
+                "required": [
+                  "to",
+                  "productId",
+                  "title",
+                  "description",
+                  "currencyCode",
+                  "priceAmount1000"
+                ],
+                "description": "Native product card. Only renders for a REAL product in that business catalog. Owner defaults to connected PN. Prices use thousandths (49900 = BRL 49.90); optional productImage is uploaded first.",
+                "example": {
+                  "to": "5511999999999",
+                  "productId": "12345",
+                  "title": "Hat",
+                  "description": "One size",
+                  "currencyCode": "BRL",
+                  "priceAmount1000": 49900
+                }
+              }
+            }
+          },
+          "description": "Native product card. Only renders for a REAL product in that business catalog. Owner defaults to connected PN. Prices use thousandths (49900 = BRL 49.90); optional productImage is uploaded first."
+        },
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "WhatsApp message / stanza id",
+                      "example": "3EB0ABC123DEF456"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Full zapo WaMessagePublishResult",
+                      "example": {
+                        "status": 1
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "id": "3EB0ABC123DEF456",
+                    "result": {
+                      "status": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/contacts": {
       "get": {
         "summary": "List stored contacts",
@@ -23647,7 +25982,7 @@
     },
     {
       "name": "Webhooks",
-      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n \"data\": { }\n}\n```\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, `call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`."
+      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n \"data\": { }\n}\n```\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, `call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`. Message payloads additionally expose readable interactive/business types and optional `interactive` selection IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and quoted flowToken. Existing event names are unchanged."
     }
   ],
   "externalDocs": {

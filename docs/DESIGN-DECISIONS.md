@@ -264,3 +264,15 @@ iframes stay blocked; it only matters with an XSS on this origin. Serve the dash
 origin, or tighten the header at the reverse proxy, if that is a concern.
 
 **Code:** `src/plugins/security-headers.ts`.
+
+## Interactive/business messages: isolated raw proto and opt-in private group replies
+
+**Decision:** each format has one pure builder under `src/messages/interactive/`; shared Zod schemas feed routes and OpenAPI. zapo-js 1.11 owns message secrets, biz companion nodes and media encryption/uploads. Routes only resolve recipients, upload media, send and project. The later typed upstream implementation replaces the builder edge.
+
+**Benefit:** delivery-critical upstream behavior stays authoritative; the gateway can expose validated interactive/business sends now. `groupSafe: true` on buttons/interactive changes group quick replies into URL buttons targeting the connected account PN, so replies can move into a private chat. Default retains public group replies. LID is never used as a phone number.
+
+**Trade-off:** raw formats and mobile/Web rendering vary. Group-safe links carry display text rather than reply IDs and require the participant to send it. Forms are 1:1 only; token correlation depends on the quoted original. Product cards require genuine catalog membership. Standalone `catalog_message` remains unavailable until upstream chooses the right biz name; use `cta_catalog` in native flow. The installed resolver returns no addon for a carousel, so the route builds/uploads the documented raw shape but device delivery needs verification/upstream support. Catalog-only carousel cards may require an explicit URL CTA to render on mobile. API limits are conservative bounds (list: 10 sections/10 total rows; carousel: 2–10 cards), not an asserted raw-protocol maximum absent from the supplied sources.
+
+Inbound summaries and optional `interactive` details extend existing message webhook/SSE events; no transport or event-name change. Form values/sensitivity are exposed to the authorized consumer, never logged. Malformed nested JSON preserves the message with empty/null structured details.
+
+**Evidence:** [official raw-send guide](https://zapo.to/en/guides/raw-sends), installed `resolveNativeFlowAddonKind`/`buildButtonAddonNode` and upload d.ts; serialized field names observed in AstraCalls (AGPL-3.0) without copying its implementation. Unit tests exercise the installed resolver to pin `galaxy_message` → `mixed` v9, avoiding linked-device 405.

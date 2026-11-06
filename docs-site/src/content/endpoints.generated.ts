@@ -458,6 +458,202 @@ export const ENDPOINTS: EndpointDoc[] = [
     responses: ['200'],
   },
   {
+    id: 'post-_v1_messages_buttons',
+    method: 'POST',
+    path: '/v1/messages/buttons',
+    summary: 'Send buttons message',
+    description:
+      'Legacy response buttons (1–3). Quick replies are visible to the whole group unless groupSafe is true.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      text: 'Continue?',
+      buttons: [
+        {
+          id: 'yes',
+          text: 'Yes',
+        },
+      ],
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_interactive',
+    method: 'POST',
+    path: '/v1/messages/interactive',
+    summary: 'Send interactive message',
+    description:
+      'Native-flow quick reply, URL/webview, copy, call or catalog CTA (1–3). Catalog uses the connected PN, never LID.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      body: 'Visit us',
+      buttons: [
+        {
+          type: 'url',
+          text: 'Open',
+          url: 'https://example.com',
+        },
+      ],
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_list',
+    method: 'POST',
+    path: '/v1/messages/list',
+    summary: 'Send list message',
+    description:
+      'single_select native flow: 1–10 sections, 1–10 rows in total; generated row IDs include section and row indexes.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      body: 'Choose',
+      buttonText: 'Menu',
+      sections: [
+        {
+          title: 'Products',
+          rows: [
+            {
+              id: 'hat',
+              title: 'Hat',
+            },
+          ],
+        },
+      ],
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_carousel',
+    method: 'POST',
+    path: '/v1/messages/carousel',
+    summary: 'Send carousel message',
+    description:
+      'Carousel with 2–10 image/video cards, each with 1–3 native-flow buttons. Media is encrypted/uploaded by zapo-js before sending. The 1.11 addon resolver ignores carousel cards; device delivery/rendering needs verification and may require an upstream fix. Include a URL CTA before catalog on mobile cards.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      body: 'Products',
+      cards: [
+        {
+          media: {
+            url: 'https://example.com/1.jpg',
+          },
+          body: 'Product 1',
+          buttons: [
+            {
+              type: 'url',
+              text: 'Open',
+              url: 'https://example.com',
+            },
+          ],
+        },
+        {
+          media: {
+            url: 'https://example.com/2.jpg',
+          },
+          body: 'Product 2',
+          buttons: [
+            {
+              type: 'url',
+              text: 'Open',
+              url: 'https://example.com',
+            },
+          ],
+        },
+      ],
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_native-form',
+    method: 'POST',
+    path: '/v1/messages/native-form',
+    summary: 'Send native-form message',
+    description:
+      'Business app form created on the phone (galaxy_message, version 3). Direct chats only. Returns supplied flowToken or a generated UUID.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      flowId: '1615193897066865',
+      body: 'Please fill in the form',
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_pix',
+    method: 'POST',
+    path: '/v1/messages/pix',
+    summary: 'Send pix message',
+    description:
+      'Static PIX key card (payment_info). keyType inferred when absent; digits-only 11/14 are CPF/CNPJ. Shape validation only, no bank verification.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      merchantName: 'Shop',
+      key: 'pix@example.com',
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_charge',
+    method: 'POST',
+    path: '/v1/messages/charge',
+    summary: 'Send charge message',
+    description:
+      'review_and_pay charge. BRL amounts in major units (two decimal places); converted to integer cents with offset 100. Totals computed; supplied totals must match.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      merchantName: 'Shop',
+      key: 'pix@example.com',
+      reference: 'ORDER-1',
+      items: [
+        {
+          name: 'Hat',
+          amount: 49.9,
+          quantity: 1,
+        },
+      ],
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
+    id: 'post-_v1_messages_product',
+    method: 'POST',
+    path: '/v1/messages/product',
+    summary: 'Send product message',
+    description:
+      'Native product card. Only renders for a REAL product in that business catalog. Owner defaults to connected PN. Prices use thousandths (49900 = BRL 49.90); optional productImage is uploaded first.',
+    tags: ['Messages'],
+    security: true,
+    params: [],
+    bodyExample: {
+      to: '5511999999999',
+      productId: '12345',
+      title: 'Hat',
+      description: 'One size',
+      currencyCode: 'BRL',
+      priceAmount1000: 49900,
+    },
+    responses: ['200', '400', '503'],
+  },
+  {
     id: 'get-_v1_contacts',
     method: 'GET',
     path: '/v1/contacts',

@@ -1,3 +1,4 @@
+import { InteractiveMessagesGuide, InteractiveWebhookGuide, InteractiveDesignRow } from '../interactive-messages'
 import { Callout } from '../../components/Callout'
 import { CodeBlock } from '../../components/CodeBlock'
 import { ExternalLink } from '../../components/ExternalLink'
@@ -307,6 +308,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               </td>
               <td>Nunca bloqueia nem atrasa o PCM; visualizador lento descarta frames até o próximo key frame</td>
             </tr>
+            <InteractiveDesignRow locale="pt" />
           </tbody>
         </table>
 
@@ -1071,6 +1073,7 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
         <p>
           Evento <code>message.ack</code> atualiza delivered/read. No store: mapa por messageIds.
         </p>
+        <InteractiveMessagesGuide locale="pt" />
       </>
     ),
   },
@@ -1345,6 +1348,7 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           ). Retries: policy linear/exponential/constant + attempts + delaySeconds. O secret é write-only na API (nunca
           re-ecoado no GET).
         </p>
+        <InteractiveWebhookGuide locale="pt" />
       </>
     ),
   },
