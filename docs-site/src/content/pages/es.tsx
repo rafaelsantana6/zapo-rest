@@ -346,7 +346,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>Medios de llamada en el navegador</td>
               <td>
                 El modo remoto elimina el salto de medios por el servidor y los codecs/peers nativos en esas llamadas;
-                planes privados quedan en el WS de instancia.
+                planes privados quedan en el WS de instancia. Las claves revocadas dejan de recibir planes (revalidación
+                por entrega).
               </td>
             </tr>
           </tbody>
@@ -1736,6 +1737,13 @@ const dec = new TextDecoder
           <code>receiver.stop()</code> devuelve <code>WaCallMediaStats</code>: el softphone registra solo estadísticas y
           muestra un resumen. El audio remoto usa cancelación de eco/AGC del navegador; no aplica preferencias de
           procesamiento local.
+        </p>
+        <p>
+          La autorización se revalida en orden antes de cada plan y evento de host; rotar la clave o eliminar/recrear la
+          instancia cierra el socket anterior con 4403. Se espera el ready autenticado antes de habilitar el clic para
+          llamar. Se respetan mute inicial y micrófono seleccionado, los cambios de salida se serializan y los errores
+          aparecen en el softphone. Cancelaciones y rechazos liberan solo los recursos de su intento, incluso capturas
+          adquiridas después.
         </p>
         <h3>Límites remotos</h3>
         <ul>

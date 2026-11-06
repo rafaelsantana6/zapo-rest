@@ -4,7 +4,8 @@ import {
   WaCallMediaReceiver,
   type WaCallMediaStats,
 } from '@zapo-js/voip-media'
-import { WaWebCallAudio, WaWebCallVideoReceiver, WaWebCallVideoSender, webMediaHost } from '@zapo-js/voip-media/web'
+import { WaWebCallVideoReceiver, WaWebCallVideoSender, webMediaHost } from '@zapo-js/voip-media/web'
+import { RemoteCallAudio } from './remote-call-audio'
 import type { SoftphoneAudioPrefs } from './audio-settings'
 import type { CallAudioHandles } from './call-audio'
 import { openCamera, type CallVideoHandles } from './call-video'
@@ -19,7 +20,7 @@ export class RemoteCallMedia implements CallAudioHandles {
   private micLevel = 0
   private callId: string | null = null
   private readonly unsubscribe: () => void
-  private readonly audio: Promise<WaWebCallAudio>
+  private readonly audio: RemoteCallAudio
   private readonly video: WaWebCallVideoReceiver | null
   private videoContainer: HTMLElement | null = null
   private readonly canvases = new Map<number, HTMLCanvasElement>()
@@ -27,15 +28,18 @@ export class RemoteCallMedia implements CallAudioHandles {
   private camera: MediaStream | null = null
   private screen: MediaStream | null = null
   private sourceVersion = 0
+  private sourceChange: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly options: {
+      muted?: boolean
       callId?: string
       prefs: SoftphoneAudioPrefs
       onError: (message: string) => void
       onStats: (stats: WaCallMediaStats) => void
     },
   ) {
+    this.muted = Boolean(options.muted)
     if (!window.isSecureContext) throw new Error('Mídia no navegador exige HTTPS ou localhost')
     this.video =
       typeof VideoDecoder === 'function'
@@ -54,6 +58,7 @@ export class RemoteCallMedia implements CallAudioHandles {
                     }
                   }
                   canvas = document.createElement('canvas')
+                  canvas.className = 'softphone-video-remote'
                   canvas.setAttribute('aria-label', 'Vídeo remoto')
                   this.videoContainer.append(canvas)
                   this.canvases.set(ssrc, canvas)
@@ -87,35 +92,38 @@ export class RemoteCallMedia implements CallAudioHandles {
         if (state === 'connected' && this.callId && this.receiver) this.resync()
       },
     })
-    // The adapter creates and resumes AudioContext synchronously inside the click gesture.
-    this.audio = WaWebCallAudio.start(
-      {
-        pushCapture: (samples, at) => {
-          this.micLevel = Math.sqrt(
-            samples.reduce((sum, sample) => sum + sample * sample, 0) / Math.max(1, samples.length),
-          )
-          if (this.muted) samples.fill(0)
-          // Plane consumes synchronously; no reusable buffer reference is retained.
-          this.receiver?.plane.pushCapture(samples, at)
+    // Device requests and AudioContext resume stay inside the click gesture.
+    try {
+      this.audio = new RemoteCallAudio(
+        {
+          pushCapture: (samples, at) => {
+            this.micLevel = Math.sqrt(
+              samples.reduce((sum, sample) => sum + sample * sample, 0) / Math.max(1, samples.length),
+            )
+            if (this.muted) samples.fill(0)
+            // Plane consumes synchronously; no reusable buffer reference is retained.
+            this.receiver?.plane.pushCapture(samples, at)
+          },
+          pullPlayout: (out) => {
+            if (!this.receiver || this.stopped) {
+              out.fill(0)
+              return 0
+            }
+            return this.receiver.plane.pullPlayout(out)
+          },
         },
-        pullPlayout: (out) => {
-          if (!this.receiver || this.stopped) {
-            out.fill(0)
-            return 0
-          }
-          return this.receiver.plane.pullPlayout(out)
-        },
-      },
-      { output: options.prefs.speakerId },
-    )
-    void this.audio
-      .then((audio) => {
-        if (this.stopped) void audio.stop()
-      })
-      .catch(() => {
-        options.onError('Não foi possível abrir microfone/saída no navegador; verifique permissões e HTTPS')
-        this.stop()
-      })
+        options.prefs,
+      )
+    } catch (error) {
+      this.unsubscribe()
+      this.video?.close()
+      throw error
+    }
+    void this.audio.ready().catch(() => {
+      if (this.stopped) return
+      options.onError('Não foi possível abrir microfone/saída no navegador; verifique permissões e HTTPS')
+      this.stop()
+    })
     if (options.callId) this.bind(options.callId)
   }
 
@@ -142,7 +150,7 @@ export class RemoteCallMedia implements CallAudioHandles {
       )
   }
   async ready(): Promise<void> {
-    await this.audio
+    await this.audio.ready()
     await this.starting
     if (this.stopped) throw new Error('Mídia encerrada')
   }
@@ -150,11 +158,26 @@ export class RemoteCallMedia implements CallAudioHandles {
   setMuted = (muted: boolean) => {
     this.muted = muted
   }
-  setPrefs = (_prefs: SoftphoneAudioPrefs) => {
-    /* Browser echo cancellation/AGC owns remote audio processing. */
+  setPrefs = (prefs: SoftphoneAudioPrefs) => {
+    const previous = this.options.prefs
+    this.options.prefs = prefs
+    if (
+      prefs.micId === previous.micId &&
+      prefs.echoCancellation === previous.echoCancellation &&
+      prefs.browserNoiseSuppression === previous.browserNoiseSuppression &&
+      prefs.autoGainControl === previous.autoGainControl
+    )
+      return
+    void this.audio
+      .setMicrophone(prefs)
+      .catch(() => this.options.onError('Não foi possível trocar o microfone; o dispositivo anterior continua ativo'))
   }
   setSpeakerId = async (deviceId: string) => {
-    await (await this.audio).setOutput(deviceId)
+    await this.audio
+      .setOutput(deviceId)
+      .catch(() =>
+        this.options.onError('Não foi possível trocar a saída de áudio; verifique o dispositivo e as permissões'),
+      )
   }
   pushRemotePcm = (_buffer: ArrayBuffer) => {
     /* Remote media never uses server PCM. */
@@ -170,50 +193,72 @@ export class RemoteCallMedia implements CallAudioHandles {
     const plane = this.receiver.plane
     this.videoContainer = container
     let cameraEnabled = true
+    const stopStream = (stream: MediaStream | null) => {
+      for (const track of stream?.getTracks() ?? []) {
+        track.onended = null
+        track.stop()
+      }
+    }
+    const attachSource = (stream: MediaStream, generation: number, owned = true): Promise<boolean> => {
+      const release = () => {
+        if (owned) stopStream(stream)
+      }
+      const change = this.sourceChange.then(async () => {
+        if (this.stopped || generation !== this.sourceVersion) {
+          release()
+          return false
+        }
+        const track = stream.getVideoTracks()[0]
+        if (!track) {
+          release()
+          throw new Error('Fonte sem faixa de vídeo')
+        }
+        let created: WaWebCallVideoSender | null = null
+        try {
+          if (this.sender) await this.sender.replaceTrack(track)
+          else
+            created = await WaWebCallVideoSender.start(plane, track, {
+              bitrate: 350_000,
+              keyFrameIntervalMs: 1000,
+              frameRate: 15,
+              onError: () => this.options.onError('Falha no encoder de vídeo do navegador'),
+            })
+          if (this.stopped || generation !== this.sourceVersion) {
+            await created?.stop()
+            release()
+            return false
+          }
+          if (created) this.sender = created
+          return true
+        } catch (error) {
+          await created?.stop()
+          release()
+          throw error
+        }
+      })
+      this.sourceChange = change.then(
+        () => undefined,
+        () => undefined,
+      )
+      return change
+    }
     const setCamera = async (deviceId?: string) => {
       const generation = ++this.sourceVersion
       const camera = await openCamera(deviceId)
       if (this.stopped || generation !== this.sourceVersion) {
-        camera.getTracks().forEach((t) => {
-          t.stop()
-        })
+        stopStream(camera)
         return
       }
-      const track = camera.getVideoTracks()[0]
-      if (!track) {
-        camera.getTracks().forEach((t) => {
-          t.stop()
-        })
-        throw new Error('Câmera sem faixa de vídeo')
-      }
-      try {
-        if (this.sender) await this.sender.replaceTrack(track)
-        else
-          this.sender = await WaWebCallVideoSender.start(plane, track, {
-            bitrate: 350_000,
-            keyFrameIntervalMs: 1000,
-            frameRate: 15,
-            onError: () => this.options.onError('Falha no encoder de vídeo do navegador'),
-          })
-      } catch (error) {
-        camera.getTracks().forEach((t) => {
-          t.stop()
-        })
-        throw error
-      }
+      // A camera change during screen share updates the source to return to.
+      if (!this.screen && !(await attachSource(camera, generation))) return
       if (this.stopped || generation !== this.sourceVersion) {
-        await this.sender?.stop()
-        camera.getTracks().forEach((t) => {
-          t.stop()
-        })
+        stopStream(camera)
         return
       }
-      this.camera?.getTracks().forEach((t) => {
-        t.stop()
-      })
+      stopStream(this.camera)
       this.camera = camera
-      track.enabled = cameraEnabled
-      localVideo.srcObject = camera
+      for (const track of camera.getVideoTracks()) track.enabled = cameraEnabled
+      if (!this.screen) localVideo.srcObject = camera
       void localVideo.play().catch(() => undefined)
     }
     // Camera denial still leaves inbound video and screen sharing available.
@@ -222,52 +267,43 @@ export class RemoteCallMedia implements CallAudioHandles {
     )
     const share = async (sharing: boolean): Promise<boolean> => {
       if (this.stopped) return false
+      const generation = ++this.sourceVersion
       if (!sharing) {
-        const cameraTrack = this.camera?.getVideoTracks()[0]
-        if (cameraTrack) await this.sender?.replaceTrack(cameraTrack)
-        this.screen?.getTracks().forEach((t) => {
-          t.stop()
-        })
+        if (this.camera && !(await attachSource(this.camera, generation, false))) return false
+        if (this.stopped || generation !== this.sourceVersion) return false
+        if (!this.camera) {
+          await this.sender?.stop()
+          this.sender = null
+        }
+        stopStream(this.screen)
         this.screen = null
         localVideo.srcObject = this.camera
         return true
       }
-      // getDisplayMedia must be invoked before any await in the share-button gesture.
+      // getDisplayMedia is invoked before any await in the share-button gesture.
       const screen = await navigator.mediaDevices.getDisplayMedia({ video: true })
-      if (this.stopped) {
-        screen.getTracks().forEach((t) => {
-          t.stop()
-        })
+      if (this.stopped || generation !== this.sourceVersion) {
+        stopStream(screen)
         return false
       }
-      const track = screen.getVideoTracks()[0]
-      if (!track) {
-        screen.getTracks().forEach((t) => {
-          t.stop()
-        })
+      if (!(await attachSource(screen, generation))) return false
+      if (this.stopped || generation !== this.sourceVersion) {
+        stopStream(screen)
         return false
       }
-      try {
-        if (this.sender) await this.sender.replaceTrack(track)
-        else
-          this.sender = await WaWebCallVideoSender.start(plane, track, {
-            bitrate: 350_000,
-            keyFrameIntervalMs: 1000,
-          })
-      } catch (error) {
-        screen.getTracks().forEach((t) => {
-          t.stop()
-        })
-        throw error
-      }
+      stopStream(this.screen)
       this.screen = screen
       localVideo.srcObject = screen
-      track.onended = () => {
-        if (!this.stopped) {
-          void share(false)
-          onScreenEnded()
+      const track = screen.getVideoTracks()[0]
+      if (track)
+        track.onended = () => {
+          if (!this.stopped)
+            void share(false)
+              .then((changed) => {
+                if (changed) onScreenEnded()
+              })
+              .catch(() => this.options.onError('Não foi possível restaurar a câmera após compartilhar a tela'))
         }
-      }
       return true
     }
     return {
@@ -313,7 +349,7 @@ export class RemoteCallMedia implements CallAudioHandles {
     this.unsubscribe()
     this.stopVideo()
     this.video?.close()
-    void this.audio.then((audio) => audio.stop()).catch(() => undefined)
+    this.audio.stop()
     const stats = this.receiver?.stop()
     if (stats) {
       console.info('Remote call media stats', stats)

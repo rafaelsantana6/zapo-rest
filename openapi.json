@@ -14270,7 +14270,7 @@
         "tags": [
           "Calls"
         ],
-        "description": "Accepts mediaUrl / mediaBase64 or multipart file (same inputs as message media). Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode before decoding (also on decode failure); stop the softphone microphone stream first. Opening /stream again switches back to external audio. Returns once decoded and queued, not when playback ends (call.audio_finished). Temporary files are removed after decoding or on error. Remote media mode returns 409.",
+        "description": "Accepts mediaUrl / mediaBase64 or multipart file (same inputs as message media). Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode before decoding (also on decode failure); stop the softphone microphone stream first. Opening /stream again switches back to external audio. Returns once decoded and queued, not when playback ends (call.audio_finished). Temporary files are removed after decoding or on error. Remote media mode returns 409 before multipart parsing/download.",
         "requestBody": {
           "required": true,
           "content": {

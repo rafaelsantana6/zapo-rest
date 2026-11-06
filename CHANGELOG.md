@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Independent review: revoke private VoIP sockets after key rotation or instance deletion/recreation by revalidating ordered plan deliveries and host events; reject remote multipart audio before parsing/downloading it.
+- Remote softphone: preserve initial mute and selected microphone, wait for authenticated media-mode negotiation before dialing, release media after rejected accepts and late screen/camera acquisition, size the video canvas responsively, and serialize/report audio output switches.
+
 - File playback switches external audio off **before** decoding: upstream clears its buffer when leaving external mode, so switching after `loadAudio` would discard the loaded file. Decode failure leaves external mode off; reopen the PCM stream to resume live audio.
 
 ## [0.10.0] - 2026-11-06

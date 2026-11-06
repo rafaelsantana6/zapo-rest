@@ -336,7 +336,8 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>Browser-owned call media</td>
               <td>
                 Remote mode removes the server media hop and codec/native peer requirement for those calls; private
-                plans stay on the instance control WS.
+                plans stay on the instance control WS. Revoked keys stop receiving plans (authorization on every
+                delivery).
               </td>
             </tr>
           </tbody>
@@ -1708,6 +1709,13 @@ const dec = new TextDecoder
           <code>receiver.stop()</code> returns <code>WaCallMediaStats</code>; the softphone logs only these stats and
           shows a small summary. The remote path uses browser echo cancellation/AGC; local processing preferences do not
           apply.
+        </p>
+        <p>
+          Authorization is revalidated in order before every plan and host event; rotating the key or
+          deleting/recreating the instance closes the old socket with 4403. Dialing waits for authenticated ready before
+          enabling the click. Initial mute and the selected microphone are preserved, output switches are serialized and
+          errors appear in the softphone. Cancellation and rejected accepts release only their own attempt resources,
+          including captures acquired after cancellation.
         </p>
         <h3>Remote limits</h3>
         <ul>

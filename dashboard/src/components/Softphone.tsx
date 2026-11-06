@@ -306,6 +306,7 @@ export function Softphone() {
       setMediaSummary(null)
       const media = new RemoteCallMedia({
         callId,
+        muted: mutedRef.current,
         prefs: audioPrefsRef.current,
         onError: setError,
         onStats: (stats) =>
@@ -315,6 +316,7 @@ export function Softphone() {
       })
       remoteMediaRef.current = media
       audioRef.current = media
+      return media
     },
     [cleanupAudio],
   )
@@ -618,6 +620,10 @@ export function Softphone() {
   const placeCall = useCallback(
     async (video: boolean) => {
       if (!instanceName || !phone.trim()) return
+      if (voipSocket.connection !== 'connected') {
+        setError('Aguarde a conexão da linha antes de ligar')
+        return
+      }
       setBusy(true)
       setError(null)
       setPhase('dialing')
@@ -707,8 +713,9 @@ export function Softphone() {
       prev && sameId(prev.callId, wanted) ? { ...prev, state: 'connecting', canAccept: false, isRinging: false } : prev,
     )
 
+    let attempt: RemoteCallMedia | undefined
     try {
-      prepareRemoteMedia(wanted)
+      attempt = prepareRemoteMedia(wanted)
       let callId = wanted
       let acceptErr: unknown = null
 
@@ -757,6 +764,9 @@ export function Softphone() {
         setError(streamErr instanceof Error ? streamErr.message : 'Áudio falhou após atender')
       }
     } catch (err) {
+      // A rejected accept owns only the media it prepared, never a newer attempt.
+      if (attempt && remoteMediaRef.current !== attempt) return
+      if (attempt) cleanupAudio()
       setError(err instanceof Error ? err.message : 'Falha ao atender')
       // Roll back only if we never left the offer (server rejected).
       if (phaseRef.current === 'connecting') {
@@ -771,7 +781,7 @@ export function Softphone() {
     } finally {
       setBusy(false)
     }
-  }, [instanceName, activeCall, openStream, prepareRemoteMedia])
+  }, [instanceName, activeCall, openStream, prepareRemoteMedia, cleanupAudio])
 
   const onReject = useCallback(async () => {
     if (!instanceName) return
@@ -1270,7 +1280,7 @@ export function Softphone() {
                 <button
                   type="button"
                   className="btn primary call-btn"
-                  disabled={busy || phone.length < 8}
+                  disabled={busy || voipConn !== 'connected' || phone.length < 8}
                   onClick={() => void placeCall(false)}
                 >
                   Ligar
@@ -1278,7 +1288,7 @@ export function Softphone() {
                 <button
                   type="button"
                   className="btn ghost call-btn"
-                  disabled={busy || phone.length < 8 || !isVideoCallSupported()}
+                  disabled={busy || voipConn !== 'connected' || phone.length < 8 || !isVideoCallSupported()}
                   title={isVideoCallSupported() ? 'Chamada de vídeo (H.264)' : 'Navegador sem WebCodecs'}
                   onClick={() => void placeCall(true)}
                 >

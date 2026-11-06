@@ -144,7 +144,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           'Attach an instance, then receive `call:offer` / `call:state` / `call:ended` push events. ' +
           'Local PCM audio stays on `.../calls/:callId/stream`. Remote mode carries private `call:media` plans ' +
           '(message = encodeCallMediaMessage string) and `call:media_event` host reports (event = encodeCallMediaEvent string). ' +
-          'Late attach/resync sends a snapshot; plans never enter SSE, webhooks or logs. Ready includes mediaMode and mlowRed.',
+          'Late attach/resync sends a snapshot; plans never enter SSE, webhooks or logs. Authorization is revalidated before each ordered plan/host event; revoked keys close with 4403. Ready includes mediaMode and mlowRed.',
       },
     },
     // MUST be sync so on('message') is registered before any await (fastify/websocket docs).
@@ -210,7 +210,13 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           const client = asVoipClient(manager.getClient(instanceName))
           if (client !== privateClient) {
             privateMedia?.close()
-            privateMedia = clientMediaMode(client) === 'remote' ? attachRemoteMedia(client, socket) : null
+            privateMedia =
+              clientMediaMode(client) === 'remote'
+                ? attachRemoteMedia(client, socket, async () => {
+                    const current = await resolveActor(authDeps, apiKey)
+                    return !closed && current?.role === 'instance' && current.instanceName === instanceName
+                  })
+                : null
             privateClient = client
           }
           return clientMediaMode(client)
@@ -368,7 +374,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 bindPrivateMedia(attached)
                 if (!privateMedia || typeof msg.callId !== 'string' || typeof msg.event !== 'string')
                   throw new Error('Invalid host event')
-                privateMedia.receive(msg.callId, msg.event)
+                await privateMedia.receive(msg.callId, msg.event)
                 ackOk(id)
               } catch {
                 ackErr(id, 'INVALID_MEDIA_EVENT', 'Invalid remote media event for this instance and live call')

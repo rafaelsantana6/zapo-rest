@@ -196,11 +196,11 @@ export class VoipControlSocket {
   }
 
   /**
-   * Wait until the control WebSocket is OPEN (or fail).
+   * Wait for the authenticated ready frame and negotiated media mode (or fail).
    * Starts a connect attempt if needed.
    */
   ensureConnected(timeoutMs = 12_000): Promise<void> {
-    if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve()
+    if (this.ws?.readyState === WebSocket.OPEN && this.conn === 'connected') return Promise.resolve()
 
     if (!this.instance) {
       return Promise.reject(new Error('Sem instância — abra uma linha (instances/… )'))
@@ -214,7 +214,7 @@ export class VoipControlSocket {
     }
 
     return new Promise((resolve, reject) => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
+      if (this.ws?.readyState === WebSocket.OPEN && this.conn === 'connected') {
         resolve()
         return
       }
@@ -271,8 +271,7 @@ export class VoipControlSocket {
     ws.onopen = () => {
       this.reconnectAttempt = 0
       this.lastError = null
-      this.setConn('connected')
-      this.resolveOpenWaiters()
+      // Authentication and media mode arrive in ready, after the transport opens.
       // attach is also done server-side via ?instance=; re-assert for safety
       void this.sendRaw('instance:attach', { instance: this.instance })
     }

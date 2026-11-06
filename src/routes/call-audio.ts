@@ -17,7 +17,12 @@ export const callAudioRoutes: FastifyPluginAsync<{ manager: InstanceManager; env
   app.post<{ Params: z.infer<typeof CallParamsSchema>; Body: z.infer<typeof CallAudioBodySchema> }>(
     scopedInstancePaths('/calls/:callId/audio'),
     {
-      preValidation: mediaPreValidation(env),
+      preValidation: [
+        async (request) => {
+          requireLocalMedia(manager.requireRegisteredClient(resolveInstanceName(request)), 'loadAudio')
+        },
+        mediaPreValidation(env),
+      ],
       // The shared multipart hook may create a file before schema validation fails.
       onResponse: async (request) => {
         await request.resolvedMedia?.cleanup()
@@ -30,7 +35,7 @@ export const callAudioRoutes: FastifyPluginAsync<{ manager: InstanceManager; env
           'Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode before decoding (also on decode failure); ' +
           'stop the softphone microphone stream first. Opening /stream again switches back to external audio. ' +
           'Returns once decoded and queued, not when playback ends (call.audio_finished). ' +
-          'Temporary files are removed after decoding or on error. Remote media mode returns 409.',
+          'Temporary files are removed after decoding or on error. Remote media mode returns 409 before multipart parsing/download.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: CallParamsSchema,
         body: CallAudioBodySchema,
