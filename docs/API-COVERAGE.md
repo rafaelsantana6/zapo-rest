@@ -44,6 +44,13 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Status / stories | ✅ send/revoke/privacy/mute |
 | Buttons / list / template (Cloud) | ❌ |
 | Forward | ✅ |
+| Calendar event / response | ✅ `POST .../messages/event` (ISO dates) · `.../event/respond` (stored identity + secret) |
+| Pin / unpin · keep / unkeep | ✅ `POST .../messages/pin` (24h/7d/30d; default 24h) · `.../keep` |
+| Poll votes | ✅ `POST .../messages/poll/vote` (non-empty option names; stored identity + secret) |
+| Round video note (PTV) | ✅ `POST .../messages/ptv` — URL/base64/multipart; no caption |
+| Sticker packs | ✅ `POST .../messages/sticker-pack` — gateway cap 30; URL/base64 for stickers/tray/cover; no accessibilityLabel upstream |
+| Safe send context | ✅ `contextInfo.expirationSeconds` / `ephemeralSettingTimestamp` on typed sends; raw messageContextInfo not exposed |
+| Extended inbound decoding | ✅ event / event-response / pin / unpin / keep / unkeep / poll-vote / ptv / sticker-pack with summaries |
 
 ---
 

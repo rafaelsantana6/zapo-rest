@@ -13,6 +13,12 @@ Last updated: 2026-07-14
 | Instances (create/connect/QR/pairing/restart/delete) | ✅ |
 | Dual instance paths (named `/v1/instances/:name/...` + short `/v1/...` / `/v1/instance/...`; admin must name) | ✅ |
 | Messages (text/media/sticker/location/contact/reaction/poll/status/star) | ✅ |
+| Calendar event + response (`/messages/event`, `/messages/event/respond`) | ✅ ISO dates; original identity + secret for responses |
+| Pin/unpin + keep/unkeep (`/messages/pin`, `/messages/keep`) | ✅ stored targets; explicit pin duration, default 24h |
+| Poll vote (`/messages/poll/vote`) | ✅ original author/fromMe/participant + secret; non-empty names |
+| Video note (`/messages/ptv`) | ✅ URL/base64/multipart; no caption |
+| Sticker pack (`/messages/sticker-pack`) | ✅ gateway cap 30; SSRF-guarded URL/base64 media; no accessibilityLabel upstream |
+| Typed send context + extended inbound types | ✅ safe contextInfo expiration settings; event / event-response / pin / keep / poll-vote / ptv / sticker-pack summaries |
 | Interactive buttons/list/template Cloud | ❌ |
 | Chats (list/messages/read/archive/history-sync) | ✅ |
 | Chat pin/mute/lock + phone app-state projection | ✅ numeric pinned, muted, muteUntil, locked; chat.update |

@@ -389,6 +389,7 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 
 - **Instances** — create / connect / disconnect / QR / pairing / restart / delete / rotate key
 - **Messages** — text, reply, image, video, audio, document, sticker, location, poll, react, edit, revoke, contact, forward, star/unstar
+- **Extended messages** — calendar events and responses, pin/unpin (24h/7d/30d), keep/unkeep, poll votes, PTV video notes, sticker packs (up to 30); safe `contextInfo` expiration settings on typed sends.
 - **Chats** — list, messages, read, archive, delete, history-sync
 - **Chat actions** — pin/unpin, mute/unmute (ISO or duration; forever by default), lock/unlock, clear with starred preservation, synced chat delete and delete-message-for-me; reads include `pinned` (numeric), `muted`, `muteUntil`, `locked`
 - **Contacts** — list, check exists, about, profile picture, blocklist, BR 9th-digit aware resolve
@@ -426,6 +427,13 @@ GET  /v1/instance/qr
 # Messages — named or short
 POST /v1/instances/:name/messages/{text,reply,image,…}
 POST /v1/messages/{text,reply,image,…}          # instance key
+POST /v1/messages/event                       # ISO startTime/endTime → Unix seconds
+POST /v1/messages/event/respond               # stored eventMessageId + response
+POST /v1/messages/pin                         # messageId + pinned + duration (default 24h)
+POST /v1/messages/keep                        # messageId + kept
+POST /v1/messages/poll/vote                   # stored pollMessageId + non-empty options
+POST /v1/messages/ptv                         # URL/base64/multipart video note, no caption
+POST /v1/messages/sticker-pack                # id/name/publisher/stickers/trayIcon
 
 # Own profile (push name, avatar, @handle) — instance key + short paths
 PUT /v1/profile/name
@@ -522,7 +530,7 @@ Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.
 
 ### Media inputs (URL · base64 · multipart)
 
-Avatar, message media (`image|video|audio|document|sticker`), status, group picture, and call blast accept **one** of:
+Avatar, message media (`image|video|audio|document|sticker|ptv`), status, group picture, and call blast accept **one** of:
 
 | Input | How |
 | ----- | --- |
@@ -574,6 +582,14 @@ curl -s -X POST "$BASE/v1/instances/sales-1/contacts/resolve" \
 Outbound sends resolve the correct JID automatically (cache + usync).
 
 ---
+
+
+### Extended message targets and context
+
+`event/respond`, `pin`, `keep`, and `poll/vote` use originals stored in the same instance and chat; `fromMe` and group participants are recovered rather than guessed. Responses and votes require the original 32-byte message secret (session cache or stored payload): `404` when the original is absent, `409` when its secret/author is unavailable. Receive/sync the original first. A pin always sends its duration because receiving clients silently drop pins without it.
+
+Typed sends accept only the safe `contextInfo` subset `{ "expirationSeconds": 86400, "ephemeralSettingTimestamp": 1796137200 }`; raw `messageContextInfo` is not exposed. Sticker-pack media uses `{ "url": "https://…" }` or `{ "base64": "…" }` for each sticker, tray icon and optional cover; all URLs use the existing SSRF-guarded resolver. The gateway caps packs at 30 stickers (upstream declares no count maximum). `accessibilityLabel` is not supported by zapo-js 1.11 and is rejected. Full examples: guide [Messages](https://rafaelsantana6.github.io/zapo-rest/guide/messages).
+
 
 ## Project layout
 
