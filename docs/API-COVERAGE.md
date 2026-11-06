@@ -77,6 +77,10 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Member mode notifications | 🟡 `group.update` adds `memberAddMode` for `member_add_mode`; link/history notifications are not decoded by zapo-js 1.11.0 (query metadata) |
 | Group membership requests | ✅ `GET .../groups/:groupId/membership-requests`; `POST .../approve`, `.../reject`, `.../cancel` (our requests); existing `membership_approval_mode` setting |
 | Membership request notifications | ✅ `group.update` with membership `type`, `requesterJid` or `requests[].jid` when supplied upstream |
+| Communities lifecycle + metadata | ✅ `POST /v1/communities`, `GET/DELETE /v1/communities/:communityId`; community flags also in group reads |
+| Community sub-groups + participants + suggestions | ✅ `GET .../:communityId/subgroups`, `.../participants`, `.../subgroups/suggestions?hint=`; listing/suggestions require MEX |
+| Community links + join + ownership | ✅ `POST .../:communityId/subgroups/link`, `.../unlink` (per-group results), `.../:groupId/join`, `.../:communityId/owner` (recipient resolution; MEX) |
+| Community notifications | ✅ Existing `group.update` webhook/SSE preserves `link`/`unlink`, `linkedGroups`, `contextGroupJid`; no new event names |
 | Profile get/update | ✅ |
 | Username get/set/delete/check/resolve | ✅ `/profile/username` |
 | Send to `@handle` | ✅ `to` on messages, calls, blast |

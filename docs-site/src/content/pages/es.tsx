@@ -1788,6 +1788,105 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
           identidades que el upstream no proporciona; consulta las solicitudes pendientes para reconciliar la cola. SSE
           usa <code>data.type</code>, <code>data.requesterJid</code> y <code>data.requests[].jid</code>.
         </p>
+        <h2>Comunidades</h2>
+        <p>
+          Las comunidades son grupos padre con subgrupos vinculados. Usa la clave de instancia en X-Api-Key; las rutas
+          empiezan en /v1/communities.
+        </p>
+        <p>
+          Crea con subject y, opcionalmente, description, membershipApprovalMode (open o request_required;
+          predeterminado request_required), allowNonAdminSubGroupCreation y createGeneralChat. Los IDs aceptan dígitos o
+          JIDs completos @g.us.
+        </p>
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <code>POST /v1/communities</code>
+              </td>
+              <td>{'Crear → { community }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId</code>
+              </td>
+              <td>{'Consultar metadatos → { community }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>DELETE /v1/communities/:communityId</code>
+              </td>
+              <td>{'Desactivar → { ok: true }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId/subgroups</code>
+              </td>
+              <td>{'Listar → { communityJid, announcementGroup, subGroups }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId/participants</code>
+              </td>
+              <td>{'Participantes agregados → { participants }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId/subgroups/suggestions?hint=:groupId</code>
+              </td>
+              <td>{'Subgrupos sugeridos → { suggestions }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/subgroups/link</code>
+              </td>
+              <td>{'Vincular → { result: { linkedJids, failed } }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/subgroups/unlink</code>
+              </td>
+              <td>{'Desvincular → { result: { unlinkedJids, failed } }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/subgroups/:groupId/join</code>
+              </td>
+              <td>{'Entrar → { ok: true }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/owner</code>
+              </td>
+              <td>{'Transferir propiedad → { ok: true }'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Vincular/desvincular exige un array groups no vacío; desvincular también acepta removeOrphanedMembers. Revisa
+          las entradas failed (jid, error) incluso con HTTP 200. Entrar acepta un cuerpo opcional con type y solo
+          devuelve confirmación; consulta /groups/:groupId después para obtener metadatos. La transferencia acepta user
+          (teléfono, JID, LID o @username), resuelto por el resolvedor compartido de destinatarios.
+        </p>
+        <p>
+          Las operaciones sobre comunidades existentes verifican primero los metadatos del grupo padre: comunidades
+          desconocidas y grupos comunes devuelven 404. Listado de subgrupos, sugerencias y transferencia de propiedad
+          requieren el transporte MEX upstream y los permisos de la cuenta. Las rutas REST delegan las operaciones de
+          protocolo a zapo-js.
+        </p>
+        <p>
+          Ambas rutas de consulta de grupos y los metadatos de comunidad preservan isParentGroup, isClosedCommunity,
+          defaultSubgroup, generalSubgroup, hiddenSubgroup, allowNonAdminSubGroupCreation y linkedParentJid, además de
+          los demás campos upstream.
+        </p>
+        <p>
+          Las notificaciones de comunidad usan el evento webhook/SSE existente group.update: action es link, unlink,
+          linked_group_promote o linked_group_demote; linkedGroups contiene jid, subject, subjectTimestampSeconds y
+          hiddenSubgroup cuando se proporcionan. contextGroupJid también se conserva. No hay nuevos nombres de evento.
+        </p>
+        <p>
+          <a href="/guide/api/Communities">Communities API</a>
+        </p>
       </>
     ),
   },

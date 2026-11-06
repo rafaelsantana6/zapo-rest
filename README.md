@@ -352,6 +352,7 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 - **Contacts** — list, check exists, about, profile picture, blocklist, BR 9th-digit aware resolve
 - **Groups** — create, metadata, invite, participants, promote/demote, picture; admin/member permissions to add members, share invite links, and share history
 - **Group join requests** — list, approve/reject, cancel our requests; `membership_approval_mode` toggle; notifications through `group.update`
+- **Communities** — create/deactivate, metadata, sub-group link/unlink/join, merged participants, suggestions and ownership transfer; community flags also appear in group reads
 - **Profile / presence / privacy / status stories / labels / lids**
 - **Webhooks** — multi-config, HMAC-SHA512, exponential retries, custom headers
 - **Realtime SSE** + **VoIP WebSocket**
@@ -406,6 +407,16 @@ POST /v1/groups/:groupId/membership-requests/approve # { "participants": ["phone
 POST /v1/groups/:groupId/membership-requests/reject  # { "participants": ["phone-or-jid"] }
 POST /v1/groups/:groupId/membership-requests/cancel  # own pending requests only
 PUT  /v1/groups/:groupId/settings/membership_approval_mode # { "enabled": true }
+POST /v1/communities                           # { "subject": "My community", "description": "..." }
+GET  /v1/communities/:communityId              # { community } (full group metadata)
+DELETE /v1/communities/:communityId            # deactivate → { ok: true }
+GET  /v1/communities/:communityId/subgroups    # { communityJid, announcementGroup, subGroups }
+GET  /v1/communities/:communityId/participants # { participants } (merged across linked groups)
+GET  /v1/communities/:communityId/subgroups/suggestions?hint=:groupId
+POST /v1/communities/:communityId/subgroups/link   # { "groups": ["120363...@g.us"] }
+POST /v1/communities/:communityId/subgroups/unlink # { "groups": ["120363..."], "removeOrphanedMembers": true }
+POST /v1/communities/:communityId/subgroups/:groupId/join # optional { "type": "..." } → { ok: true }
+POST /v1/communities/:communityId/owner         # { "user": "phone, JID, LID or @handle" }
 
 # Chats / history — named or short
 GET /v1/instances/:name/chats
@@ -441,6 +452,19 @@ POST /v1/calls/:callId/video/upgrade/accept     # also /reject, /cancel
 POST /v1/calls/:callId/video                    # { "enabled": true } — group camera
 POST /v1/calls/:callId/screen-share             # { "sharing": true }
 ```
+
+Community and sub-group ids accept bare digits or `@g.us` JIDs. Creation also accepts
+`membershipApprovalMode` (`open` / `request_required`, default `request_required`),
+`allowNonAdminSubGroupCreation` and `createGeneralChat`. Link/unlink return the upstream
+`result` with `linkedJids` / `unlinkedJids` and per-group `failed` entries (`jid`, `error`):
+HTTP 200 can contain partial failures. Existing-community operations verify parent metadata
+first (404 for unknown communities or ordinary groups). Sub-group listing, suggestions and
+ownership transfer require the upstream MEX transport. Join acknowledges success; read
+`GET /v1/groups/:groupId` for the joined group's metadata. The existing `group.update`
+webhook/SSE event preserves `action: link | unlink | linked_group_promote | linked_group_demote`,
+`linkedGroups` (`jid`, `subject`, `subjectTimestampSeconds`, `hiddenSubgroup`) and
+`contextGroupJid` when upstream supplies them.
+
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.
 
