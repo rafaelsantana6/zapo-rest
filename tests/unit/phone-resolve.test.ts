@@ -160,7 +160,13 @@ describe('resolveWhatsAppNumbers lookup status (zapo-js 1.11)', () => {
     const { store, cache } = memoryCache()
     const client = mockClient()
     client.profile.getLidsByPhoneNumbers.mockResolvedValue([
-      { phoneJid: '5511999999999@s.whatsapp.net', lidJid: null, exists: false, status: 'unanswered', error: { code: '500' } },
+      {
+        phoneJid: '5511999999999@s.whatsapp.net',
+        lidJid: null,
+        exists: false,
+        status: 'unanswered',
+        error: { code: '500' },
+      },
       { phoneJid: '551199999999@s.whatsapp.net', lidJid: null, exists: false, status: 'out' },
     ])
     const [r] = await resolveWhatsAppNumbers(asWa(client), ['5511999999999'], { cache })

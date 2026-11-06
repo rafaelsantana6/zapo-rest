@@ -1179,7 +1179,9 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
             <code>POST.../contacts/check</code> — batch exists (max 50), tries BR 9th-digit variants
           </li>
           <li>
-            <code>status</code> on each result: <code>in</code>, <code>out</code> (no WhatsApp), <code>invalid</code>, <code>error</code> / <code>unanswered</code> (no server verdict — <code>exists: false</code> here does not mean "no WhatsApp" and is not cached), or <code>local</code>
+            <code>status</code> on each result: <code>in</code>, <code>out</code> (no WhatsApp), <code>invalid</code>,{' '}
+            <code>error</code> / <code>unanswered</code> (no server verdict — <code>exists: false</code> here does not
+            mean "no WhatsApp" and is not cached), or <code>local</code>
           </li>
           <li>
             <code>POST.../contacts/whatsapp-numbers</code> — legacy alias

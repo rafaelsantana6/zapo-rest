@@ -67,7 +67,10 @@ describe('VoIP peer interaction events', () => {
     const { client, webhooks } = await wiredManager()
     client.emit('voip_call_peer_mute', { call, muted: false, participantJid: '5511888888888:3@s.whatsapp.net' })
     await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
-    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ muted: false, participantJid: '5511888888888:3@s.whatsapp.net' })
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({
+      muted: false,
+      participantJid: '5511888888888:3@s.whatsapp.net',
+    })
   })
 
   it('emits instance.pairing_required with forceManual', async () => {
