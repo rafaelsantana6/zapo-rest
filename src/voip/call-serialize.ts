@@ -73,6 +73,11 @@ export function serializeCallInfo(call: any, extras?: { mappedPn?: string | null
     canAccept: Boolean(call.canAccept),
     acceptBlocked: Boolean(call.isAcceptBlocked ?? call.stateData?.acceptBlocked),
     audioMuted: call.stateData?.audioMuted as boolean | undefined,
+    /** Mic state the peer last announced; `null` until it announces one. */
+    peerAudioMuted: (call.stateData?.peerAudioMuted ?? null) as boolean | null,
+    handRaised: Boolean(call.stateData?.handRaised),
+    /** Device JIDs of remote participants with a raised hand. */
+    raisedHands: call.raisedHands instanceof Set ? [...(call.raisedHands as Set<string>)] : [],
     durationSecs: (call.stateData?.durationSecs ?? null) as number | null,
     endReason: (call.stateData?.endReason ?? null) as string | null,
   }

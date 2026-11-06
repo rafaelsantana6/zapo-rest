@@ -20,6 +20,12 @@ export const WEBHOOK_EVENTS = [
   'call.incoming',
   'call.state',
   'call.ended',
+  /** Peer announced its own mic state. */
+  'call.peer_mute',
+  /** Remote participant raised or lowered its hand. */
+  'call.hand_raise',
+  /** Emoji reaction sent during a call. */
+  'call.reaction',
   'history.sync',
   /** Group history bundle shared with this account after it joined. */
   'history.group',

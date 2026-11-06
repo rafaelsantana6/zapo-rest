@@ -1,7 +1,9 @@
 /**
  * WhatsApp CDN answers 404/410 when a blob has expired (typical of history).
  * Retrying that URL cannot succeed. One `requestMediaReupload` asks the
- * sender's primary for a fresh `directPath`; the media key and hashes stay valid.
+ * sender's primary for a fresh `directPath`; the media key and hashes normally
+ * stay valid. Some primaries re-encrypt on reupload instead, and the original
+ * key no longer opens the blob: that MAC/hash mismatch is final (zapo-js 1.10).
  */
 
 import { reviveBinaryFields } from '~/media/revive-raw'
@@ -49,6 +51,8 @@ export type MediaDownloadState = {
   reuploadEvent: { key: Record<string, unknown>; message: unknown } | null
   /** True after one reupload attempt, success or not. */
   askedReupload: boolean
+  /** True once `proto` carries a fresh `directPath` from a successful reupload. */
+  reuploaded: boolean
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,6 +67,12 @@ export function isExpiredCdnError(err: unknown): boolean {
   }
   const message = err instanceof Error ? err.message : typeof err === 'string' ? err : ''
   return /\bstatus (404|410)\b/.test(message)
+}
+
+/** zapo's `media MAC mismatch` / `encrypted|plaintext file hash mismatch`. */
+export function isMediaIntegrityError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : typeof err === 'string' ? err : ''
+  return /\b(media MAC|file hash) mismatch\b/.test(message)
 }
 
 /**
@@ -89,7 +99,7 @@ export function patchMediaDirectPath(source: unknown, directPath: string): unkno
 /** Split a live event or stored raw into a download proto and a reupload event. */
 export function createMediaDownloadState(source: unknown): MediaDownloadState {
   if (!isRecord(source) || !isRecord(source.message)) {
-    return { proto: reviveBinaryFields(source), reuploadEvent: null, askedReupload: false }
+    return { proto: reviveBinaryFields(source), reuploadEvent: null, askedReupload: false, reuploaded: false }
   }
   const proto = reviveBinaryFields(source.message)
   const key = isRecord(source.key) ? source.key : null
@@ -97,6 +107,7 @@ export function createMediaDownloadState(source: unknown): MediaDownloadState {
     proto,
     reuploadEvent: key ? { key, message: proto } : null,
     askedReupload: false,
+    reuploaded: false,
   }
 }
 
@@ -130,7 +141,18 @@ async function downloadAfterReupload(
   const patched = patchMediaDirectPath(state.proto, retry.directPath)
   if (patched === state.proto) throw expired
   state.proto = patched
-  return client.message.downloadBytes(patched)
+  state.reuploaded = true
+  return downloadReuploaded(client, patched)
+}
+
+/** Re-encrypted blob: nothing in the reupload answer carries the new key, so no retry helps. */
+async function downloadReuploaded(client: MediaDownloadClient, proto: unknown): Promise<Uint8Array> {
+  try {
+    return await client.message.downloadBytes(proto)
+  } catch (err) {
+    if (isMediaIntegrityError(err)) throw new Error(`media reupload re-encrypted: ${(err as Error).message}`)
+    throw err
+  }
 }
 
 /**
@@ -138,6 +160,7 @@ async function downloadAfterReupload(
  * download that. A later call sees `askedReupload` and does not ask again.
  */
 export async function downloadMediaBytes(client: MediaDownloadClient, state: MediaDownloadState): Promise<Uint8Array> {
+  if (state.reuploaded) return downloadReuploaded(client, state.proto)
   try {
     return await client.message.downloadBytes(state.proto)
   } catch (err) {

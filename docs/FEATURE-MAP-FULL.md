@@ -19,8 +19,10 @@ Last updated: 2026-07-14
 | Groups (full lifecycle) | ✅ |
 | Labels | ✅ |
 | Calls / VoIP (offer/accept/reject/end/mute/stream) | ✅ |
+| In-call hand raise + emoji reactions (`/calls/:id/hand`, `/calls/:id/reaction`) | ✅ |
 | Audio blast + STT (`/calls/blast`, `/calls/:id/transcribe`) | ✅ |
 | WAM telemetry (`@zapo-js/wam`, `WAM_ENABLED` default on) | ✅ |
+| Postgres L1 read cache (`STORE_L1_CACHE`, single-process/sticky-sessions only) | ✅ |
 | Profile / presence / privacy / status stories | ✅ |
 | Username `@handle` (get/set/check/resolve, `@handle` on send) | ✅ |
 | Group history receive (`HISTORY_GROUP_BUNDLES`) + share | ✅ |

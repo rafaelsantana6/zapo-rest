@@ -66,7 +66,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | -------- | ------- |
 | **Content-addressed media (CAS)** — `{instance}/cas/sha256/{hash}{ext}` | Same bytes inside one instance are stored **once**. Less object storage; stable identity. |
 | **Rehydrate from WhatsApp** if the object is missing | Media stays recoverable after storage loss; 404 only when WA itself cannot provide the file. |
-| **Expired CDN blob → sender re-upload** | History media WhatsApp already dropped (404/410) is fetched once from the sender's phone, then stored. |
+| **Expired CDN blob → sender re-upload** | History media WhatsApp already dropped (404/410) is fetched once from the sender's phone, then stored. A primary that re-encrypts on reupload fails fast instead of retrying forever. |
 | **302 + presigned GET** | Clients download from S3/R2 directly; the API is not a permanent bandwidth middleman. |
 | **Two-stage media events** (`mediaStage: meta` → `stored`) | Fast “message arrived”, then permanent URL after CAS (`message.media.stored`). |
 | **Persist projections before webhooks** | Chat store stays consistent even if a receiver is down; outbox retries separately. |
@@ -114,6 +114,7 @@ Use this before exposing the stack beyond localhost. Deeper pipeline guarantees 
 | Tune **`RATE_LIMIT_*`** (app limits `/v1` in production) | Defaults: 300 req / 60s / IP; also rate-limit at the reverse proxy |
 | Private media bucket + presigned GET | Compose may set anonymous download on MinIO for local convenience |
 | Leave **`WAM_ENABLED=true`** (default) unless you must quiet analytics | Emits WA Web `w:stats` for wire parity; `false` turns the plugin off |
+| Only set **`STORE_L1_CACHE=true`** with a single process or sticky sessions per instance | The L1 cache sits in front of the Postgres Signal session/identity rows — unsafe across replicas without sticky routing |
 | Rotate instance keys after staff changes | `POST /v1/instances/:name/keys/rotate` |
 | Pin image digests (already in `docker-compose.yml`) | Reproducible deploys; override only deliberately |
 
@@ -278,6 +279,8 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 > General event streaming used to be discussed as WebSocket in older drafts.
 > **Current code is SSE-only for app events.** VoIP remains WebSocket because it is bidirectional.
 
+In-call hand raise (`POST .../calls/:callId/hand`, WS `call:hand`) and emoji reactions (`POST .../calls/:callId/reaction`, WS `call:reaction`) round-trip to the peer as `call.peer_mute`, `call.hand_raise`, and `call.reaction` (webhook + WS). The call snapshot adds `peerAudioMuted`, `handRaised`, and `raisedHands`.
+
 ---
 
 ## Architecture decisions
@@ -396,6 +399,10 @@ X-Api-Key: …
 # /v1/voip · /v1/instances/:name/calls/:id/stream  (or /v1/calls/:id/stream with instance key)
 # POST /v1/instances/:name/calls/blast
 # POST /v1/instances/:name/calls/:id/transcribe
+
+# In-call hand raise / reactions — named or short
+POST /v1/calls/:callId/hand                     # { "raised": true }
+POST /v1/calls/:callId/reaction                 # { "reaction": "👍" }
 ```
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.

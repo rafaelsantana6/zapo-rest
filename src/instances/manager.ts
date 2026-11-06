@@ -608,6 +608,28 @@ export class InstanceManager {
       runSafe('voip_call_ended', () => this.onVoipEnded(name, call))
     })
 
+    // Peer-side interactions (voip 1.2): data = { call, ...detail }
+    onVoip('voip_call_peer_mute', (payload) => {
+      runSafe('voip_call_peer_mute', () =>
+        this.onVoipInteraction(name, 'call.peer_mute', payload.call, { muted: Boolean(payload.muted) }),
+      )
+    })
+
+    onVoip('voip_call_hand_raise', (payload) => {
+      runSafe('voip_call_hand_raise', () =>
+        this.onVoipInteraction(name, 'call.hand_raise', payload.call, {
+          participantJid: payload.participantJid,
+          raised: Boolean(payload.raised),
+        }),
+      )
+    })
+
+    onVoip('voip_call_reaction', (payload) => {
+      runSafe('voip_call_reaction', () =>
+        this.onVoipInteraction(name, 'call.reaction', payload.call, { reaction: payload.reaction?.reaction ?? null }),
+      )
+    })
+
     // Peer audio → optional call recording (even without softphone stream)
     // biome-ignore lint/suspicious/noExplicitAny: plugin event
     onVoip('voip_call_inbound_audio', (payload: { call: any; pcm: Float32Array }) => {
@@ -878,6 +900,14 @@ export class InstanceManager {
       })
     }
     await this.opts.webhooks.emit(row, 'call.ended', snap)
+  }
+
+  // biome-ignore lint/suspicious/noExplicitAny: CallInfo from voip plugin
+  private async onVoipInteraction(name: string, event: string, call: any, detail: Record<string, unknown>) {
+    const row = await this.getRecord(name)
+    if (!row) return
+    const snap = await this.enrichCallPayload(name, call)
+    await this.opts.webhooks.emit(row, event, { call: snap, ...detail })
   }
 
   /** Mark the account available (required by WA before peers send us chatstate). */

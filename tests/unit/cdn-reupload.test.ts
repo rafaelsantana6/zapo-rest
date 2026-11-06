@@ -3,6 +3,7 @@ import {
   createMediaDownloadState,
   downloadMediaBytes,
   isExpiredCdnError,
+  isMediaIntegrityError,
   type MediaDownloadClient,
   type MediaDownloadState,
   patchMediaDirectPath,
@@ -16,6 +17,15 @@ function client(partial: {
 }): MediaDownloadClient {
   return { message: partial }
 }
+
+describe('isMediaIntegrityError', () => {
+  it('matches zapo MAC and file hash mismatches only', () => {
+    expect(isMediaIntegrityError(new Error('media MAC mismatch'))).toBe(true)
+    expect(isMediaIntegrityError(new Error('encrypted file hash mismatch'))).toBe(true)
+    expect(isMediaIntegrityError(new Error('plaintext file hash mismatch'))).toBe(true)
+    expect(isMediaIntegrityError(new Error('cdn down'))).toBe(false)
+  })
+})
 
 describe('isExpiredCdnError', () => {
   it('matches zapo CDN 404 and 410, including a status field', () => {
@@ -203,6 +213,19 @@ describe('downloadMediaBytes', () => {
     await expect(downloadMediaBytes(media, state)).rejects.toThrow('cdn down')
     const bytes = await downloadMediaBytes(media, state)
     expect(bytes).toEqual(new Uint8Array([4]))
+    expect(requestMediaReupload).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops for good when the reuploaded blob was re-encrypted', async () => {
+    const downloadBytes = vi.fn(async (source: unknown) => {
+      const path = (source as { imageMessage: { directPath: string } }).imageMessage.directPath
+      throw path === '/old' ? expired : new Error('media MAC mismatch')
+    })
+    const requestMediaReupload = vi.fn(async () => ({ result: 'success', directPath: '/fresh' }))
+    const state = createMediaDownloadState(event)
+    const media = client({ downloadBytes, requestMediaReupload })
+    await expect(downloadMediaBytes(media, state)).rejects.toThrow('media reupload re-encrypted: media MAC mismatch')
+    await expect(downloadMediaBytes(media, state)).rejects.toThrow(/^media reupload re-encrypted/)
     expect(requestMediaReupload).toHaveBeenCalledTimes(1)
   })
 })

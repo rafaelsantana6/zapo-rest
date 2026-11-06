@@ -12,6 +12,8 @@
  * { op: "call:reject", id, callId }
  * { op: "call:end", id, callId }
  * { op: "call:mute", id, callId, muted }
+ * { op: "call:hand", id, callId, raised }
+ * { op: "call:reaction", id, callId, reaction }
  * { op: "ping", id }
  *
  * Server → client:
@@ -19,6 +21,8 @@
  * { op: "ack", id, ok: true, data? } | { op: "ack", id, ok: false, code, message }
  * { op: "calls:snapshot", calls: SerializedCall[] }
  * { op: "call:offer" | "call:ringing" | "call:accepted" | "call:state" | "call:ended", call }
+ * { op: "call:peer_mute", call, muted } | { op: "call:hand_raise", call, participantJid, raised }
+ * { op: "call:reaction", call, reaction }
  * { op: "device:status", status, meJid? }
  * { op: "pong", id, ts }
  *
@@ -41,6 +45,7 @@ import { getLogger } from '~/lib/logger'
 import { toRecipientJid } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { CacheClient } from '~/redis/client'
+import { sendCallReaction, setCallHand } from '~/voip/call-interactions'
 import { resolveLiveCall, type SerializedCall, serializeCallInfo } from '~/voip/call-serialize'
 import type { CallRecordingManager } from '~/voip/recording-manager'
 
@@ -59,7 +64,16 @@ type ClientMsg = {
   phone?: string
   callId?: string
   muted?: boolean
+  raised?: boolean
+  reaction?: string
   contactName?: string
+}
+
+/** Peer-side interaction events forwarded as-is (`call.peer_mute` → `call:peer_mute`). */
+const INTERACTION_EVENTS: Record<string, string> = {
+  'call.peer_mute': 'call:peer_mute',
+  'call.hand_raise': 'call:hand_raise',
+  'call.reaction': 'call:reaction',
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -166,6 +180,11 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           }
           if (payload.event === 'call.ended') {
             send({ op: 'call:ended', call: payload.data, eventId: payload.eventId })
+            return
+          }
+          const interactionOp = INTERACTION_EVENTS[payload.event]
+          if (interactionOp) {
+            send({ ...(payload.data as object), op: interactionOp, eventId: payload.eventId })
             return
           }
           if (payload.event === 'instance.connection' || payload.event === 'instance.paired') {
@@ -342,6 +361,9 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                     mediaType: 'audio',
                     createdAt: null,
                     audioMuted: undefined,
+                    peerAudioMuted: null,
+                    handRaised: false,
+                    raisedHands: [],
                     durationSecs: null,
                     endReason: null,
                   }
@@ -479,6 +501,32 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               }
               client.voip.setMute(resolved.callId, msg.muted)
               ackOk(id, { callId: resolved.callId, muted: msg.muted })
+              return
+            }
+
+            if (op === 'call:hand') {
+              if (!msg.callId || typeof msg.raised !== 'boolean') {
+                ackErr(id, 'INVALID_PAYLOAD', 'callId + raised required')
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              const callId = await setCallHand(client, msg.callId, msg.raised)
+              if (!callId) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else ackOk(id, { callId, raised: msg.raised })
+              return
+            }
+
+            if (op === 'call:reaction') {
+              const reaction = typeof msg.reaction === 'string' ? msg.reaction.trim() : ''
+              if (!msg.callId || !reaction || reaction.length > 32) {
+                ackErr(id, 'INVALID_PAYLOAD', 'callId + reaction (1-32 chars) required')
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              const result = sendCallReaction(client, msg.callId, reaction)
+              if (!result) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else if (!result.sent) ackErr(id, 'CALL_NOT_READY', 'call not active or reaction channel not open yet')
+              else ackOk(id, { callId: result.callId, reaction })
               return
             }
           } catch (err) {

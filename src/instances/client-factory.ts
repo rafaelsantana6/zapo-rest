@@ -21,6 +21,29 @@ const PG_MIGRATION_DOMAINS: readonly WaPgMigrationDomain[] = [
   'messageSecret',
 ] as const
 
+type StoreOptions = NonNullable<Parameters<typeof createStore>[0]>
+
+/**
+ * L1 cache over the crypto-path domains, with an idle TTL so a long-lived
+ * process keeps the peers it talks to, not every peer seen since boot.
+ * @example storeCacheLayer({ STORE_L1_CACHE: true, STORE_L1_IDLE_TTL_SECONDS: 1800 })
+ */
+export function storeCacheLayer(
+  env: Pick<Env, 'STORE_L1_CACHE' | 'STORE_L1_IDLE_TTL_SECONDS'>,
+): StoreOptions['cacheLayer'] | undefined {
+  if (!env.STORE_L1_CACHE) return undefined
+  const idleMs = env.STORE_L1_IDLE_TTL_SECONDS * 1000
+  return {
+    session: true,
+    identity: true,
+    senderKey: true,
+    privacyToken: true,
+    ...(idleMs > 0
+      ? { ttlMs: { sessionMs: idleMs, identityMs: idleMs, senderKeyMs: idleMs, privacyTokenMs: idleMs } }
+      : {}),
+  }
+}
+
 export type TestClientHooks = {
   chatSocketUrls?: string[]
   /** Opaque CA material from FakeWaServer.noiseRootCa */
@@ -67,7 +90,9 @@ export async function createSharedRuntime(opts: ClientFactoryOptions): Promise<S
         log.warn({ err }, 'postgres store pre-migrate failed — sessions may retry via ensureReady')
       }
 
+      const cacheLayer = storeCacheLayer(opts.env)
       store = createStore({
+        ...(cacheLayer ? { cacheLayer, logger } : {}),
         backends: {
           postgres: createPostgresStore({ pool: opts.pool }),
         },

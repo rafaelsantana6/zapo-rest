@@ -83,6 +83,7 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Multi-webhook + HMAC + outbox | ✅ |
 | SSE `GET /v1/events` | ✅ |
 | VoIP control WS + PCM stream | ✅ |
+| In-call hand raise / emoji reactions | ✅ `POST .../calls/:id/hand` · `.../reaction` + WS `call:hand` / `call:reaction` |
 | Message brokers (Kafka/SQS/…) | ❌ |
 
 ---

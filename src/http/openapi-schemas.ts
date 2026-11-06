@@ -113,6 +113,9 @@ export const EXAMPLES = {
     isEnded: false,
     canAccept: false,
     audioMuted: false,
+    peerAudioMuted: false,
+    handRaised: false,
+    raisedHands: [],
     durationSecs: 12,
   },
   qr: {
@@ -565,9 +568,22 @@ export const CallInfoSchema = z
     canAccept: z.boolean().optional(),
     acceptBlocked: z.boolean().optional(),
     audioMuted: z.boolean().optional().nullable(),
+    peerAudioMuted: z
+      .boolean()
+      .nullable()
+      .optional()
+      .meta({ description: 'Mic state the peer last announced; null until it does' }),
+    handRaised: z.boolean().optional().meta({ description: 'Local raised hand' }),
+    raisedHands: z
+      .array(z.string())
+      .optional()
+      .meta({ description: 'Device JIDs of remote participants with a raised hand' }),
     // Live calls often have null duration/endReason until hangup — must allow null (not just optional)
     durationSecs: z.number().nullable().optional(),
-    endReason: z.string().nullable().optional(),
+    endReason: z.string().nullable().optional().meta({
+      description:
+        'Set on hangup, e.g. `timeout`, `rejected`, `accepted_elsewhere`, `rejected_elsewhere`, `relay_lost`',
+    }),
   })
   .meta({
     description: 'In-memory VoIP call snapshot',
@@ -598,6 +614,23 @@ export const MuteBodySchema = z
     muted: z.boolean().meta({ description: 'true = mute local mic', example: true }),
   })
   .meta({ example: { muted: true } })
+
+export const HandBodySchema = z
+  .object({
+    raised: z.boolean().meta({ description: 'true = raise the local hand, false = lower it', example: true }),
+  })
+  .meta({ example: { raised: true } })
+
+export const CallReactionBodySchema = z
+  .object({
+    reaction: z
+      .string()
+      .trim()
+      .min(1)
+      .max(32)
+      .meta({ description: 'Emoji glyph sent as an in-call reaction', example: '👍' }),
+  })
+  .meta({ example: { reaction: '👍' } })
 
 export const BlastBodySchema = z
   .object({
@@ -810,7 +843,7 @@ export const OPENAPI_TAGS = [
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
-      '`call.incoming`, `call.state`, `call.ended`.\n\n' +
+      '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
   },
 ] as const

@@ -233,4 +233,32 @@ export const EXTRA_ENDPOINTS: EndpointDoc[] = [
       nonHistoryReceivers: [],
     },
   },
+  {
+    id: 'post-call-hand',
+    method: 'POST',
+    path: '/v1/calls/{callId}/hand',
+    summary: 'Raise / lower hand',
+    description:
+      'Levanta ou baixa a mão local e avisa o peer. Durável: o peer vê até baixar. `404` em call desconhecida, ' +
+      '`503` se o envio falhar. WS: `call:hand`. Lado remoto chega como `call.hand_raise`.',
+    tags: ['Calls'],
+    security: true,
+    params: ['callId'],
+    bodyExample: { raised: true },
+    responseExample: { ok: true },
+  },
+  {
+    id: 'post-call-reaction',
+    method: 'POST',
+    path: '/v1/calls/{callId}/reaction',
+    summary: 'Send in-call emoji reaction',
+    description:
+      'Reação emoji momentânea (1–32 chars). `409` quando a call ainda não está ativa ou o canal de reação não abriu. ' +
+      'WS: `call:reaction`. Reação do peer chega como `call.reaction`.',
+    tags: ['Calls'],
+    security: true,
+    params: ['callId'],
+    bodyExample: { reaction: '👍' },
+    responseExample: { ok: true },
+  },
 ]

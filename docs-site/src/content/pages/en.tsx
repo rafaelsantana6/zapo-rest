@@ -420,6 +420,15 @@ curl -s -X POST "$BASE/v1/messages/text" \\
           <code>(instance, message_id)</code>.
         </p>
 
+        <h2 id="l1-cache">L1 store cache (optional)</h2>
+        <p>
+          <code>STORE_L1_CACHE=true</code> (default <code>false</code>) puts an in-process read cache in front of the
+          Postgres-backed Signal session, identity, sender-key, and privacy-token rows, cutting Postgres reads on the
+          decrypt/encrypt hot path. <code>STORE_L1_IDLE_TTL_SECONDS</code> (default <code>1800</code>, <code>0</code> =
+          only the size cap evicts) keeps a long-lived process from holding every peer seen since boot. Safe only with a
+          single process or sticky sessions per instance — the same deployment constraint live WA sessions already have.
+        </p>
+
         <h2 id="projections">Postgres projections</h2>
         <ul>
           <li>
@@ -1105,6 +1114,10 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           <li>If missing → re-download from WhatsApp, store again</li>
           <li>If the CDN answers 404/410 → ask the sender to re-upload once, then download the new path</li>
           <li>404 only if WhatsApp and the sender can no longer provide the media</li>
+          <li>
+            A primary that re-encrypts on reupload instead of keeping the key fails fast as{' '}
+            <code>message.media.failed</code>, no retry loop
+          </li>
         </ol>
 
         <h2 id="two-stage">Two-stage webhooks</h2>
@@ -1283,7 +1296,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
             <code>profile.username</code>
           </li>
           <li>
-            Calls: <code>call.incoming</code>, <code>call.state</code>, <code>call.ended</code>
+            Calls: <code>call.incoming</code>, <code>call.state</code>, <code>call.ended</code>,{' '}
+            <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>
           </li>
         </ul>
 
@@ -1356,7 +1370,9 @@ const dec = new TextDecoder
 { "op": "call:accept", "id": "3", "callId": "call_…" }
 { "op": "call:reject", "id": "4", "callId": "call_…" }
 { "op": "call:end", "id": "5", "callId": "call_…" }
-{ "op": "call:mute", "id": "6", "callId": "call_…", "muted": true }`}
+{ "op": "call:mute", "id": "6", "callId": "call_…", "muted": true }
+{ "op": "call:hand", "id": "7", "callId": "call_…", "raised": true }
+{ "op": "call:reaction", "id": "8", "callId": "call_…", "reaction": "👍" }`}
         />
 
         <h2 id="server-push">Server push</h2>
@@ -1368,15 +1384,40 @@ const dec = new TextDecoder
             <code>call:state</code> — transition (connecting, active, …)
           </li>
           <li>
-            <code>call:ended</code> — terminal
+            <code>call:ended</code> — terminal (<code>endReason</code> now also covers <code>accepted_elsewhere</code>,{' '}
+            <code>rejected_elsewhere</code>, <code>relay_lost</code>)
           </li>
           <li>
             <code>calls:snapshot</code> — list on attach
           </li>
           <li>
+            <code>call:peer_mute</code> — peer announced its own mic state
+          </li>
+          <li>
+            <code>call:hand_raise</code> — a remote participant raised/lowered its hand
+          </li>
+          <li>
+            <code>call:reaction</code> — a peer sent an emoji reaction
+          </li>
+          <li>
             <code>device:status</code> — WA session status
           </li>
         </ul>
+
+        <h2 id="interactions">Hand raise &amp; reactions</h2>
+        <p>
+          REST equivalents of <code>call:hand</code> / <code>call:reaction</code>:{' '}
+          <code>POST .../calls/:callId/hand</code> (<code>{'{ "raised": true }'}</code>, 404 on an unknown call) and{' '}
+          <code>POST .../calls/:callId/reaction</code> (<code>{'{ "reaction": "👍" }'}</code>, 1–32 chars, 409 when the
+          call is not active or its reaction channel is not open yet). Hand raise is durable — the peer keeps seeing it
+          until lowered; a reaction is momentary and not stored on the call.
+        </p>
+        <p>
+          The call snapshot (REST <code>GET /v1/calls</code> and events) now carries <code>peerAudioMuted</code>{' '}
+          (boolean or <code>null</code> until the peer announces one), <code>handRaised</code> (local), and{' '}
+          <code>raisedHands</code> (device JIDs of remote participants with a raised hand).{' '}
+          <code>POST .../calls/:callId/mute</code> now also announces the local mute state to the peer.
+        </p>
 
         <h2 id="pcm">PCM media</h2>
         <CodeBlock
