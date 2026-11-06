@@ -202,6 +202,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>@handle e historial tardío de grupo</strong> — envía a <code>@handle</code>; el historial compartido
             después de entrar al grupo se importa (<code>HISTORY_GROUP_BUNDLES</code>, activo por defecto)
           </li>
+          <li>
+            <strong>Video en su propio canal binario</strong> — los frames H.264 nunca comparten el socket con el PCM;
+            un visualizador lento cae al próximo key frame en vez de crecer la memoria del servidor o bloquear el audio
+          </li>
         </ul>
 
         <h2 id="table">Decisión → beneficio</h2>
@@ -294,6 +298,12 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
                 <code>WAM_ENABLED=false</code>
               </td>
             </tr>
+            <tr>
+              <td>
+                Video en WS dedicado (<code>.../calls/:id/video</code>) + drop-until-keyframe
+              </td>
+              <td>Nunca bloquea ni atrasa el PCM; un visualizador lento descarta frames hasta el próximo key frame</td>
+            </tr>
           </tbody>
         </table>
 
@@ -383,7 +393,10 @@ curl -s -X POST "$BASE/v1/messages/text" \\
         </ul>
         <Callout tone="tip" title="Dashboard">
           Con el dashboard compilado, abre la raíz del host, inicia sesión con la misma API key y usa el softphone
-          flotante + chat completo.
+          flotante + chat completo. En la pestaña <strong>Áudio/vídeo</strong> del softphone se elige y prueba la cámara
+          (vista previa + el mismo encoder H.264 de la call, con el motivo cuando no abre); en la call hay{' '}
+          <strong>Trocar câmera</strong> (cambiar cámara), <strong>Tela</strong> (compartir pantalla) y una línea con lo
+          que se está enviando. Cámara y pantalla exigen HTTPS o <code>localhost</code>.
         </Callout>
       </>
     ),
@@ -599,7 +612,7 @@ curl -s -X POST "$BASE/v1/messages/text" \\
           .
         </p>
 
-        <h2 id="voip-arch">VoIP en dos canales</h2>
+        <h2 id="voip-arch">VoIP en tres canales</h2>
         <table>
           <thead>
             <tr>
@@ -617,11 +630,20 @@ curl -s -X POST "$BASE/v1/messages/text" \\
               <td>JSON: start/accept/end/mute + push call:offer/state/ended</td>
             </tr>
             <tr>
-              <td>Media</td>
+              <td>Media (audio)</td>
               <td>
                 <code>.../calls/:id/stream</code>
               </td>
               <td>PCM Float32 LE mono @ 16 kHz (binary frames)</td>
+            </tr>
+            <tr>
+              <td>Media (video)</td>
+              <td>
+                <code>.../calls/:id/video</code>
+              </td>
+              <td>
+                H.264 Annex-B, header binario de 12 bytes, un <code>streamId</code> por emisor
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1315,7 +1337,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
             Calls: <code>call.incoming</code>, <code>call.state</code>, <code>call.ended</code>,{' '}
             <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
             <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
-            <code>call.participant_media</code>
+            <code>call.participant_media</code>, <code>call.video_state</code>, <code>call.video_upgraded</code>,{' '}
+            <code>call.screen_share</code>
           </li>
         </ul>
 
@@ -1385,6 +1408,9 @@ const dec = new TextDecoder
 // outbound
 { "op": "call:start", "id": "2", "phone": "5511888888888" }
 
+// outbound con video (también abre .../calls/{callId}/video)
+{ "op": "call:start", "id": "2b", "phone": "5511888888888", "video": true }
+
 // inbound
 { "op": "call:accept", "id": "3", "callId": "call_…" }
 { "op": "call:reject", "id": "4", "callId": "call_…" }
@@ -1393,7 +1419,9 @@ const dec = new TextDecoder
 { "op": "call:hand", "id": "7", "callId": "call_…", "raised": true }
 { "op": "call:reaction", "id": "8", "callId": "call_…", "reaction": "👍" }
 { "op": "call:leave", "id": "9", "callId": "call_…" }
-{ "op": "call:mute_participant", "id": "10", "callId": "call_…", "participant": "…@lid" }`}
+{ "op": "call:mute_participant", "id": "10", "callId": "call_…", "participant": "…@lid" }
+{ "op": "call:video_upgrade", "id": "11", "callId": "call_…" }
+{ "op": "call:screen_share", "id": "12", "callId": "call_…", "sharing": true }`}
         />
 
         <h2 id="server-push">Push del servidor</h2>
@@ -1425,6 +1453,10 @@ const dec = new TextDecoder
             <code>call:participant_media</code> — llamadas en grupo
           </li>
           <li>
+            <code>call:video_state</code> / <code>call:video_upgraded</code> / <code>call:screen_share_changed</code> —
+            video (estado de la cámara, pedido de upgrade, compartir pantalla)
+          </li>
+          <li>
             <code>device:status</code> — status de la sesión WA
           </li>
         </ul>
@@ -1449,7 +1481,7 @@ const dec = new TextDecoder
           <code>call.mute_requested</code> (<code>participantJid</code>, <code>muted</code>) y{' '}
           <code>call.participant_media</code> (<code>participantJid</code>, <code>receiving</code>). El snapshot gana{' '}
           <code>isGroup</code>, <code>groupJid</code> y <code>participants</code> (<code>jid</code>,{' '}
-          <code>devices</code>, <code>state</code>). El video sigue fuera: la API es solo de audio.
+          <code>devices</code>, <code>state</code>). Video en grupo: ver <a href="#video">Video H.264</a>.
         </p>
 
         <h2 id="interactions">Levantar la mano &amp; reacciones</h2>
@@ -1470,13 +1502,106 @@ const dec = new TextDecoder
         <h2 id="pcm">Media PCM</h2>
         <CodeBlock
           language="text"
-          code={`ws://host/v1/instances/sales-1/calls/{callId}/stream?apiKey=$KEY
+          code={`ws://host/v1/calls/{callId}/stream?apiKey=$KEY
 
 ← JSON { "op":"ready", "sampleRate":16000, "format":"f32le", "channels":1 }
 ↔ binary Float32 LE mono @ 16 kHz
 ← JSON { "op":"backpressure", "pause": true | false }
 ← JSON { "op":"ended" }`}
         />
+
+        <h2 id="video">Video H.264</h2>
+        <p>
+          Las llamadas iniciadas con <code>isVideo: true</code> (o <code>call:start</code> con{' '}
+          <code>"video": true</code>) llevan video en un <strong>segundo</strong> WebSocket,{' '}
+          <code>.../calls/:callId/video</code> — el audio se queda en <code>.../stream</code>; abre los dos. La
+          respuesta de <code>POST.../calls</code> y todo snapshot de call (REST, <code>/v1/voip</code>, webhooks)
+          incluyen <code>mediaType: "audio" | "video"</code> y <code>videoOff</code> (cámara del peer apagada; siempre{' '}
+          <code>true</code> en calls de audio).
+        </p>
+        <CodeBlock
+          language="text"
+          code={`ws://host/v1/calls/{callId}/video?apiKey=$KEY
+
+← JSON { "op":"ready", "callId":"...", "codec":"h264", "format":"annexb", "headerBytes":12, "mediaType":"video", "videoOff":false }
+↔ binary: header de 12 bytes + 1 access unit H.264 Annex-B
+   u8 version=1 · u8 flags (bit0 = key frame) · u16 BE stream id · u64 BE timestamp (µs)
+← JSON { "op":"stream", "streamId":0, "ssrc":…, "participantJid":"…" }   (antes del 1er frame de cada emisor)
+← JSON { "op":"state", "state":"active", "isActive":true, "mediaType":"video", "videoOff":false }
+← JSON { "op":"ended" }`}
+        />
+        <ul>
+          <li>
+            <strong>Cliente → servidor:</strong> frames de la cámara (Constrained Baseline recomendado, ej.{' '}
+            <code>avc1.42E01F</code>). La API no reenvía el pedido de key frame del peer — envía un IDR cada 1 s como
+            máximo.
+          </li>
+          <li>
+            <strong>Servidor → cliente:</strong> frames del peer; los timestamps empiezan en 0 (clock RTP 90 kHz
+            reconstruido). Si el socket se atrasa (más de 4 MiB en buffer), los frames se descartan hasta el próximo key
+            frame — sin video obsoleto, memoria acotada.
+          </li>
+          <li>
+            Cerrar este socket <strong>no</strong> termina la llamada — solo el WS de audio hace eso (
+            <code>VOIP_END_CALL_ON_WS_CLOSE</code>).
+          </li>
+          <li>
+            Close codes: <code>4401</code> falta la key · <code>4403</code> forbidden · <code>4404</code> call no
+            encontrada · <code>4503</code> instancia offline.
+          </li>
+          <li>El video no se graba — la grabación WAV sigue siendo solo de audio.</li>
+        </ul>
+
+        <p>
+          El socket de video abre también en una call de audio, porque puede volverse video a mitad de la llamada. Cada
+          emisor tiene su propio stream: antes del primer frame llega{' '}
+          <code>{'{ "op":"stream", "streamId":1, "ssrc":…, "participantJid":"…" }'}</code> y el header binario trae ese{' '}
+          <code>streamId</code> — usa un decoder por stream. Cuando el emisor sale o cambia de dispositivo llega{' '}
+          <code>{'{ "op":"stream_end", "streamId":1 }'}</code>; los ids no se repiten. En una call 1:1 siempre es{' '}
+          <code>0</code>; el cliente envía <code>0</code>.
+        </p>
+        <ul>
+          <li>
+            <strong>Audio → video (1:1):</strong> <code>POST .../calls/:callId/video/upgrade</code> (WS{' '}
+            <code>call:video_upgrade</code>) espera al peer unos 5 s y devuelve <code>result</code>:{' '}
+            <code>accepted</code>, <code>rejected</code>, <code>rejected_by_timeout</code>, <code>error</code>,{' '}
+            <code>timeout</code> o <code>cancelled</code>. Envía frames solo después de <code>accepted</code>.
+          </li>
+          <li>
+            <strong>Pedido del peer:</strong> llega como <code>call.video_state</code> con{' '}
+            <code>upgradeRequested: true</code>; responde en 5 s con <code>.../video/upgrade/accept</code> o{' '}
+            <code>.../reject</code>. <code>.../cancel</code> retira un pedido nuestro.
+          </li>
+          <li>
+            <strong>Grupo:</strong> <code>isVideo: true</code> junto con <code>groupId</code> empieza con video.{' '}
+            <code>POST .../calls/:callId/video</code> (<code>{'{ "enabled": true }'}</code>, WS <code>call:video</code>)
+            enciende o apaga tu cámara. El upgrade en una call de grupo se pide al servidor; todos reciben{' '}
+            <code>call.video_upgraded</code>.
+          </li>
+          <li>
+            <strong>Compartir pantalla:</strong> <code>POST .../calls/:callId/screen-share</code> (
+            <code>{'{ "sharing": true }'}</code>, WS <code>call:screen_share</code>). La pantalla reemplaza la cámara en
+            el mismo stream: deja los frames de la cámara, envía los de la pantalla y vuelve después. Un peer
+            compartiendo llega como <code>call.screen_share</code>.
+          </li>
+          <li>
+            <strong>Primeros frames retenidos:</strong> el plugin retiene tus frames hasta que el peer esté listo (hasta
+            2 s) y abre el stream en el próximo key frame. Un IDR cada 1 s también acorta el inicio.
+          </li>
+          <li>
+            El snapshot trae <code>screenSharing</code>, <code>peerVideoState</code>, <code>peerScreenSharing</code> y{' '}
+            <code>participantMedia</code> (por dispositivo: mic, cámara, pantalla, medios llegando).
+          </li>
+          <li>
+            <code>mediaType</code> pasa a <code>"video"</code> en cuanto la call lleva video, incluida una call 1:1 que
+            hizo upgrade (el plugin mantiene el tipo negociado, <code>audio</code>; la API lee las señales de video
+            activo).
+          </li>
+          <li>
+            En el WS de control, la pantalla compartida del peer llega como <code>call:screen_share_changed</code> —{' '}
+            <code>call:screen_share</code> es el comando.
+          </li>
+        </ul>
 
         <h2 id="states">Estados importantes</h2>
         <ul>

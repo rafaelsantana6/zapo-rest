@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asPhoneJid, pickDisplayPeerJid, serializeCallInfo } from '~/voip/call-serialize'
+import { asPhoneJid, effectiveMediaType, pickDisplayPeerJid, serializeCallInfo } from '~/voip/call-serialize'
 
 describe('asPhoneJid', () => {
   it('accepts PN JID and digits', () => {
@@ -58,6 +58,18 @@ describe('serializeCallInfo', () => {
     expect(snap.peerJidRaw).toBe('123456789010287@lid')
     expect(snap.callerPn).toBe('556881159096')
   })
+
+  it('exposes mediaType and peer videoOff for video calls', () => {
+    const snap = serializeCallInfo({
+      callId: 'v1',
+      peerJid: '556881159096@s.whatsapp.net',
+      direction: 'outgoing',
+      mediaType: 'video',
+      stateData: { state: 'active', audioMuted: false, videoOff: false },
+    })
+    expect(snap.mediaType).toBe('video')
+    expect(snap.videoOff).toBe(false)
+  })
 })
 
 describe('serializeCallInfo interactions (voip 1.2)', () => {
@@ -97,5 +109,18 @@ describe('serializeCallInfo group calls (voip 1.4)', () => {
   it('reports a 1:1 call as not a group', () => {
     const snap = serializeCallInfo({ callId: 'p1', stateData: { state: 'active' } })
     expect(snap).toMatchObject({ isGroup: false, groupJid: null, participants: [] })
+  })
+})
+
+describe('effectiveMediaType (1:1 upgrade keeps mediaType audio upstream)', () => {
+  it('stays audio until video is live', () => {
+    expect(effectiveMediaType({ mediaType: 'audio', stateData: { videoOff: true } })).toBe('audio')
+  })
+
+  it('turns video once our camera is announced or the peer accepted', () => {
+    expect(effectiveMediaType({ mediaType: 'audio', stateData: { videoOff: false } })).toBe('video')
+    expect(
+      effectiveMediaType({ mediaType: 'audio', stateData: { videoOff: true }, peerVideoState: { state: 4 } }),
+    ).toBe('video')
   })
 })

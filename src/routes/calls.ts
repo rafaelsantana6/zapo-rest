@@ -1,4 +1,5 @@
-import type { FastifyPluginAsync } from 'fastify'
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
+import type { WebSocket } from 'ws'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
@@ -30,6 +31,8 @@ import { toPublicCall } from '~/store/calls'
 import { resolveLiveCall, serializeCallInfo } from '~/voip/call-serialize'
 import { resolveParticipantLids, startGroupCall } from '~/voip/group-call'
 import { attachCallStream } from '~/voip/call-stream'
+import { attachCallVideoStream } from '~/voip/call-video-stream'
+import { isNotOnWhatsAppError } from '~/voip/start-call-error'
 import type { CallRecordingManager } from '~/voip/recording-manager'
 
 export type CallRoutesDeps = {
@@ -53,9 +56,10 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
     {
       schema: {
         tags: ['Calls'],
-        summary: 'Start outbound voice call',
+        summary: 'Start outbound voice or video call',
         description:
-          'Places an **audio-only** WhatsApp voice call (`client.voip.startCall`).\n\n' +
+          'Places a WhatsApp call (`client.voip.startCall`). Audio by default; `isVideo: true` ' +
+          'negotiates H.264 video too (frames over `.../calls/:callId/video`).\n\n' +
           '**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved ' +
           'to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as ' +
           '`call.participants_changed`.\n\n' +
@@ -67,7 +71,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           `${JSON.stringify(EXAMPLES.startCall, null, 2)}\n` +
           '```\n\n' +
           '```bash\n' +
-          'curl -s -X POST "$BASE/v1/instances/sales-1/calls" \\\n' +
+          'curl -s -X POST "$BASE/v1/calls" \\\n' +
           '  -H "X-Api-Key: $KEY" -H "content-type: application/json" \\\n' +
           `  -d '${JSON.stringify(EXAMPLES.startCall)}'\n` +
           '```',
@@ -87,6 +91,8 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       const name = resolveInstanceName(request)
       const body = request.body
       const client = asVoipClient(manager.requireRegisteredClient(name))
+      const isVideo = body.isVideo === true
+      const mediaType = isVideo ? 'video' : 'audio'
       let peerJid: string
       let callId: string
       let group: { groupJid: string; participants: string[] } | null = null
@@ -96,13 +102,18 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         // Group offers name participants by LID
         const { lids, missing } = await resolveParticipantLids(client, body.participants, cache)
         if (missing.length) throw badRequest('participants without a WhatsApp LID', { missing })
-        callId = await startGroupCall(client, groupJid, lids)
+        callId = await startGroupCall(client, groupJid, lids, { isVideo })
         peerJid = groupJid
         group = { groupJid, participants: lids }
       } else {
         // 55 + nono dígito via usync (e.g. 68981159096 → 556881159096@…)
-        peerJid = await resolveRecipientJid(client, body.to ?? '', cache)
-        callId = await client.voip.startCall({ peerJid })
+        const peer = await resolveRecipientJid(client, body.to ?? '', cache)
+        peerJid = peer
+        callId = await client.voip.startCall({ peerJid: peer, isVideo }).catch((err: unknown) => {
+          if (isNotOnWhatsAppError(err))
+            throw notFound(`${peer} is not on WhatsApp (no devices found) — check the number`)
+          throw err
+        })
       }
       try {
         client.voip.setExternalAudioMode(callId, true)
@@ -114,11 +125,11 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           callId,
           peerJid,
           direction: 'outbound',
-          mediaType: 'audio',
+          mediaType,
           state: 'calling',
         })
       }
-      return group ? { callId, peerJid, ...group } : { callId, peerJid }
+      return group ? { callId, peerJid, mediaType, ...group } : { callId, peerJid, mediaType }
     },
   )
 
@@ -456,7 +467,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           '**WebSocket upgrade** for bidirectional live audio (real VoIP).\n\n' +
           '### URL\n' +
           '```\n' +
-          'ws(s)://<host>/v1/instances/{name}/calls/{callId}/stream?apiKey=<key>\n' +
+          'ws(s)://<host>/v1/calls/{callId}/stream?apiKey=<key>\n' +
           '```\n\n' +
           'Auth: query `apiKey` (browsers) or header `X-Api-Key`.\n\n' +
           '### Protocol\n' +
@@ -478,33 +489,75 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       },
     },
     (socket, request) => {
-      const params = CallParamsSchema.parse(request.params)
-      const q = StreamQuerySchema.parse(request.query)
-      const headerKey = typeof request.headers['x-api-key'] === 'string' ? request.headers['x-api-key'] : null
-      const apiKey = q.apiKey ?? headerKey
-      if (!apiKey) {
-        socket.close(4401, 'missing api key')
-        return
-      }
-
-      let instanceName: string
-      try {
-        instanceName = resolveInstanceName(request)
-      } catch {
-        socket.close(4403, 'forbidden')
-        return
-      }
-
-      void attachCallStream({
-        socket,
-        manager,
-        env,
-        instanceName,
-        callId: params.callId,
-        apiKey,
-        instanceRepo,
-        callRecording,
-      })
+      const target = callSocketTarget(socket, request)
+      if (!target) return
+      void attachCallStream({ ...target, socket, manager, env, instanceRepo, callRecording })
     },
   )
+
+  app.get(
+    scopedInstancePaths('/calls/:callId/video'),
+    {
+      websocket: true,
+      schema: {
+        tags: ['Calls'],
+        summary: 'WebSocket live H.264 video stream',
+        description:
+          '**WebSocket upgrade** for bidirectional video on calls with `mediaType: "video"` ' +
+          '(start with `isVideo: true`). Audio stays on `.../stream` — open both.\n\n' +
+          '### URL\n' +
+          '```\n' +
+          'ws(s)://<host>/v1/calls/{callId}/video?apiKey=<key>\n' +
+          '```\n\n' +
+          '### Protocol\n' +
+          '1. Server sends JSON text frame:\n' +
+          '```json\n' +
+          '{ "op": "ready", "callId": "...", "codec": "h264", "format": "annexb", "headerBytes": 12, "mediaType": "video", "videoOff": false }\n' +
+          '```\n' +
+          '2. Binary frames (both directions): 12-byte header + one H.264 **Annex-B** access unit. ' +
+          'Header: `u8 version=1`, `u8 flags` (bit0 = key frame), `u16 BE stream id`, `u64 BE timestamp µs`. ' +
+          'Stream id = one remote sender (several on a group call), announced first by ' +
+          '`{ "op": "stream", "streamId", "ssrc", "participantJid" }` and retired by `{ "op": "stream_end", "streamId" }` ' +
+          '(left the call, switched device). Ids are never reused; the client sends `0`.\n' +
+          '3. Client → server: encoded camera frames (Constrained Baseline recommended). The peer cannot ' +
+          'request key frames through the API — send an IDR at least every 1 s (~350 kbps; see `pnpm test:call-quality`).\n' +
+          '4. Server → client: peer frames; timestamps start at 0. When the socket lags, frames are dropped ' +
+          'until the next key frame.\n' +
+          '5. State JSON: `{ "op": "state", "state": "active", "isActive": true, "videoOff": false }` ' +
+          '(`videoOff` = peer camera off)\n' +
+          '6. On end: `{ "op": "ended", "callId": "..." }` then close. Closing this socket does **not** end the call.\n\n' +
+          'Opens on audio calls too: they can turn into video mid-call (`.../video/upgrade`).\n\n' +
+          'Close codes: `4403` forbidden · `4404` call not found · `4503` instance offline.',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        querystring: StreamQuerySchema,
+      },
+    },
+    (socket, request) => {
+      const target = callSocketTarget(socket, request)
+      if (!target) return
+      void attachCallVideoStream({ ...target, socket, manager, env, instanceRepo })
+    },
+  )
+}
+
+/** Parse params + API key for a per-call media socket; closes the socket and returns null on failure. */
+function callSocketTarget(
+  socket: WebSocket,
+  request: FastifyRequest,
+): { instanceName: string; callId: string; apiKey: string } | null {
+  const params = CallParamsSchema.parse(request.params)
+  const q = StreamQuerySchema.parse(request.query)
+  const headerKey = typeof request.headers['x-api-key'] === 'string' ? request.headers['x-api-key'] : null
+  const apiKey = q.apiKey ?? headerKey
+  if (!apiKey) {
+    socket.close(4401, 'missing api key')
+    return null
+  }
+  try {
+    return { instanceName: resolveInstanceName(request), callId: params.callId, apiKey }
+  } catch {
+    socket.close(4403, 'forbidden')
+    return null
+  }
 }

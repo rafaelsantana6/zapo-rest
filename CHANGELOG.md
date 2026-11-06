@@ -9,7 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Group calls (voip 1.4).** `POST /v1/calls` takes `groupId` + `participants` (phones, JIDs or LIDs, max 31) instead of `to`; participants are resolved to LIDs and any without one returns `400` with `details.missing`. `POST /v1/calls/:callId/leave` leaves a group call the others stay on (`409` on a 1:1 call), `POST /v1/calls/:callId/join` joins one going on without you, and `POST /v1/calls/:callId/participants/mute` (`{ "participant": "…@lid" }`) asks a participant to mute. Same on the VoIP control WS: `call:leave`, `call:join`, `call:mute_participant`. New webhook/WS events `call.participants_changed`, `call.mute_requested`, `call.participant_media`. The call snapshot gains `isGroup`, `groupJid` and `participants`. Video is still not exposed.
+- **Group calls (voip 1.4).** `POST /v1/calls` takes `groupId` + `participants` (phones, JIDs or LIDs, max 31) instead of `to`; participants are resolved to LIDs and any without one returns `400` with `details.missing`. `POST /v1/calls/:callId/leave` leaves a group call the others stay on (`409` on a 1:1 call), `POST /v1/calls/:callId/join` joins one going on without you, and `POST /v1/calls/:callId/participants/mute` (`{ "participant": "…@lid" }`) asks a participant to mute. Same on the VoIP control WS: `call:leave`, `call:join`, `call:mute_participant`. New webhook/WS events `call.participants_changed`, `call.mute_requested`, `call.participant_media`. The call snapshot gains `isGroup`, `groupJid` and `participants`.
+- **Video calls, 1:1 and group.** `POST /v1/calls` accepts `isVideo: true`, with `to` or with `groupId` (`/v1/voip` `call:start`: `video: true`). The response carries `mediaType`. A WebSocket, `GET /v1/calls/:callId/video`, carries bidirectional H.264 (Annex-B, 12-byte binary header) next to the PCM stream. Each remote sender gets its own `streamId` in the header, announced by a JSON `stream` message with its `participantJid` and retired by `stream_end` when it leaves or switches device, so a group call decodes one stream per participant. The socket also opens on audio calls, which can turn into video mid-call.
+- **Audio → video mid-call.** `POST /v1/calls/:callId/video/upgrade` (WS `call:video_upgrade`) returns the peer's answer (`accepted`, `rejected`, `timeout`, …); on a group call it asks the server. Answer the peer's request with `.../video/upgrade/accept` or `.../reject`; `.../cancel` withdraws ours. `POST /v1/calls/:callId/video` (`{ "enabled": true }`, WS `call:video`) turns the camera on or off on a group call.
+- **Screen share.** `POST /v1/calls/:callId/screen-share` (`{ "sharing": true }`, WS `call:screen_share`). The screen replaces the camera on the same video stream.
+- New webhook/WS events: `call.video_state` (peer camera state; `upgradeRequested: true` asks to turn on video), `call.video_upgraded` (a group call became video), and `call.screen_share` (on the control WS `call:screen_share_changed`, since `call:screen_share` is the command). `mediaType` reads `video` once a 1:1 call upgraded mid-call (upstream keeps the negotiated `audio`). The call snapshot gains `videoOff`, `screenSharing`, `peerVideoState`, `peerScreenSharing`, and `participantMedia` (per device: mic, camera, screen, media arriving).
+- **Dashboard softphone video.** It has a "Vídeo" call button, one remote tile per participant, a local preview and a camera toggle. It can also upgrade an audio call ("Vídeo"), answer the peer's upgrade request, switch camera mid-call ("Trocar câmera"), and share the screen (Chrome/Edge, WebCodecs). The settings tab picks the camera and tests it with the call's own H.264 encoder, naming the reason when it cannot open (permission, in use, not found, no HTTPS). A status line shows what is being sent and how many frames went out. The encoder runs without a camera, so a camera that fails still leaves screen share working.
+- **Call quality harness.** `pnpm test:call-quality` runs real video calls end to end, in both directions, without WhatsApp. A fake phone uses the plugin's own SRTP, MLow and H.264. A local UDP relay simulates network conditions (latency, jitter, loss, bandwidth). The run measures fps, decodable frames, latency, freezes, audio latency and gaps, and A/V skew, and writes a report to `.cache/call-harness/reports/`.
+
+- `WA_DEVICE_BROWSER` / `WA_DEVICE_OS` set the companion identity shown under the phone's "Linked devices" (unset keeps Firefox + host OS). Saved at pairing: re-pair to change it.
+
+### Changed
+
+- WebSocket messages are capped at the largest legitimate frame, one H.264 key frame (`VIDEO_MAX_FRAME_BYTES` + header, about 2 MiB), instead of the `ws` default of 100 MiB.
+- `Permissions-Policy` now allows `camera` and `display-capture` for the same origin (was `camera=()`), so the dashboard softphone can open the camera and share the screen.
+- Softphone video encoder: 350 kbps, 480×360, IDR every 1 s, constant bitrate (was 600 kbps / 640×480 / 2 s). In the call harness this cuts Wi-Fi freezes from 1.8 s to 0.8 s; on a 450 kbps uplink the phone gets 15 fps instead of no video. The 1 s IDR also shortens the start of our video, which voip 1.4 holds until the peer is ready and then opens on the next key frame.
 
 ## [0.9.0] - 2026-11-05
 
@@ -30,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Meta AI rich responses are stored as text (submessage text, image captions, and code blocks). A bot-forwarded message uses the inner type, so a forwarded image stays media instead of `unknown`.
 - `POST .../calls/:callId/mute` now also announces the mute state to the peer (upstream `@zapo-js/voip` 1.2 behavior).
 - Media reupload now fails immediately — `media reupload re-encrypted: ...` → `message.media.failed`, no retry — when the re-served blob still fails `media MAC mismatch` / `file hash mismatch`: some primaries re-encrypt on reupload and nothing in the response carries the new key.
+
+### Fixed
+
+- Remote video in video calls. `@zapo-js/voip` 1.1.0 does not mark WhatsApp-packed key frames (SPS+PPS+IDR in one FU-A) as `keyFrame`. The `/video` socket now detects IDR/SPS itself, so browser decoders get a key frame and start (`isH264KeyFrame`).
 
 ### Dependencies
 

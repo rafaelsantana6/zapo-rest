@@ -21,6 +21,8 @@ Last updated: 2026-07-14
 | Calls / VoIP (offer/accept/reject/end/mute/stream) | ✅ |
 | In-call hand raise + emoji reactions (`/calls/:id/hand`, `/calls/:id/reaction`) | ✅ |
 | Group calls (`groupId` + `participants`, `/calls/:id/leave`, `/calls/:id/join`, `/calls/:id/participants/mute`) | ✅ |
+| Video calls, 1:1 and group (`isVideo`, H.264 WS `.../calls/:id/video`) | ✅ |
+| Video upgrade, group camera, screen share (`/calls/:id/video/upgrade`, `/calls/:id/video`, `/calls/:id/screen-share`) | ✅ |
 | Audio blast + STT (`/calls/blast`, `/calls/:id/transcribe`) | ✅ |
 | WAM telemetry (`@zapo-js/wam`, `WAM_ENABLED` default on) | ✅ |
 | Postgres L1 read cache (`STORE_L1_CACHE`, single-process/sticky-sessions only) | ✅ |

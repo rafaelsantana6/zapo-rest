@@ -49,8 +49,16 @@ describe('group call routes', () => {
     expect(voip.startCall).toHaveBeenCalledWith({
       groupJid: '120363000000000000@g.us',
       participants: [{ jid: '111@lid' }, { jid: '222@lid' }],
+      isVideo: false,
     })
     expect(res.json()).toMatchObject({ callId: 'NEWGROUP', groupJid: '120363000000000000@g.us' })
+  })
+
+  it('places a group video call', async () => {
+    const res = await post('/v1/calls', { groupId: '120363000000000000', participants: ['111@lid'], isVideo: true })
+    expect(res.statusCode).toBe(200)
+    expect(voip.startCall).toHaveBeenCalledWith(expect.objectContaining({ isVideo: true }))
+    expect(res.json()).toMatchObject({ mediaType: 'video' })
   })
 
   it('returns 400 listing participants without a LID', async () => {

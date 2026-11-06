@@ -130,6 +130,8 @@ export function createWaClient(
     sessionId,
     recoverFromClientTooOld: true,
     markOnlineOnConnect: false,
+    ...(env.WA_DEVICE_BROWSER ? { deviceBrowser: env.WA_DEVICE_BROWSER } : {}),
+    ...(env.WA_DEVICE_OS ? { deviceOsDisplayName: env.WA_DEVICE_OS } : {}),
     history: {
       enabled: env.HISTORY_SYNC_ENABLED,
       requireFullSync: env.HISTORY_REQUIRE_FULL_SYNC,

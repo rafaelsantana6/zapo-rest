@@ -28,8 +28,15 @@ export type VoipHandlers = {
   onCallAccepted?: (call: LiveCall) => void
   onCallState?: (call: LiveCall) => void
   onCallEnded?: (call: LiveCall) => void
+  /** Peer camera / upgrade request (`upgradeRequested`), group upgrade, screen share. */
+  onVideoEvent?: (event: VideoEvent) => void
   onError?: (message: string) => void
 }
+
+export type VideoEvent =
+  | { op: 'call:video_state'; call: LiveCall; stateName: string | null; upgradeRequested: boolean }
+  | { op: 'call:video_upgraded'; call: LiveCall; participantJid: string | null }
+  | { op: 'call:screen_share_changed'; call: LiveCall; participantJid: string | null; sharing: boolean }
 
 let seq = 0
 function nextId() {
@@ -357,6 +364,9 @@ export class VoipControlSocket {
     else if (op === 'call:accepted') this.emit('onCallAccepted', call)
     else if (op === 'call:state') this.emit('onCallState', call)
     else if (op === 'call:ended') this.emit('onCallEnded', call)
+    else if (op === 'call:video_state' || op === 'call:video_upgraded' || op === 'call:screen_share_changed') {
+      this.emit('onVideoEvent', msg as unknown as VideoEvent)
+    }
   }
 
   /** Fire-and-forget without waiting for ack (attach on open). */
@@ -414,9 +424,9 @@ export class VoipControlSocket {
     }
   }
 
-  async startCall(phone: string) {
+  async startCall(phone: string, opts: { video?: boolean } = {}) {
     // Server may resolve usync + initMedia; keep above that path (15s) + network cushion.
-    return this.command('call:start', { phone }, 25_000)
+    return this.command('call:start', { phone, video: opts.video === true }, 25_000)
   }
 
   async acceptCall(callId: string) {
@@ -434,6 +444,24 @@ export class VoipControlSocket {
 
   async muteCall(callId: string, muted: boolean) {
     return this.command('call:mute', { callId, muted })
+  }
+
+  /** 1:1: waits for the peer (~5 s) → ack `data.result` (`accepted`, `rejected`, `timeout`, …). */
+  async requestVideoUpgrade(callId: string) {
+    return this.command('call:video_upgrade', { callId }, 12_000)
+  }
+
+  async answerVideoUpgrade(callId: string, answer: 'accept' | 'reject' | 'cancel') {
+    return this.command(`call:video_upgrade_${answer}`, { callId })
+  }
+
+  /** Group calls: our camera on/off. */
+  async setGroupVideo(callId: string, enabled: boolean) {
+    return this.command('call:video', { callId, enabled })
+  }
+
+  async setScreenShare(callId: string, sharing: boolean) {
+    return this.command('call:screen_share', { callId, sharing })
   }
 
   async listCalls() {

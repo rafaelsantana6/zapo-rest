@@ -861,6 +861,15 @@ export type LiveCall = {
   isEnded?: boolean
   canAccept?: boolean
   audioMuted?: boolean
+  /** `audio` | `video` — video calls also open `.../calls/:callId/video`. */
+  mediaType?: string | null
+  /** Peer camera off (always true on audio calls). */
+  videoOff?: boolean
+  isGroup?: boolean
+  groupJid?: string | null
+  /** Local screen share in progress. */
+  screenSharing?: boolean
+  peerScreenSharing?: boolean
   durationSecs?: number | null
   endReason?: string | null
 }

@@ -85,7 +85,9 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | VoIP control WS + PCM stream | ✅ |
 | In-call hand raise / emoji reactions | ✅ `POST .../calls/:id/hand` · `.../reaction` + WS `call:hand` / `call:reaction` |
 | Group calls (start / leave / join / ask to mute) | ✅ `POST .../calls` (`groupId` + `participants`) · `.../calls/:id/leave` · `.../join` · `.../participants/mute` + WS `call:leave` / `call:join` / `call:mute_participant` |
-| Group call video | ❌ (API is audio-only) |
+| Video calls, 1:1 and group (`isVideo`, H.264 WS `.../calls/:id/video`) | ✅ |
+| Audio → video upgrade, group camera, screen share | ✅ `POST .../calls/:id/video/upgrade` (+ `/accept` `/reject` `/cancel`) · `.../video` · `.../screen-share` + WS `call:video_upgrade*` / `call:video` / `call:screen_share` |
+| Group call per-participant video (`setVideoSubscriptions`) | ❌ (upstream does not send it to the relay yet) |
 | Message brokers (Kafka/SQS/…) | ❌ |
 
 ---

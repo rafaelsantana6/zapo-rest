@@ -124,3 +124,40 @@ describe('VoIP group call events (voip 1.4)', () => {
     expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ participantJid: '111:2@lid', receiving: false })
   })
 })
+
+describe('VoIP video events (voip 1.4)', () => {
+  it('emits call.video_state flagging an upgrade request', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_peer_video_state', { call, change: { state: 11, transactionId: 1 } })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[1]).toBe('call.video_state')
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({
+      state: 11,
+      stateName: 'upgrade_request_v2',
+      upgradeRequested: true,
+    })
+  })
+
+  it('does not flag a group upgrade request as answerable', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_peer_video_state', { call, change: { state: 3 } })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ stateName: 'upgrade_request', upgradeRequested: false })
+  })
+
+  it('emits call.screen_share with its size', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_screen_share', {
+      call,
+      participantJid: '111:2@lid',
+      share: { state: 1, screenWidth: 1280, screenHeight: 720 },
+    })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({
+      participantJid: '111:2@lid',
+      sharing: true,
+      stateName: 'started',
+      screenWidth: 1280,
+    })
+  })
+})

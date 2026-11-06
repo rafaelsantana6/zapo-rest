@@ -38,8 +38,13 @@ export async function startGroupCall(
   client: VoipWaClient,
   groupJid: string,
   participantLids: readonly string[],
+  opts: { isVideo?: boolean } = {},
 ): Promise<string> {
-  return client.voip.startCall({ groupJid, participants: participantLids.map((jid) => ({ jid })) })
+  return client.voip.startCall({
+    groupJid,
+    participants: participantLids.map((jid) => ({ jid })),
+    isVideo: opts.isVideo === true,
+  })
 }
 
 /**

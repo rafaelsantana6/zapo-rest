@@ -1390,6 +1390,51 @@ a.btn.ghost {
   gap: 0.5rem;
   justify-items: center;
 }
+.softphone-window[hidden] {
+  display: none;
+}
+.softphone-window.video {
+  width: min(520px, calc(100vw - 1.5rem));
+  max-height: min(820px, calc(100dvh - 6rem));
+}
+.softphone-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.softphone-video-remote {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.softphone-video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.softphone-video-local {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  width: 28%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: #111;
+  transform: scaleX(-1);
+}
+.softphone-video-local.off {
+  opacity: 0.25;
+}
 .softphone-avatar {
   width: 72px;
   height: 72px;
@@ -1770,4 +1815,59 @@ a.btn.ghost {
   height: 100%;
   background: linear-gradient(90deg, var(--accent-dim), var(--accent));
   border-radius: 999px;
+}
+
+/* One canvas per remote sender; a 1:1 call fills the area, a group call tiles */
+.softphone-video-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(45%, 1fr));
+  gap: 2px;
+}
+
+.softphone-video-grid > .softphone-video-remote {
+  position: static;
+  width: 100%;
+  height: 100%;
+}
+
+.softphone-upgrade-prompt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.softphone-camera-test {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.softphone-camera-test video {
+  width: 160px;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.softphone-camera-test video.idle {
+  opacity: 0.4;
+}
+
+.softphone-hint.error,
+.softphone-video-status.error {
+  color: var(--danger, #e5484d);
+}
+
+.softphone-video-status {
+  font-size: 0.75rem;
+  margin: 0.4rem 0 0;
+  opacity: 0.85;
+  text-align: center;
 }

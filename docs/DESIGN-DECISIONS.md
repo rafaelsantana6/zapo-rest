@@ -36,6 +36,7 @@ Not affiliated with WhatsApp/Meta.
 | **Listen before WA boot** | Healthchecks stay green while reconnect/reconcile run in the background |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Wire parity with real WhatsApp Web analytics (`w:stats`) — better session fingerprint |
 | **Contract-first OpenAPI** | Scalar `/docs`, exportable `openapi.json`, guide SPA, GitHub Pages |
+| **Video on its own WS, drop-until-keyframe backpressure** | H.264 never blocks or shares the PCM socket; a lagging viewer drops to the next key frame — bounded memory, no stale video |
 
 ---
 
@@ -174,6 +175,51 @@ Sending (`POST .../groups/:id/share-history`) stays explicit and fails when the 
 
 ---
 
+## Video calls: dedicated binary WebSocket
+
+**Decision:** video (`isVideo: true` on `POST .../calls` / `call:start`) rides a **second** WebSocket,
+`GET .../calls/:callId/video`, separate from the PCM audio stream. Every binary frame — both
+directions — is a fixed **12-byte header** (version, key-frame flag, reserved, big-endian
+microsecond timestamp) followed by one raw H.264 Annex-B access unit; no JSON envelope, no
+base64. When a client falls behind (`bufferedAmount` over 4 MiB), the server **drops frames
+until the next key frame** instead of queuing. The peer has no way to request a key frame
+through this API, so the client is expected to emit an IDR at least every second (the dashboard
+encoder: 350 kbps, 480×360, 1 s GOP — numbers from `pnpm test:call-quality`, see below).
+
+**Why**
+
+- A single multiplexed socket would let a slow video consumer apply backpressure to audio —
+  unacceptable for a voice call that happens to also carry video. Two sockets keep the failure
+  domains apart: video can degrade or stall while audio keeps flowing.
+- Annex-B + a fixed binary header is copy-free on both ends and hands the browser's WebCodecs
+  `EncodedVideoChunk` API bytes it can use directly — no JSON/base64 inflation or parsing on a
+  media-rate channel.
+- Real-time video without RTCP means the receiver cannot signal "send me a key frame now" (PLI/FIR).
+  Periodic IDRs (client-side) plus server-side drop-until-keyframe are the two mitigations available
+  without implementing that feedback path.
+
+**Trade-off:** two WebSocket connections per video call instead of one; the server cannot ask the
+peer (or the local encoder) for an out-of-band key frame, so recovery after loss waits for the next
+scheduled IDR (up to ~1 s); video is not written to the WAV call recording (audio-only).
+
+**Measured (call harness, `tests/call-harness/`):** because nothing retransmits and nobody can ask
+for a key frame, one lost packet spoils video until the next IDR. On Wi-Fi-like loss (0.2%), 600 kbps
+with a 2 s GOP froze for 1.8 s. 350 kbps with a 1 s GOP froze for 0.8 s. On a 450 kbps uplink the old
+settings delivered no decodable frames, and the new ones deliver 15 fps. The harness also found that
+`@zapo-js/voip` 1.1.0 never flagged WhatsApp-packed IDRs as key frames; `@zapo-js/voip-media` 0.3
+(voip 1.4) fixed it upstream, so the bridge now trusts `frame.keyFrame`.
+
+**Group video (voip 1.4):** a group call delivers one H.264 stream per sender. The header's 2-byte
+stream id (reserved before, so 1:1 clients keep working with id `0`) keeps each sender on its own
+decoder; a JSON `stream` message names the participant first. Rejected alternative: one socket per
+participant — more connections, and the set of senders changes mid-call.
+
+**Code:** `src/voip/video-frame.ts` (framing + RTP timestamp unwrap), `src/voip/call-video-stream.ts`
+(bridge to `client.voip.feedLiveVideo` / `voip_call_inbound_video`), `src/routes/calls.ts`
+(`GET .../calls/:callId/video`).
+
+---
+
 ## Startup and ops
 
 - **`app.listen()` before** full WA auto-connect + large `lid_map` reconcile — so Docker/Swarm healthchecks do not kill the task during long boot.
@@ -203,3 +249,18 @@ Sending (`POST .../groups/:id/share-history`) stays explicit and fails when the 
 | Integrators | Guide `/architecture`, `/media`, `/webhooks`, `/realtime` |
 | Operators | [`PRODUCTION-CONSISTENCY.md`](./PRODUCTION-CONSISTENCY.md) |
 | Contributors / agents | [`AGENTS.md`](../AGENTS.md) · this file |
+
+---
+
+## Permissions-Policy: camera, mic and screen for the same origin
+
+**Decision:** `Permissions-Policy: camera=(self), microphone=(self), display-capture=(self), geolocation=()`.
+The dashboard softphone needs the camera and screen capture for video calls; `camera=()` blocked
+them even when the user allowed them in the browser.
+
+**Trade-off:** the dashboard, the API docs (Scalar) and the guide share one origin, so any page
+there may *ask* for the camera or the screen. The browser still prompts the user, and other-origin
+iframes stay blocked; it only matters with an XSS on this origin. Serve the dashboard on its own
+origin, or tighten the header at the reverse proxy, if that is a concern.
+
+**Code:** `src/plugins/security-headers.ts`.

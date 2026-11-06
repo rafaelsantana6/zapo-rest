@@ -8,11 +8,21 @@ import {
   HandBodySchema,
   OkSchema,
   ParticipantMuteBodySchema,
+  ScreenShareBodySchema,
+  VideoEnabledBodySchema,
+  VideoUpgradeResponseSchema,
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { asVoipClient } from '~/instances/wa-client'
 import { conflict, notFound, serviceUnavailable } from '~/lib/errors'
 import { sendCallReaction, setCallHand } from '~/voip/call-interactions'
+import {
+  answerVideoUpgrade,
+  requestVideoUpgrade,
+  setGroupVideo,
+  setScreenShare,
+  type UpgradeAnswer,
+} from '~/voip/call-video-controls'
 import { joinGroupCall, leaveGroupCall, requestParticipantMute } from '~/voip/group-call'
 
 export type CallInteractionRoutesDeps = {
@@ -89,7 +99,10 @@ export const callInteractionRoutes: FastifyPluginAsync<CallInteractionRoutesDeps
 
   /** Upstream throws for a non-group call or a failed send; both are the caller's state, not ours. */
   const asConflict = (err: unknown) => {
-    throw conflict(err instanceof Error ? err.message : String(err))
+    const message = err instanceof Error ? err.message : String(err)
+    // The call ended between our lookup and the upstream call
+    if (/^no call with id /i.test(message)) throw notFound(message)
+    throw conflict(message)
   }
 
   app.post<CallParams>(
@@ -155,6 +168,116 @@ export const callInteractionRoutes: FastifyPluginAsync<CallInteractionRoutesDeps
       const callId = await requestParticipantMute(client, request.params.callId, request.body.participant).catch(
         asConflict,
       )
+      if (!callId) throw notFound(`call ${request.params.callId} not found`)
+      return { ok: true as const }
+    },
+  )
+
+  app.post<CallParams>(
+    scopedInstancePaths('/calls/:callId/video/upgrade'),
+    {
+      schema: {
+        tags: ['Calls'],
+        summary: 'Upgrade audio call to video',
+        description:
+          'Turns an audio call into video. **1:1:** a handshake — waits for the peer (about 5 s) and returns ' +
+          'its `result`; send frames on `.../video` only after `accepted`. **Group:** asks the server to make the ' +
+          'whole call video; everyone gets `call.video_upgraded` and each turns its own camera on. `409` when ' +
+          'the call cannot be upgraded.',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        response: { 200: VideoUpgradeResponseSchema, 409: ErrorBodySchema, ...ERRORS },
+      },
+    },
+    async (request) => {
+      const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      const res = await requestVideoUpgrade(client, request.params.callId).catch(asConflict)
+      if (!res) throw notFound(`call ${request.params.callId} not found`)
+      return { ok: true as const, result: res.result }
+    },
+  )
+
+  const ANSWER_DOCS: Record<UpgradeAnswer, { summary: string; description: string }> = {
+    accept: {
+      summary: 'Accept a video upgrade',
+      description:
+        "Accepts the peer's request to turn the call into video (`call.video_state` with " +
+        '`upgradeRequested: true`). Answer within about 5 s, then send camera frames on `.../video`.',
+    },
+    reject: {
+      summary: 'Reject a video upgrade',
+      description: "Rejects the peer's request to turn the call into video. Answer within about 5 s.",
+    },
+    cancel: {
+      summary: 'Cancel our video upgrade',
+      description:
+        'Withdraws an upgrade request this side sent before the peer answers; the pending request resolves `cancelled`.',
+    },
+  }
+
+  for (const answer of ['accept', 'reject', 'cancel'] as const) {
+    app.post<CallParams>(
+      scopedInstancePaths(`/calls/:callId/video/upgrade/${answer}`),
+      {
+        schema: {
+          tags: ['Calls'],
+          ...ANSWER_DOCS[answer],
+          security: [{ apiKey: [] }, { bearerAuth: [] }],
+          params: CallParamsSchema,
+          response: { 200: OkSchema, 409: ErrorBodySchema, ...ERRORS },
+        },
+      },
+      async (request) => {
+        const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+        const callId = await answerVideoUpgrade(client, request.params.callId, answer).catch(asConflict)
+        if (!callId) throw notFound(`call ${request.params.callId} not found`)
+        return { ok: true as const }
+      },
+    )
+  }
+
+  app.post<CallParams & { Body: z.infer<typeof VideoEnabledBodySchema> }>(
+    scopedInstancePaths('/calls/:callId/video'),
+    {
+      schema: {
+        tags: ['Calls'],
+        summary: 'Turn the camera on / off (group call)',
+        description:
+          'Group calls only: turns our camera on or off. On a 1:1 call video starts with `video/upgrade` ' +
+          '(`409` here).\n\n```json\n{ "enabled": true }\n```',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        body: VideoEnabledBodySchema,
+        response: { 200: OkSchema, 409: ErrorBodySchema, ...ERRORS },
+      },
+    },
+    async (request) => {
+      const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      const callId = await setGroupVideo(client, request.params.callId, request.body.enabled).catch(asConflict)
+      if (!callId) throw notFound(`call ${request.params.callId} not found`)
+      return { ok: true as const }
+    },
+  )
+
+  app.post<CallParams & { Body: z.infer<typeof ScreenShareBodySchema> }>(
+    scopedInstancePaths('/calls/:callId/screen-share'),
+    {
+      schema: {
+        tags: ['Calls'],
+        summary: 'Start / stop screen share',
+        description:
+          'Announces a screen share. The screen replaces the camera on the same video stream: stop sending ' +
+          'camera frames on `.../video`, send the screen frames, and resume the camera after stopping. `409` on a ' +
+          'call with no video yet (upgrade it, or turn the group camera on, first).\n\n```json\n{ "sharing": true }\n```',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        body: ScreenShareBodySchema,
+        response: { 200: OkSchema, 409: ErrorBodySchema, ...ERRORS },
+      },
+    },
+    async (request) => {
+      const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      const callId = await setScreenShare(client, request.params.callId, request.body.sharing).catch(asConflict)
       if (!callId) throw notFound(`call ${request.params.callId} not found`)
       return { ok: true as const }
     },

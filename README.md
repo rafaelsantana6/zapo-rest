@@ -38,7 +38,7 @@
 | Durable chat store | Upsert projections in Postgres (edits/acks/revokes on the same row) |
 | Reliable webhooks | Multi-URL configs, HMAC-SHA512, durable **outbox** + retries |
 | Live events | **SSE** `GET /v1/events` (server → client; prefer header auth) |
-| Voice calls | **WebSocket** control + live PCM stream (`@zapo-js/voip`) — not a second events bus |
+| Voice & video calls | **WebSocket** control + live PCM stream (`@zapo-js/voip`); a second WS carries H.264 (1:1 and group, upgrade mid-call, screen share) — not a second events bus |
 | Media | Local or S3/MinIO/R2 with **CAS dedup**, rehydrate-from-WA, optional auto-download |
 | Ops UI | Dashboard for QR, chat, send tester, webhooks, softphone |
 
@@ -61,6 +61,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
 - **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
 - **@handle and late group history** — send to `@handle`; members who join a group later still receive shared history (`HISTORY_GROUP_BUNDLES`)
+- **Video on its own binary channel** — H.264 frames never share the PCM socket; a lagging viewer drops to the next key frame instead of growing server memory or blocking audio
 
 | Decision | Benefit |
 | -------- | ------- |
@@ -79,6 +80,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 | **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
+| **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
 
 ---
 
@@ -261,6 +263,7 @@ Lifecycle short form uses singular `/v1/instance` so it never collides with the 
 | App events | **SSE** `GET /v1/events` | messages, connection, presence, chatstate, calls metadata, … |
 | VoIP control | **WS** `/v1/voip` | signaling (offer/accept/reject/…) |
 | Call audio | **WS** `.../calls/:callId/stream` | bidirectional PCM (Float32 LE, 16 kHz mono) |
+| Call video | **WS** `.../calls/:callId/video` | H.264 Annex-B, 12-byte header |
 
 SSE example (header auth):
 
@@ -280,6 +283,8 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 > **Current code is SSE-only for app events.** VoIP remains WebSocket because it is bidirectional.
 
 In-call hand raise (`POST .../calls/:callId/hand`, WS `call:hand`) and emoji reactions (`POST .../calls/:callId/reaction`, WS `call:reaction`) round-trip to the peer as `call.peer_mute`, `call.hand_raise`, and `call.reaction` (webhook + WS). The call snapshot adds `peerAudioMuted`, `handRaised`, and `raisedHands`.
+
+Video: `isVideo: true` on 1:1 and group calls; an audio call upgrades with `POST .../calls/:callId/video/upgrade` (the peer's own request arrives as `call.video_state` with `upgradeRequested: true`), a group camera toggles with `.../video`, and `.../screen-share` swaps the camera for the screen. Frames ride `.../calls/:callId/video`, one `streamId` per sender (`stream_end` when it leaves). Control WS: `call:video_upgrade`, `call:video_upgrade_accept|reject|cancel`, `call:video`, `call:screen_share`. Events: `call.video_state`, `call.video_upgraded`, `call.screen_share` (WS `call:screen_share_changed`). `mediaType` reads `video` once a 1:1 call upgraded. The dashboard softphone tests and switches the camera and shares the screen.
 
 Group calls: `POST .../calls` with `groupId` + `participants` (resolved to LIDs; `400` with `details.missing` otherwise) instead of `to`. `POST .../calls/:callId/leave` (WS `call:leave`), `.../join` (WS `call:join`) and `.../participants/mute` (WS `call:mute_participant`). Roster and media changes arrive as `call.participants_changed`, `call.mute_requested`, and `call.participant_media`; the snapshot adds `isGroup`, `groupJid`, and `participants`.
 
@@ -315,6 +320,7 @@ WhatsApp Web clients send analytics batches on the `w:stats` channel (**WAM**). 
 | --- | ------- | ------ |
 | `WAM_ENABLED` | `true` | Load `wamPlugin()` next to VoIP when creating each `WaClient` |
 | `WAM_ENABLED=false` | — | No WAM plugin; quieter headless footprint |
+| `WA_DEVICE_BROWSER` / `WA_DEVICE_OS` | unset (Firefox + host OS) | Companion identity sent at pairing (e.g. `Chrome` / `Windows`); re-pair to apply |
 
 Restart the process after changing the env. Details: [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) · guide [Architecture](https://rafaelsantana6.github.io/zapo-rest/architecture) / [FAQ](https://rafaelsantana6.github.io/zapo-rest/faq).
 
@@ -398,7 +404,8 @@ GET /v1/events?instance=optional
 X-Api-Key: …
 
 # VoIP remains WebSocket
-# /v1/voip · /v1/instances/:name/calls/:id/stream  (or /v1/calls/:id/stream with instance key)
+# /v1/voip · /v1/calls/:id/stream  (instance key; ?apiKey= for browsers)
+# /v1/calls/:id/video — H.264, one stream id per sender; also on audio calls (they can upgrade)
 # POST /v1/instances/:name/calls/blast
 # POST /v1/instances/:name/calls/:id/transcribe
 
@@ -411,6 +418,13 @@ POST /v1/calls                                  # { "groupId": "1203…@g.us", "
 POST /v1/calls/:callId/leave
 POST /v1/calls/:callId/join
 POST /v1/calls/:callId/participants/mute        # { "participant": "…@lid" }
+
+# Video — named or short (frames on /v1/calls/:id/video)
+POST /v1/calls                                  # { "to": "5511…", "isVideo": true }  (or groupId + participants)
+POST /v1/calls/:callId/video/upgrade            # audio → video; → { "result": "accepted" | … }
+POST /v1/calls/:callId/video/upgrade/accept     # also /reject, /cancel
+POST /v1/calls/:callId/video                    # { "enabled": true } — group camera
+POST /v1/calls/:callId/screen-share             # { "sharing": true }
 ```
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.
@@ -481,7 +495,7 @@ src/
  webhooks/ multi-config + outbox
  media/ local + S3
  routes/ Fastify + Zod OpenAPI (+ events-sse, voip-ws)
- voip/ PCM bridge + recording
+ voip/ PCM + H.264 video bridge, recording
 dashboard/ Vite + React UI
 docs-site/ Guide SPA (/guide)
 docs/ parity maps, design notes, review artifacts

@@ -46,6 +46,7 @@ pnpm test:coverage
 pnpm test:db
 pnpm test:e2e
 pnpm test:unit:critical
+pnpm test:call-quality   # video call harness (ffmpeg; downloads a 10 s sample once)
 ```
 
 Env:
@@ -61,7 +62,8 @@ tests/
   unit/        pure + mocked modules (incl. phone-resolve, cors, revive-raw)
   integration/ Fastify inject (auth, SSE, Zod, rate-limit, media rehydrate, route-handlers)
   db/          real Postgres store/repo tests
-  e2e/         @zapo-js/fake-server
+  e2e/         @zapo-js/fake-server (incl. video-call-quality)
+  call-harness/ fake phone + FNA relay + metrics for real call tests (README inside)
 ```
 
 ## Toward overall 75–85%

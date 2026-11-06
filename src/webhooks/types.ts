@@ -34,6 +34,12 @@ export const WEBHOOK_EVENTS = [
   'call.mute_requested',
   /** A group participant's media started or stopped arriving. */
   'call.participant_media',
+  /** Peer camera state or video upgrade request (`upgradeRequested: true` → accept/reject). */
+  'call.video_state',
+  /** A group call became a video call. */
+  'call.video_upgraded',
+  /** A participant started or stopped sharing its screen. */
+  'call.screen_share',
   'history.sync',
   /** Group history bundle shared with this account after it joined. */
   'history.group',

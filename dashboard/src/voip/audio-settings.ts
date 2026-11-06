@@ -5,6 +5,8 @@ const KEY = 'zapo-softphone-audio'
 export type SoftphoneAudioPrefs = {
   micId: string
   speakerId: string
+  /** Video calls; empty = browser default. */
+  cameraId: string
   /** Extra client-side noise gate + high-pass (on top of browser NS). */
   noiseFilter: boolean
   /** Browser constraint noiseSuppression */
@@ -18,6 +20,7 @@ export type SoftphoneAudioPrefs = {
 const DEFAULTS: SoftphoneAudioPrefs = {
   micId: '',
   speakerId: '',
+  cameraId: '',
   noiseFilter: true,
   browserNoiseSuppression: true,
   echoCancellation: true,
@@ -54,33 +57,39 @@ export type MediaDeviceOption = {
 export async function listAudioDevices(): Promise<{
   mics: MediaDeviceOption[]
   speakers: MediaDeviceOption[]
+  cameras: MediaDeviceOption[]
 }> {
   if (!navigator.mediaDevices?.enumerateDevices) {
-    return { mics: [], speakers: [] }
+    return { mics: [], speakers: [], cameras: [] }
   }
   const devices = await navigator.mediaDevices.enumerateDevices()
   const mics: MediaDeviceOption[] = []
   const speakers: MediaDeviceOption[] = []
+  const cameras: MediaDeviceOption[] = []
   let micIdx = 0
   let spkIdx = 0
+  let camIdx = 0
   for (const d of devices) {
     if (d.kind === 'audioinput') {
       micIdx++
       mics.push({
         deviceId: d.deviceId,
-        label: d.label | `Microfone ${micIdx}`,
+        label: d.label || `Microfone ${micIdx}`,
         kind: d.kind,
       })
     } else if (d.kind === 'audiooutput') {
       spkIdx++
       speakers.push({
         deviceId: d.deviceId,
-        label: d.label | `Alto-falante ${spkIdx}`,
+        label: d.label || `Alto-falante ${spkIdx}`,
         kind: d.kind,
       })
+    } else if (d.kind === 'videoinput') {
+      camIdx++
+      cameras.push({ deviceId: d.deviceId, label: d.label || `Câmera ${camIdx}`, kind: d.kind })
     }
   }
-  return { mics, speakers }
+  return { mics, speakers, cameras }
 }
 
 /** Warm permission so enumerateDevices returns labels. */
