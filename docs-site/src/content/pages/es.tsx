@@ -1687,8 +1687,9 @@ const dec = new TextDecoder
     body: (
       <>
         <p>
-          CRUD completo bajo <code>/v1/instances/:name/groups</code>: create, metadata, leave, subject/description,
-          invite-code, participants add/remove, promote/demote, picture, settings (announcement, restrict, ephemeral…).
+          CRUD completo bajo <code>/v1/groups</code> con la clave de la instancia: create, metadata, leave,
+          subject/description, invite-code, participants add/remove, promote/demote, picture, settings (announcement,
+          restrict, ephemeral…).
         </p>
         <h2 id="member-settings">Permisos de los miembros</h2>
         <p>
@@ -1709,6 +1710,20 @@ const dec = new TextDecoder
             <code>admin_share</code> / <code>all_member_share</code>.
           </li>
         </ul>
+        <CodeBlock
+          language="bash"
+          code={`curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-add-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_add"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-link-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_link"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_share"}'`}
+        />
         <p>
           Solo los administradores del grupo pueden cambiar los modos. Valores inválidos devuelven 400 con los valores
           aceptados; grupo desconocido devuelve 404; permisos denegados por WhatsApp devuelven 403. Los ajustes

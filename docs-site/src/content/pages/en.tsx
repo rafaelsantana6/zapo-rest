@@ -1673,7 +1673,7 @@ const dec = new TextDecoder
     body: (
       <>
         <p>
-          Full CRUD under <code>/v1/instances/:name/groups</code>: create, metadata, leave, subject/description,
+          Full CRUD under <code>/v1/groups</code> using the instance key: create, metadata, leave, subject/description,
           invite-code, participants add/remove, promote/demote, picture, settings (announcement, restrict, ephemeral…).
         </p>
         <h2 id="member-settings">Member permissions</h2>
@@ -1694,6 +1694,20 @@ const dec = new TextDecoder
             <code>admin_share</code> / <code>all_member_share</code>.
           </li>
         </ul>
+        <CodeBlock
+          language="bash"
+          code={`curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-add-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_add"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-link-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_link"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_share"}'`}
+        />
         <p>
           Only group admins can change the modes. Invalid values return 400 with accepted values; unknown groups return
           404; WhatsApp permission denials return 403. Boolean settings still use <code>{'{ enabled }'}</code> (
