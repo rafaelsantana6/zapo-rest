@@ -44,6 +44,8 @@ export type WebhookEvent =
   | 'history.sync'
   | 'history.group'
   | 'profile.username'
+  | 'newsletter.update'
+  | 'newsletter.message_update'
   | string
 
 export type WebhookPayload = {

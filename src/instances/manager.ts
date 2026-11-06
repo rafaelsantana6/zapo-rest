@@ -1,3 +1,4 @@
+import { serializeNewsletterEvent, serializeNewsletterMessageUpdate } from '~/newsletters/serialize'
 import type { Pool } from 'pg'
 import type { WaAuthCredentials, WaClient, WaConnectionEvent, WaIncomingMessageEvent } from 'zapo-js'
 import type { Env } from '~/config/env'
@@ -565,6 +566,20 @@ export class InstanceManager {
       })
     })
 
+    client.on('newsletter', (event) => {
+      runSafe('newsletter', async () => {
+        const row = await this.getRecord(name)
+        if (row) await this.opts.webhooks.emit(row, 'newsletter.update', serializeNewsletterEvent(event))
+      })
+    })
+    client.on('newsletter_message_update', (event) => {
+      runSafe('newsletter_message_update', async () => {
+        const row = await this.getRecord(name)
+        if (row)
+          await this.opts.webhooks.emit(row, 'newsletter.message_update', serializeNewsletterMessageUpdate(event))
+      })
+    })
+
     client.on('group_history_bundle', (event) => {
       runSafe('group_history_bundle', async () => {
         if (this.opts.events) await this.opts.events.onGroupHistoryBundle(name, event, client)
@@ -803,6 +818,7 @@ export class InstanceManager {
   }
 
   private async onIncomingMessage(name: string, client: WaClient, event: WaIncomingMessageEvent): Promise<void> {
+    if (event.key.remoteJid.endsWith('@newsletter')) return
     const events = this.opts.events
     if (events) {
       // Pass client so media is downloaded+stored before webhooks
