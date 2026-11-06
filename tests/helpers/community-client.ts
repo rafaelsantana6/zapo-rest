@@ -1,5 +1,5 @@
 import { type Mock, vi } from 'vitest'
-import type { WaGroupCoordinator, WaGroupMetadata } from 'zapo-js'
+import type { WaClient, WaGroupCoordinator, WaGroupMetadata } from 'zapo-js'
 
 export const COMMUNITY_JID = '120363000000000000@g.us'
 export const SUBGROUP_JID = '120363000000000001@g.us'
@@ -50,8 +50,13 @@ type FakeCommunityGroup = {
     | 'transferCommunityOwnership']: Mock<WaGroupCoordinator[Method]>
 }
 
+type FakeCommunityProfile = {
+  getLidsByPhoneNumbers: Mock<WaClient['profile']['getLidsByPhoneNumbers']>
+  resolveUsername: Mock<WaClient['profile']['resolveUsername']>
+}
+
 /** Named fake: parent metadata, partial link failures, and deterministic community reads. */
-export function fakeCommunityClient(): { group: FakeCommunityGroup; profile: ReturnType<typeof fakeCommunityProfile> } {
+export function fakeCommunityClient(): { group: FakeCommunityGroup; profile: FakeCommunityProfile } {
   const metadata = communityMetadata()
   const subGroup = {
     jid: SUBGROUP_JID,
@@ -109,11 +114,25 @@ export function fakeCommunityClient(): { group: FakeCommunityGroup; profile: Ret
   return { group, profile: fakeCommunityProfile() }
 }
 
-function fakeCommunityProfile() {
+function fakeCommunityProfile(): FakeCommunityProfile {
   const profile = {
-    getLidsByPhoneNumbers: vi.fn(async (jids: string[]) =>
-      jids.map((phoneJid) => ({ phoneJid, lidJid: '222@lid', exists: true, status: 'in' })),
+    getLidsByPhoneNumbers: vi.fn<WaClient['profile']['getLidsByPhoneNumbers']>(async (jids) =>
+      jids.map((phoneJid) => ({
+        phoneJid,
+        queriedJid: phoneJid,
+        lidJid: '222@lid',
+        exists: true,
+        invalid: false,
+        status: 'in',
+      })),
     ),
+    resolveUsername: vi.fn<WaClient['profile']['resolveUsername']>(async () => ({
+      status: 'found',
+      jid: '333@lid',
+      username: 'community_owner',
+      isBusiness: false,
+      pnJid: null,
+    })),
   }
   return profile
 }

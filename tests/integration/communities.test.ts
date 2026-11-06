@@ -3,6 +3,19 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { COMMUNITY_JID, communityMetadata, fakeCommunityClient, SUBGROUP_JID } from '../helpers/community-client'
 import { ADMIN_KEY, buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 
+type CommunityOpenApiPaths = Record<
+  string,
+  Partial<
+    Record<
+      'get' | 'post' | 'delete',
+      {
+        requestBody?: { required?: boolean }
+        responses: Record<string, unknown>
+      }
+    >
+  >
+>
+
 describe('community routes', () => {
   let ctx: TestApp
   let apiKey: string
@@ -103,6 +116,34 @@ describe('community routes', () => {
     expect(group.transferCommunityOwnership).toHaveBeenCalledWith(COMMUNITY_JID, '5511999999999@s.whatsapp.net')
   })
 
+  it('transfers ownership to a LID without phone or username lookup', async () => {
+    const response = await inject('POST', `${base}/owner`, { user: '222@lid' })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(group.transferCommunityOwnership).toHaveBeenCalledWith(COMMUNITY_JID, '222@lid')
+    expect(client.profile.getLidsByPhoneNumbers).not.toHaveBeenCalled()
+    expect(client.profile.resolveUsername).not.toHaveBeenCalled()
+  })
+
+  it('resolves a username before transferring ownership', async () => {
+    const response = await inject('POST', `${base}/owner`, { user: '@community_owner' })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(client.profile.resolveUsername).toHaveBeenCalledWith({ username: '@community_owner' })
+    expect(group.transferCommunityOwnership).toHaveBeenCalledWith(COMMUNITY_JID, '333@lid')
+    expect(client.profile.getLidsByPhoneNumbers).not.toHaveBeenCalled()
+  })
+
+  it.each(['key-required', 'not-found'] as const)(
+    'does not transfer ownership when username resolution returns %s',
+    async (status) => {
+      client.profile.resolveUsername.mockResolvedValueOnce({ status, username: 'community_owner' })
+      const response = await inject('POST', `${base}/owner`, { user: '@community_owner' })
+      expect(response.statusCode, response.body).toBe(400)
+      expect(response.json().error.code).toBe('BAD_REQUEST')
+      expect(group.transferCommunityOwnership).not.toHaveBeenCalled()
+      expect(client.profile.getLidsByPhoneNumbers).not.toHaveBeenCalled()
+    },
+  )
+
   const existingRoutes: [InjectOptions['method'], string, InjectOptions['payload']?][] = [
     ['GET', ''],
     ['DELETE', ''],
@@ -139,6 +180,84 @@ describe('community routes', () => {
 
   it('requires a hint for suggestions', async () => {
     expect((await inject('GET', `${base}/subgroups/suggestions`)).statusCode).toBe(400)
+  })
+
+  const legacyGroupJid = '5511999999999-1234567890@g.us'
+  it.each(['link', 'unlink'] as const)('accepts legacy group JIDs when applying %s', async (action) => {
+    const response = await inject('POST', `${base}/subgroups/${action}`, { groups: [legacyGroupJid] })
+    expect(response.statusCode, response.body).toBe(200)
+    const method = action === 'link' ? group.linkSubGroups : group.unlinkSubGroups
+    expect(method.mock.calls[0]?.[1]).toEqual([legacyGroupJid])
+  })
+
+  it('accepts a legacy group JID as the suggestion hint', async () => {
+    const response = await inject('GET', `${base}/subgroups/suggestions?hint=${legacyGroupJid}`)
+    expect(response.statusCode, response.body).toBe(200)
+    expect(group.fetchSubgroupSuggestions).toHaveBeenCalledWith(COMMUNITY_JID, legacyGroupJid)
+  })
+
+  it('accepts a legacy group JID when joining', async () => {
+    const response = await inject('POST', `${base}/subgroups/${legacyGroupJid}/join`)
+    expect(response.statusCode, response.body).toBe(200)
+    expect(group.joinLinkedGroup).toHaveBeenCalledWith(COMMUNITY_JID, legacyGroupJid, undefined)
+  })
+
+  const mexRoutes = [
+    ['GET', '/subgroups', 'fetchSubGroups', 'fetchSubGroups', 'FetchAllSubgroups'],
+    [
+      'GET',
+      '/subgroups/suggestions?hint=123',
+      'fetchSubgroupSuggestions',
+      'fetchSubgroupSuggestions',
+      'FetchSubgroupSuggestions',
+    ],
+    ['POST', '/owner', 'transferCommunityOwnership', 'transferOwnership', 'TransferCommunityOwnership'],
+  ] as const
+  it.each(mexRoutes)('returns 503 when MEX transport is absent: %s %s', async (method, path, operation, context) => {
+    group[operation].mockRejectedValueOnce(new Error(`community.${context} requires a mex transport`))
+    const response = await inject(method, `${base}${path}`, method === 'POST' ? { user: '222@lid' } : undefined)
+    expect(response.statusCode, response.body).toBe(503)
+    expect(response.json().error.code).toBe('SERVICE_UNAVAILABLE')
+  })
+
+  it.each(mexRoutes)(
+    'returns a sanitized 502 for GraphQL failures: %s %s',
+    async (method, path, operation, _context, mexOperation) => {
+      group[operation].mockRejectedValueOnce(
+        new Error(`mex/${mexOperation} errors: 403: private upstream detail @group`),
+      )
+      const response = await inject(method, `${base}${path}`, method === 'POST' ? { user: '222@lid' } : undefined)
+      expect(response.statusCode, response.body).toBe(502)
+      expect(response.json().error.code).toBe('WA_MEX_FAILED')
+      expect(response.body).not.toContain('private upstream detail')
+    },
+  )
+
+  it.each([403, 404, 503])('preserves IQ error status %s from a MEX query', async (status) => {
+    const reason = status === 403 ? 'not-authorized' : status === 404 ? 'item-not-found' : 'service-unavailable'
+    group.fetchSubGroups.mockRejectedValueOnce(new Error(`mex/FetchAllSubgroups iq failed (${status}: ${reason})`))
+    const response = await inject('GET', `${base}/subgroups`)
+    expect(response.statusCode, response.body).toBe(status)
+  })
+
+  it('documents the join body as optional while keeping link inputs required', () => {
+    const paths = ctx.app.swagger().paths as CommunityOpenApiPaths
+    expect(paths['/v1/communities/{communityId}/subgroups/{groupId}/join']?.post?.requestBody).toMatchObject({
+      required: false,
+    })
+    expect(paths['/v1/communities/{communityId}/subgroups/link']?.post?.requestBody).toMatchObject({ required: true })
+  })
+
+  it('documents authentication and upstream gateway errors on every community operation', () => {
+    const paths = ctx.app.swagger().paths as CommunityOpenApiPaths
+    const operations = Object.entries(paths)
+      .filter(([path]) => path.startsWith('/v1/communities'))
+      .flatMap(([, item]) => [item.get, item.post, item.delete].filter((operation) => operation !== undefined))
+    expect(operations).toHaveLength(10)
+    for (const operation of operations) {
+      expect(operation.responses).toHaveProperty('401')
+      expect(operation.responses).toHaveProperty('502')
+    }
   })
 
   it('preserves community metadata in both group read routes', async () => {

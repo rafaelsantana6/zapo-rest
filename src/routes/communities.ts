@@ -20,6 +20,7 @@ import {
   OkSchema,
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
+import { runCommunityMexQuery } from '~/lib/community-mex'
 import { notFound } from '~/lib/errors'
 import { normalizeGroupJid, serializeGroupMetadata } from '~/lib/group-metadata'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
@@ -32,7 +33,14 @@ const communitySchema = {
   security: [{ apiKey: [] }, { bearerAuth: [] }] as Record<string, string[]>[],
   params: CommunityParamsSchema,
 }
-const errors = { 400: ErrorBodySchema, 403: ErrorBodySchema, 404: ErrorBodySchema, 503: ErrorBodySchema }
+const errors = {
+  400: ErrorBodySchema,
+  401: ErrorBodySchema,
+  403: ErrorBodySchema,
+  404: ErrorBodySchema,
+  502: ErrorBodySchema,
+  503: ErrorBodySchema,
+}
 
 export const communityRoutes: FastifyPluginAsync<CommunityRoutesDeps> = async (fastify, { manager, cache }) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
@@ -96,13 +104,14 @@ export const communityRoutes: FastifyPluginAsync<CommunityRoutesDeps> = async (f
       schema: {
         ...communitySchema,
         summary: 'List community sub-groups',
-        description: 'Includes the announcement group. Requires the upstream MEX transport.',
+        description:
+          'Includes the announcement group. Requires the upstream MEX transport (503 when absent; MEX query failures return 502).',
         response: { 200: CommunitySubGroupsSchema, ...errors },
       },
     },
     async (request) => {
       const { client, jid } = await requireCommunity(resolveInstanceName(request), request.params.communityId)
-      const result = await client.group.fetchSubGroups(jid)
+      const result = await runCommunityMexQuery(() => client.group.fetchSubGroups(jid))
       return { ...result, subGroups: [...result.subGroups] }
     },
   )
@@ -132,7 +141,8 @@ export const communityRoutes: FastifyPluginAsync<CommunityRoutesDeps> = async (f
       schema: {
         ...communitySchema,
         summary: 'Suggest community sub-groups',
-        description: 'Requires the upstream MEX transport. The hint identifies a sub-group.',
+        description:
+          'Requires the upstream MEX transport (503 when absent; MEX query failures return 502). The hint identifies a sub-group.',
         querystring: CommunityHintSchema,
         response: { 200: CommunitySuggestionsSchema, ...errors },
       },
@@ -140,7 +150,11 @@ export const communityRoutes: FastifyPluginAsync<CommunityRoutesDeps> = async (f
     async (request) => {
       const { client, jid } = await requireCommunity(resolveInstanceName(request), request.params.communityId)
       return {
-        suggestions: [...(await client.group.fetchSubgroupSuggestions(jid, normalizeGroupJid(request.query.hint)))],
+        suggestions: [
+          ...(await runCommunityMexQuery(() =>
+            client.group.fetchSubgroupSuggestions(jid, normalizeGroupJid(request.query.hint)),
+          )),
+        ],
       }
     },
   )
@@ -207,7 +221,8 @@ export const communityRoutes: FastifyPluginAsync<CommunityRoutesDeps> = async (f
       schema: {
         ...communitySchema,
         summary: 'Transfer community ownership',
-        description: 'Resolves the new owner through the shared recipient resolver. Requires upstream MEX transport.',
+        description:
+          'Resolves the new owner through the shared recipient resolver. Requires upstream MEX transport (503 when absent; MEX query failures return 502).',
         body: CommunityOwnerSchema,
         response: { 200: OkSchema, ...errors },
       },
@@ -215,7 +230,7 @@ export const communityRoutes: FastifyPluginAsync<CommunityRoutesDeps> = async (f
     async (request) => {
       const { client, jid } = await requireCommunity(resolveInstanceName(request), request.params.communityId)
       const owner = await resolveRecipientJid(client, request.body.user, cache)
-      await client.group.transferCommunityOwnership(jid, owner)
+      await runCommunityMexQuery(() => client.group.transferCommunityOwnership(jid, owner))
       return { ok: true as const }
     },
   )

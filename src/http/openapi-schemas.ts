@@ -976,7 +976,7 @@ export const OPENAPI_TAGS = [
   {
     name: 'Communities',
     description:
-      'WhatsApp parent groups: lifecycle, linked sub-groups, participants, suggestions and ownership. Sub-groups, suggestions and ownership require the upstream MEX transport.',
+      'WhatsApp parent groups: lifecycle, linked sub-groups, participants, suggestions and ownership. Sub-groups, suggestions and ownership require the upstream MEX transport (503 when absent; recognized MEX failures return 502).',
   },
 ] as const
 
@@ -1056,8 +1056,11 @@ export const CommunityGroupMetadataSchema = GroupMetadataSchema.extend({
 export const CommunityParamsSchema = z.object({
   communityId: z
     .string()
-    .regex(/^\d+(?:@g\.us)?$/)
-    .meta({ description: 'Community JID or bare numeric id.', example: '120363000000000000' }),
+    .regex(/^(?:\d+|\d+(?:-\d+)?@g\.us)$/)
+    .meta({
+      description: 'Group/community JID (including legacy hyphenated JIDs) or bare numeric id.',
+      example: '120363000000000000',
+    }),
 })
 
 export const CommunityCreateSchema = z
