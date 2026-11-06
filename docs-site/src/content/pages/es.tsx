@@ -210,6 +210,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             Configuración de chats sincronizada — las acciones exitosas y el app-state del teléfono actualizan Postgres;
             las consultas reflejan el vencimiento del silencio.
           </li>
+          <li>
+            Los metadatos duraderos conservan eliminaciones y ajustes recientes durante importaciones de mailbox y
+            replays.
+          </li>
         </ul>
 
         <h2 id="table">Decisión → beneficio</h2>
@@ -313,6 +317,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Pin/mute/lock siguen los cambios del teléfono; el silencio vence en las consultas. La eliminación solo
                 local queda explícita.
+              </td>
+            </tr>
+            <tr>
+              <td>Metadatos de acciones de conversación</td>
+              <td>
+                Los metadatos duraderos conservan eliminaciones y ajustes recientes durante importaciones de mailbox y
+                replays.
               </td>
             </tr>
           </tbody>
@@ -1251,6 +1262,12 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           Las nuevas acciones devuelven 409 para conflictos de app-state y 503 para fallos de conexión, con el mensaje
           del upstream. La proyección local cambia tras el éxito del upstream. Los cambios del teléfono llegan mediante
           el evento webhook/SSE chat.update existente tras persistir.
+        </p>
+        <p>
+          Los metadatos duraderos conservan eliminaciones y ajustes recientes durante importaciones de mailbox y
+          replays. Clear/delete capturan un límite antes de la llamada de red y preservan mensajes posteriores; las
+          conversaciones vacías conservadas siguen en la lista tras reconcile. Los destacados recibidos antes del
+          mensaje se aplican cuando llega. El cuerpo de clear/delete puede omitirse.
         </p>
       </>
     ),

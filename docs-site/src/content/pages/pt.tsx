@@ -213,6 +213,9 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             Configurações de conversa sincronizadas — ações bem-sucedidas e app-state do telefone atualizam o Postgres;
             consultas refletem a expiração do mute.
           </li>
+          <li>
+            Metadados duráveis preservam exclusões e configurações recentes durante importações da mailbox e replays.
+          </li>
         </ul>
 
         <h2 id="table">Decisão → benefício</h2>
@@ -316,6 +319,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Pin/mute/lock acompanham o telefone; mute temporário expira nas consultas. A exclusão somente local fica
                 explícita.
+              </td>
+            </tr>
+            <tr>
+              <td>Metadados das ações de conversa</td>
+              <td>
+                Metadados duráveis preservam exclusões e configurações recentes durante importações da mailbox e
+                replays.
               </td>
             </tr>
           </tbody>
@@ -1248,6 +1258,12 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           As novas ações retornam 409 para conflitos de app-state e 503 para falhas de conexão, com a mensagem do
           upstream. A projeção local muda após sucesso do upstream. Mudanças do telefone chegam pelo evento webhook/SSE
           chat.update existente após persistência.
+        </p>
+        <p>
+          Metadados duráveis preservam exclusões e configurações recentes durante importações da mailbox e replays.
+          Clear/delete capturam um limite antes da chamada de rede e preservam mensagens posteriores; conversas limpas e
+          vazias continuam na lista após reconcile. Favoritas recebidas antes da mensagem são aplicadas quando ela
+          chega. O corpo de clear/delete pode ser omitido.
         </p>
       </>
     ),

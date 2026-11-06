@@ -209,6 +209,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             Synced chat settings — successful actions and phone app-state update Postgres; mute expiration is reflected
             on reads.
           </li>
+          <li>Durable action metadata preserves deletions and newer settings across mailbox imports/replays.</li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -310,6 +311,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Pin/mute/lock follow phone changes; timed mute expires on reads. Local-only deletion stays explicit.
               </td>
+            </tr>
+            <tr>
+              <td>Chat action metadata</td>
+              <td>Durable action metadata preserves deletions and newer settings across mailbox imports/replays.</td>
             </tr>
           </tbody>
         </table>
@@ -1234,6 +1239,12 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           New actions return 409 for upstream app-state conflicts and 503 for connection failures, with the upstream
           message. Local projection changes happen after upstream success. Phone changes arrive through the existing
           chat.update webhook/SSE event after persistence.
+        </p>
+        <p>
+          Durable action metadata preserves deletions and newer settings across mailbox imports and replays.
+          Clear/delete capture a boundary before the network request and preserve newer messages; empty cleared chats
+          remain listed through reconcile. Pending phone stars are applied when their message arrives. Clear/delete
+          bodies may be omitted.
         </p>
       </>
     ),

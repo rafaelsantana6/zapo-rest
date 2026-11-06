@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Membership notification documentation distinguishes webhook `payload.*` from SSE `data.*`; the OpenAPI webhook example now matches the delivered envelope (`id`, numeric `timestamp`, `engine`, `payload`).
 
+- Chat actions persist per-chat cutoffs, settings and pending message stars/deletions so mailbox imports and live replays cannot restore removed history or overwrite newer settings. Clear/delete preserve messages newer than the action boundary; empty cleared chats remain listed through reconcile, and LID/PN listings use authoritative settings. Stale app-state mutations are rejected by timestamp; current mutations can retry after partial persistence failures. OpenAPI now marks clear/delete bodies optional.
 - Chat projection upserts preserve omitted settings, so new messages do not reset pin/archive/mute/read/lock state. New chat-action routes return upstream conflicts as 409 and connection failures as 503, without applying a successful local-only fallback.
 
 ### Fixed

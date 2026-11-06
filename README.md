@@ -61,7 +61,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
 - **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
 - **@handle and late group history** — send to `@handle`; members who join a group later still receive shared history (`HISTORY_GROUP_BUNDLES`)
-- **Synced chat settings** — successful actions and phone app-state update Postgres; mute expiration is reflected on reads
+- **Synced chat settings** — successful actions and phone app-state update Postgres; mute expiration is reflected on reads; durable action metadata preserves deletions and newer settings across mailbox imports/replays
 - **Video on its own binary channel** — H.264 frames never share the PCM socket; a lagging viewer drops to the next key frame instead of growing server memory or blocking audio
 
 | Decision | Benefit |
@@ -81,7 +81,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 | **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
-| **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Local-only deletion remains explicit. |
+| **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Durable cutoffs/settings survive mailbox imports; clear/delete preserve newer messages and empty cleared chats stay listed. |
 | **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
 
 ---

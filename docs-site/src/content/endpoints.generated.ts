@@ -1017,7 +1017,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['chatId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '404', '409', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_chats_chatId_mute',
@@ -1030,7 +1030,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['chatId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '404', '409', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_chats_chatId_lock',
@@ -1042,7 +1042,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['chatId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '404', '409', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_chats_chatId_clear',
@@ -1055,7 +1055,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['chatId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '404', '409', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_chats_chatId_delete',
@@ -1068,7 +1068,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['chatId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '404', '409', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'delete-_v1_chats_chatId_messages_messageId_for-me',
@@ -1081,7 +1081,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['deleteMedia', 'chatId', 'messageId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '404', '409', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'get-_v1_chats',

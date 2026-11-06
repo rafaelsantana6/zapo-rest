@@ -16,6 +16,7 @@ Last updated: 2026-07-14
 | Interactive buttons/list/template Cloud | ❌ |
 | Chats (list/messages/read/archive/history-sync) | ✅ |
 | Chat pin/mute/lock + phone app-state projection | ✅ numeric pinned, muted, muteUntil, locked; chat.update |
+| Durable action metadata / stale-replay guard / retained empty chats | ✅ survives restart and mailbox imports; canonical alias flags |
 | Clear chat / synced delete chat / delete message for me | ✅ preserve starred by default; own devices only; legacy DELETE remains projection-only |
 | Contacts (resolve/check/block/picture/about) | ✅ |
 | Groups (full lifecycle) | ✅ |
