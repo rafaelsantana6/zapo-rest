@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-06
+
 ### Added
 
 - Browser-owned VoIP media behind `VOIP_MEDIA_MODE=remote` (default local): private upstream-encoded `call:media` / `call:media_event` over the authenticated instance control WS, late-join/resync snapshots and `mediaMode` on instance/call reads. The softphone runs MLow, SRTP, audio and H.264 directly in the browser, with gesture-bound audio, RED, and stop statistics. Secret plans never enter logs, SSE, webhooks or persistence.
@@ -46,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Channel messages are explicitly excluded from new `app_messages`/chat projections and mailbox history imports, consistent with their existing exclusion from chat listings. Existing stored rows are not migrated or deleted; use the dedicated channel read endpoints.
 
+- Stored-message targets accept explicit and mapped PN/LID aliases. Group targets recover a valid author from the mailbox sender; group/broadcast/newsletter JIDs cannot be authors. Self-authored direct-message history requires proof of the original author (`409` if unavailable), rather than using the peer.
+- Explicit safe context settings are forwarded as send options so the upstream chat-ephemeral auto-injection cannot override the requested expiration.
+- Sticker-pack covers are always normalized to JPEG 252×252 and derived from the tray icon when omitted. The complete pack (source files plus generated JPEG) shares one `MEDIA_UPLOAD_MAX_BYTES` budget; over-budget downloads abort and all temporary files are removed.
+
 ### Fixed
 
 - Community sub-group inputs accept legacy hyphenated `@g.us` JIDs for linking, unlinking, suggestions and joining. The join request body is optional in OpenAPI as well as at runtime. Community operations document 401 and 502 responses; missing MEX transport returns 503, and recognized MEX failures return 502 with a static public message while IQ errors retain their existing status mapping.
@@ -53,14 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Channel base64/data-URL media without `mimetype` now uses file detection before publishing/editing; unrecognized formats return an actionable `400`, with temporary media cleaned on every path.
 - Missing channel metadata envelopes from upstream JID/invite lookups now return `404`, while unrelated transport failures remain errors.
 - Inline channel pictures are checked as decodable JPEGs (max 256 KiB decoded / 16 megapixels). Admin actions reject group, broadcast and channel targets and require resolved PN/LID user JIDs.
-
-### Changed
-
-- Stored-message targets accept explicit and mapped PN/LID aliases. Group targets recover a valid author from the mailbox sender; group/broadcast/newsletter JIDs cannot be authors. Self-authored direct-message history requires proof of the original author (`409` if unavailable), rather than using the peer.
-- Explicit safe context settings are forwarded as send options so the upstream chat-ephemeral auto-injection cannot override the requested expiration.
-- Sticker-pack covers are always normalized to JPEG 252×252 and derived from the tray icon when omitted. The complete pack (source files plus generated JPEG) shares one `MEDIA_UPLOAD_MAX_BYTES` budget; over-budget downloads abort and all temporary files are removed.
-
-### Fixed
 
 - Independent review: revoke private VoIP sockets after key rotation or instance deletion/recreation by revalidating ordered plan deliveries and host events; reject remote multipart audio before parsing/downloading it.
 - Remote softphone: preserve initial mute and selected microphone, wait for authenticated media-mode negotiation before dialing, release media after rejected accepts and late screen/camera acquisition, size the video canvas responsively, and serialize/report audio output switches.
@@ -503,7 +501,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.0...v0.8.1
