@@ -117,3 +117,18 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | OpenAPI `/docs` + guide `/guide` | ✅ |
 | Docker Compose stack | ✅ |
 | Metrics routes | ✅ |
+
+
+## WhatsApp Channels / Newsletters
+
+| Capability | Status |
+|------------|--------|
+| Followed list, metadata, invite lookup, directory search + cursor, recommendations | ✅ `GET /v1/newsletters`, `/:jid`, `/by-invite/:code`, `/search`, `/recommended` |
+| Message pages and update ranges | 🟡 `/:jid/messages`, `/:jid/updates`: JSON transport envelope with base64 bytes; upstream 1.11 has no public decoded page API |
+| Follow/unfollow, mute, temporary live subscription | ✅ `POST /:jid/follow`, `/unfollow`, `/mute`, `/live-updates`; caller renews `durationSeconds` |
+| Reactions, poll votes, view receipts | ✅ `/:jid/messages/:messageId/react`, `/vote`, `/view`; numeric server IDs and base64 poll hashes |
+| Channel create/update/delete, admin info + capabilities, followers | ✅ `POST /v1/newsletters`, `PATCH/DELETE /:jid`, `GET /:jid/admin`, `/followers` (count only) |
+| Admin invite/accept/revoke/demote, ownership, pending invites | ✅ `/:jid/admins/invite`, `/invite/accept`, `/invite/revoke`, `/demote`, `/:jid/owner`, `/:jid/pending-invites` |
+| Text/image/video/audio/document publishing, edit, revoke | ✅ `POST /:jid/messages`, `PATCH/DELETE /:jid/messages/:messageId`; URL/base64/multipart |
+| Channel events | ✅ `newsletter.update`, `newsletter.message_update` via webhook/SSE; no raw protobuf |
+| Local channel projections / stored channel media | N/A — deliberately excluded; read from WhatsApp directly |
