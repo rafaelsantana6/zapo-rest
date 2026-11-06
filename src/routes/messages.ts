@@ -1,3 +1,4 @@
+import { MessageContextSchema } from '~/http/message-context-schema'
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
@@ -28,6 +29,7 @@ export type MessageRoutesDeps = {
 }
 
 const ReactBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   messageId: z.string().min(1),
   emoji: z.string().describe('Emoji reaction; empty string removes reaction'),
@@ -36,17 +38,20 @@ const ReactBody = z.object({
 })
 
 const EditBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   messageId: z.string().min(1),
   text: z.string().min(1),
 })
 
 const RevokeBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   messageId: z.string().min(1),
 })
 
 const PollBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   name: z.string().min(1),
   options: z.array(z.string().min(1)).min(2).max(12),
@@ -137,8 +142,8 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
       const content =
-        body.linkPreview !== undefined
-          ? { type: 'text' as const, text: body.text, linkPreview: body.linkPreview }
+        body.linkPreview !== undefined || body.contextInfo !== undefined
+          ? { type: 'text' as const, text: body.text, linkPreview: body.linkPreview, contextInfo: body.contextInfo }
           : body.text
       const result = await client.message.send(jid, content, {
         mentions: body.mentions,
@@ -175,6 +180,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         {
           type: 'text',
           text: body.text,
+          contextInfo: body.contextInfo,
         },
         {
           mentions: body.mentions,
@@ -234,6 +240,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
           jid,
           {
             type: 'image',
+            contextInfo: body.contextInfo,
             media: media.path,
             mimetype: media.mimetype ?? body.mimetype,
             caption: body.caption,
@@ -278,6 +285,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       try {
         const result = await client.message.send(jid, {
           type: 'video',
+          contextInfo: body.contextInfo,
           media: media.path,
           mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
           caption: body.caption,
@@ -321,6 +329,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       try {
         const result = await client.message.send(jid, {
           type: 'audio',
+          contextInfo: body.contextInfo,
           media: media.path,
           mimetype: media.mimetype ?? body.mimetype,
           ptt: body.ptt,
@@ -363,6 +372,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       try {
         const result = await client.message.send(jid, {
           type: 'document',
+          contextInfo: body.contextInfo,
           media: media.path,
           mimetype: media.mimetype ?? body.mimetype,
           fileName: body.fileName ?? media.fileName,
@@ -407,6 +417,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       try {
         const result = await client.message.send(jid, {
           type: 'sticker',
+          contextInfo: body.contextInfo,
           media: media.path,
           mimetype: media.mimetype ?? body.mimetype ?? 'image/webp',
         })
@@ -478,6 +489,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const result = await client.message.send(jid, {
         type: 'poll',
+        contextInfo: body.contextInfo,
         name: body.name,
         options: body.options,
         selectableCount: body.selectableCount ?? 1,
@@ -509,16 +521,20 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const result = await client.message.send(jid, {
-        type: 'reaction',
-        emoji: body.emoji,
-        target: {
-          remoteJid: jid,
-          fromMe: body.fromMe ?? false,
-          id: body.messageId,
-          participant: body.participant,
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'reaction',
+          emoji: body.emoji,
+          target: {
+            remoteJid: jid,
+            fromMe: body.fromMe ?? false,
+            id: body.messageId,
+            participant: body.participant,
+          },
         },
-      })
+        { contextInfo: body.contextInfo },
+      )
       return { id: result.id, result }
     },
   )
@@ -540,7 +556,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const result = await client.message.send(
         jid,
-        { type: 'text', text: body.text },
+        { type: 'text', text: body.text, contextInfo: body.contextInfo },
         { editKey: { id: body.messageId } },
       )
       if (messages) {
@@ -565,10 +581,14 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const result = await client.message.send(jid, {
-        type: 'revoke',
-        target: { remoteJid: jid, fromMe: true, id: body.messageId },
-      })
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'revoke',
+          target: { remoteJid: jid, fromMe: true, id: body.messageId },
+        },
+        { contextInfo: body.contextInfo },
+      )
       if (messages) {
         await messages.markDeleted(name, body.messageId)
       }

@@ -1,3 +1,4 @@
+import { MessageContextSchema } from './message-context-schema'
 import { z } from 'zod'
 
 /** Free-form JSON for OpenAPI (z.unknown has no type and breaks swagger refs). */
@@ -365,6 +366,7 @@ export const RecipientToSchema = z.string().min(1).meta({
 export const SendTextBodySchema = z
   .object({
     to: RecipientToSchema,
+    contextInfo: MessageContextSchema.optional(),
     text: z.string().min(1).meta({ description: 'Plain-text body', example: EXAMPLES.textMessage.text }),
     linkPreview: z
       .boolean()
@@ -383,6 +385,7 @@ export const SendTextBodySchema = z
 export const SendMediaBodySchema = z
   .object({
     to: RecipientToSchema,
+    contextInfo: MessageContextSchema.optional(),
     mediaUrl: z.string().url().optional().meta({
       description: 'Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.',
       example: EXAMPLES.imageMessage.mediaUrl,
@@ -1196,3 +1199,151 @@ export const PublicChatSchema = z.object({
   altJids: z.array(z.string()),
   _data: z.unknown(),
 })
+
+export const SendEventBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    name: z.string().min(1),
+    description: z.string().optional(),
+    startTime: z.iso.datetime({ offset: true }),
+    endTime: z.iso.datetime({ offset: true }).optional(),
+    location: z
+      .object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        name: z.string().optional(),
+        address: z.string().optional(),
+      })
+      .optional(),
+    joinLink: z.url().optional(),
+    extraGuestsAllowed: z.boolean().optional(),
+    isScheduleCall: z.boolean().optional(),
+    isCanceled: z.boolean().optional(),
+    hasReminder: z.boolean().optional(),
+    reminderOffsetSec: z.number().int().nonnegative().optional(),
+    contextInfo: MessageContextSchema.optional(),
+  })
+  .refine((body) => !body.endTime || Date.parse(body.endTime) >= Date.parse(body.startTime), {
+    path: ['endTime'],
+    message: 'endTime must be at or after startTime',
+  })
+  .meta({
+    description: 'Calendar event. ISO 8601 dates with timezone are converted to Unix seconds.',
+    example: {
+      to: '120363000000000@g.us',
+      name: 'Team sync',
+      startTime: '2026-12-01T15:00:00Z',
+      endTime: '2026-12-01T16:00:00Z',
+    },
+  })
+
+export const SendEventResponseBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    eventMessageId: z.string().min(1),
+    response: z.enum(['going', 'not_going', 'maybe']),
+    extraGuestCount: z.number().int().nonnegative().optional(),
+  })
+  .meta({
+    description: 'Respond using the stored event identity and secret.',
+    example: { to: '120363000000000@g.us', eventMessageId: 'EVENT_ID', response: 'going', extraGuestCount: 1 },
+  })
+
+export const SendPinBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    messageId: z.string().min(1),
+    pinned: z.boolean(),
+    duration: z.enum(['24h', '7d', '30d']).default('24h'),
+  })
+  .meta({
+    description:
+      'Pin/unpin a stored message. Pins always include durationSecs: clients silently drop pins without a duration.',
+    example: { to: '120363000000000@g.us', messageId: 'MESSAGE_ID', pinned: true, duration: '7d' },
+  })
+
+export const SendKeepBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    messageId: z.string().min(1),
+    kept: z.boolean(),
+  })
+  .meta({
+    description: 'Keep/unkeep a stored message in a disappearing-message chat.',
+    example: { to: '120363000000000@g.us', messageId: 'MESSAGE_ID', kept: true },
+  })
+
+export const SendPollVoteBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    pollMessageId: z.string().min(1),
+    options: z.array(z.string().min(1)).min(1),
+  })
+  .meta({
+    description: 'Vote using exact option names and the stored poll identity and secret.',
+    example: { to: '120363000000000@g.us', pollMessageId: 'POLL_ID', options: ['Pizza'] },
+  })
+
+export const SendPtvBodySchema = SendMediaBodySchema.omit({ caption: true, ptt: true, viewOnce: true })
+  .strict()
+  .meta({
+    description: 'Round video note, without caption. Same media sources as video.',
+    example: { to: '5511999999999', mediaUrl: 'https://cdn.example.com/note.mp4' },
+  })
+
+// Upstream does not specify a count maximum; the gateway bounds each pack to 30 stickers.
+export const MAX_STICKER_PACK_STICKERS = 30
+const StickerPackMediaSchema = z
+  .strictObject({
+    url: z.url().optional(),
+    base64: z.string().min(1).optional(),
+  })
+  .refine((media) => Boolean(media.url) !== Boolean(media.base64), {
+    message: 'media requires exactly one of url or base64',
+  })
+const StickerPackFileNameSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(/^[^/\\]+$/, 'fileName must be a plain file name')
+export const SendStickerPackBodySchema = z
+  .strictObject({
+    to: RecipientToSchema,
+    id: z.string().min(1),
+    name: z.string().min(1),
+    publisher: z.string().min(1),
+    stickers: z
+      .array(
+        z.strictObject({
+          media: StickerPackMediaSchema,
+          fileName: StickerPackFileNameSchema,
+          emojis: z.array(z.string()).default([]),
+        }),
+      )
+      .min(1)
+      .max(MAX_STICKER_PACK_STICKERS),
+    trayIcon: z.strictObject({ media: StickerPackMediaSchema, fileName: StickerPackFileNameSchema }),
+    coverThumbnail: StickerPackMediaSchema.optional(),
+    contextInfo: MessageContextSchema.optional(),
+  })
+  .refine(
+    (body) =>
+      new Set([...body.stickers.map((sticker) => sticker.fileName), body.trayIcon.fileName]).size ===
+      body.stickers.length + 1,
+    {
+      path: ['stickers'],
+      message: 'Sticker and tray icon fileName values must be unique',
+    },
+  )
+  .meta({
+    description:
+      'Sticker pack; gateway limit: 30 stickers. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11.',
+    example: {
+      to: '5511999999999',
+      id: 'team-pack',
+      name: 'Team',
+      publisher: 'Example',
+      stickers: [{ media: { url: 'https://cdn.example.com/hi.webp' }, fileName: 'hi.webp', emojis: ['👋'] }],
+      trayIcon: { media: { url: 'https://cdn.example.com/tray.png' }, fileName: 'tray.png' },
+    },
+  })
