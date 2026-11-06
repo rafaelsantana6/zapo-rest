@@ -205,6 +205,11 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>Video on its own binary channel</strong> — H.264 frames never share the PCM socket; a lagging viewer
             drops to the next key frame instead of growing server memory or blocking audio
           </li>
+          <li>
+            Synced chat settings — successful actions and phone app-state update Postgres; mute expiration is reflected
+            on reads.
+          </li>
+          <li>Durable action metadata preserves deletions and newer settings across mailbox imports/replays.</li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -300,6 +305,16 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
                 Video on a dedicated WS (<code>.../calls/:id/video</code>) + drop-until-keyframe
               </td>
               <td>Never blocks or slows down PCM; a lagging viewer drops frames until the next key frame</td>
+            </tr>
+            <tr>
+              <td>Chat settings projected from app-state</td>
+              <td>
+                Pin/mute/lock follow phone changes; timed mute expires on reads. Local-only deletion stays explicit.
+              </td>
+            </tr>
+            <tr>
+              <td>Chat action metadata</td>
+              <td>Durable action metadata preserves deletions and newer settings across mailbox imports/replays.</td>
             </tr>
           </tbody>
         </table>
@@ -1180,6 +1195,57 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           events, not in the synchronous HTTP response. A bundle shared after this account joins a group is imported
           when <code>HISTORY_GROUP_BUNDLES</code> is on (default) and announced as <code>history.group</code>.
         </Callout>
+        <h2 id="chat-actions">Chat actions</h2>
+        <p>
+          All paths below use the instance API key and accept phones, user/group JIDs and LIDs. Changes affect your
+          account and linked devices; other participants keep their copies. None of these actions leaves a group.
+        </p>
+        <p>
+          GET /v1/chats and GET /v1/chats/:chatId return numeric pinned (0 unpinned, positive pinned), muted, muteUntil
+          (ISO or null), locked and the existing muteEndMs. Expired mute reads as muted=false without another phone
+          event. Forever uses 9999-12-31T23:59:59Z.
+        </p>
+        <CodeBlock
+          language="http"
+          code={`POST /v1/chats/:chatId/pin       { "pinned": true }
+POST /v1/chats/:chatId/mute      { "muted": true, "durationSeconds": 3600 }
+POST /v1/chats/:chatId/mute      { "muted": true, "until": "2090-01-01T00:00:00Z" }
+POST /v1/chats/:chatId/lock      { "locked": true }
+POST /v1/chats/:chatId/clear     { "deleteStarred": false, "deleteMedia": false }
+POST /v1/chats/:chatId/delete    { "deleteMedia": false }
+DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
+        />
+        <p>Pinning also clears archive. Locking clears both archive and pin. Use false to unpin, unmute or unlock.</p>
+        <p>
+          Mute accepts either until (future ISO timestamp with timezone) or durationSeconds (positive integer), never
+          both. Omit both for forever. Unmuting accepts only muted=false.
+        </p>
+        <p>
+          Clear defaults to deleteStarred=false and deleteMedia=false. Starred messages remain in the projection; the
+          preview is recalculated. Set deleteStarred=true to clear all messages. deleteMedia is forwarded to zapo; REST
+          media/CAS objects follow their own retention and are not purged by these routes.
+        </p>
+        <p>
+          POST /v1/chats/:chatId/delete calls zapo deleteChat and removes local chat/messages, including LID aliases.
+          The legacy DELETE /v1/chats/:chatId only removes the local chat row and keeps messages. zapo builds the
+          last-message range from its mailbox automatically; its deleteChat options only accept deleteMedia.
+        </p>
+        <p>
+          Delete-for-me builds fromMe, participant and timestamp from the stored message and validates that it belongs
+          to this chat (404 otherwise). Use ?deleteMedia=true to forward the media flag. It does not revoke the
+          recipient’s copy.
+        </p>
+        <p>
+          New actions return 409 for upstream app-state conflicts and 503 for connection failures, with the upstream
+          message. Local projection changes happen after upstream success. Phone changes arrive through the existing
+          chat.update webhook/SSE event after persistence.
+        </p>
+        <p>
+          Durable action metadata preserves deletions and newer settings across mailbox imports and replays.
+          Clear/delete capture a boundary before the network request and preserve newer messages; empty cleared chats
+          remain listed through reconcile. Pending phone stars are applied when their message arrives. Clear/delete
+          bodies may be omitted.
+        </p>
       </>
     ),
   },
@@ -1342,6 +1408,11 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           When configured, the worker signs the POST (<code>X-Webhook-Hmac</code> / <code>X-Webhook-Hmac-Sha512</code>).
           Retries: linear/exponential/constant policy + attempts + delaySeconds. The secret is write-only on the API
           (never re-echoed on GET).
+        </p>
+        <p>
+          Phone app-state changes now emit chat.update after projection: chatId plus the public chat fields (numeric
+          pinned, muted, ISO muteUntil, locked, archived). ClearChat/DeleteChat/DeleteMessageForMe carry action and
+          deleted; deleted=true means the chat row was removed. No new event name or transport is added.
         </p>
       </>
     ),

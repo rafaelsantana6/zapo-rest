@@ -541,6 +541,12 @@ export class InstanceManager {
       runSafe('message', () => this.onIncomingMessage(name, client, event))
     })
 
+    client.on('mutation', (event) => {
+      runSafe('mutation', async () => {
+        if (this.opts.events) await this.opts.events.onAppStateMutation(name, event)
+      })
+    })
+
     client.on('receipt', (event) => {
       runSafe('receipt', async () => {
         if (this.opts.events) await this.opts.events.onReceipt(name, event)

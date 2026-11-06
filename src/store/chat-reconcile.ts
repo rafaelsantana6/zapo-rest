@@ -1,6 +1,7 @@
 import type pg from 'pg'
 import { bareUserJid, isLidJid, isPnJid, toPnJid } from '~/lib/jid-canon'
 import { getLogger } from '~/lib/logger'
+import { PRESERVED_CHAT_SQL } from './chat-action-state'
 import type { ChatStore } from './chats'
 import type { LidMapStore } from './lid-map'
 import type { MessageStore } from './messages'
@@ -86,6 +87,7 @@ export async function reconcileLidChats(
     `DELETE FROM app_chats c
  WHERE c.instance_name = $1
  AND c.is_group = false
+ AND NOT ${PRESERVED_CHAT_SQL}
  AND (c.last_message_ts IS NULL)
  AND (c.unread_count IS NULL OR c.unread_count = 0)
  AND NOT EXISTS (
@@ -101,6 +103,7 @@ export async function reconcileLidChats(
     `DELETE FROM app_chats c
  WHERE c.instance_name = $1
  AND c.is_group = false
+ AND NOT ${PRESERVED_CHAT_SQL}
  AND (c.last_message_ts IS NULL OR c.last_message_preview IS NULL OR c.last_message_preview IN ('', '[histórico]', '[protocol]', '[unknown]'))
  AND NOT EXISTS (
  SELECT 1 FROM app_messages m

@@ -158,8 +158,39 @@ CREATE TABLE IF NOT EXISTS app_chats (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (instance_name, chat_jid)
 );
+ALTER TABLE app_chats ADD COLUMN IF NOT EXISTS locked BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS app_chats_last_ts_idx
   ON app_chats (instance_name, last_message_ts DESC NULLS LAST);
+
+
+-- Durable projection decisions: mailbox history must not resurrect deleted content or stale settings.
+CREATE TABLE IF NOT EXISTS app_chat_actions (
+ instance_name TEXT NOT NULL REFERENCES instances(name) ON DELETE CASCADE,
+ chat_jid TEXT NOT NULL,
+ settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+ setting_times JSONB NOT NULL DEFAULT '{}'::jsonb,
+ clear_before_ms BIGINT NOT NULL DEFAULT -1,
+ clear_starred_before_ms BIGINT NOT NULL DEFAULT -1,
+ deleted_before_ms BIGINT NOT NULL DEFAULT -1,
+ keep_empty BOOLEAN NOT NULL DEFAULT false,
+ action_timestamp_ms BIGINT NOT NULL DEFAULT -1,
+ PRIMARY KEY (instance_name, chat_jid)
+);
+CREATE TABLE IF NOT EXISTS app_message_actions (
+ instance_name TEXT NOT NULL REFERENCES instances(name) ON DELETE CASCADE,
+ message_id TEXT NOT NULL,
+ starred BOOLEAN,
+ star_timestamp_ms BIGINT NOT NULL DEFAULT -1,
+ deleted BOOLEAN NOT NULL DEFAULT false,
+ PRIMARY KEY (instance_name, message_id)
+);
+CREATE TABLE IF NOT EXISTS app_state_projection_cursors (
+ instance_name TEXT NOT NULL REFERENCES instances(name) ON DELETE CASCADE,
+ collection TEXT NOT NULL,
+ mutation_index TEXT NOT NULL,
+ timestamp_ms BIGINT NOT NULL,
+ PRIMARY KEY (instance_name, collection, mutation_index)
+);
 
 CREATE TABLE IF NOT EXISTS app_contacts (
   instance_name TEXT NOT NULL REFERENCES instances(name) ON DELETE CASCADE,
