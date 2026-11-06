@@ -56,6 +56,7 @@ export async function startPairedZapoClient(): Promise<PairedZapoClient> {
       plugins: [
         voipPlugin({
           maxConcurrentCalls: 3,
+          mlowRed: process.env.CALL_HARNESS_MLOW_RED === 'true',
           useOriginalRelayPort: true,
           useRawUdpTransport: true,
           ...(process.env.CALL_HARNESS_LOG ? { logLevel: 'trace' } : {}),

@@ -207,6 +207,23 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>Video en su propio canal binario</strong> — los frames H.264 nunca comparten el socket con el PCM;
             un visualizador lento cae al próximo key frame en vez de crecer la memoria del servidor o bloquear el audio
           </li>
+          <li>
+            Configuración de chats sincronizada — las acciones exitosas y el app-state del teléfono actualizan Postgres;
+            las consultas reflejan el vencimiento del silencio.
+          </li>
+          <li>
+            Los metadatos duraderos conservan eliminaciones y ajustes recientes durante importaciones de mailbox y
+            replays.
+          </li>
+          <li>
+            {
+              'Área propia para canales: los nuevos mensajes y threads de canales del mailbox quedan fuera de app_messages/chats y de las descargas de media de chats. Se conservan las filas existentes. No hay historial/búsqueda local de canales: consulta las rutas dedicadas de WhatsApp y renueva las suscripciones temporales en vivo.'
+            }
+          </li>
+          <li>
+            <strong>Medios de llamada en el navegador</strong> — El modo remoto elimina el salto de medios por el
+            servidor y los codecs/peers nativos en esas llamadas; planes privados quedan en el WS de instancia.
+          </li>
         </ul>
 
         <h2 id="table">Decisión → beneficio</h2>
@@ -306,6 +323,35 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>Nunca bloquea ni atrasa el PCM; un visualizador lento descarta frames hasta el próximo key frame</td>
             </tr>
             <InteractiveDesignRow locale="es" />
+            <tr>
+              <td>Configuración de chats proyectada desde app-state</td>
+              <td>
+                Pin/mute/lock siguen los cambios del teléfono; el silencio vence en las consultas. La eliminación solo
+                local queda explícita.
+              </td>
+            </tr>
+            <tr>
+              <td>Metadatos de acciones de conversación</td>
+              <td>
+                Los metadatos duraderos conservan eliminaciones y ajustes recientes durante importaciones de mailbox y
+                replays.
+              </td>
+            </tr>
+            <tr>
+              <td>Canales — /v1/newsletters</td>
+              <td>
+                El tráfico de canales evita proyecciones ocultas y almacenamiento de media de chats; el historial se lee
+                directamente de WhatsApp.
+              </td>
+            </tr>
+            <tr>
+              <td>Medios de llamada en el navegador</td>
+              <td>
+                El modo remoto elimina el salto de medios por el servidor y los codecs/peers nativos en esas llamadas;
+                planes privados quedan en el WS de instancia. Las claves revocadas dejan de recibir planes (revalidación
+                por entrega).
+              </td>
+            </tr>
           </tbody>
         </table>
 
@@ -1005,6 +1051,195 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
           </tbody>
         </table>
 
+        <h2 id="extended-message-types">Eventos, acciones y nuevos tipos de media</h2>
+        <p>
+          Todas las rutas siguientes usan POST con clave de instancia y devuelven <code>{`{ id, result }`}</code>.
+        </p>
+        <h3 id="send-event">Crear un evento</h3>
+        <p>
+          <code>POST /v1/messages/event</code>
+        </p>
+        <p>
+          Las fechas ISO 8601 con zona horaria se convierten a segundos Unix. <code>endTime</code> debe ser igual o
+          posterior a <code>startTime</code>; las fechas inválidas devuelven 400. También acepta <code>isCanceled</code>
+          .
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "name": "Team sync",
+  "description": "Weekly",
+  "startTime": "2026-12-01T15:00:00Z",
+  "endTime": "2026-12-01T16:00:00Z",
+  "location": {
+    "latitude": -23.5,
+    "longitude": -46.6,
+    "name": "HQ"
+  },
+  "joinLink": "https://meet.example.com/team",
+  "extraGuestsAllowed": true,
+  "isScheduleCall": false,
+  "hasReminder": true,
+  "reminderOffsetSec": 600
+}`}
+        />
+        <h3 id="send-event-respond">Responder a un evento</h3>
+        <p>
+          <code>POST /v1/messages/event/respond</code>
+        </p>
+        <p>
+          Respuestas: <code>going</code>, <code>not_going</code> o <code>maybe</code>. El original debe estar almacenado
+          en esta instancia y conversación; la API recupera autor, <code>fromMe</code>, participante y secreto de 32
+          bytes. Original ausente: 404; secreto/autor no disponible: 409. Reciba/sincronice primero el original.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "eventMessageId": "EVENT_ID",
+  "response": "going",
+  "extraGuestCount": 1
+}`}
+        />
+        <h3 id="send-pin">Fijar o desfijar</h3>
+        <p>
+          <code>POST /v1/messages/pin</code>
+        </p>
+        <p>
+          Use <code>pinned: false</code> para desfijar. Duración: <code>24h</code> (predeterminado), <code>7d</code> o{' '}
+          <code>30d</code>, convertidas a 86400, 604800 y 2592000 segundos. La API siempre incluye la duración al fijar:
+          los clientes descartan silenciosamente los pins sin duración. Requiere un mensaje almacenado en esta instancia
+          y conversación.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "messageId": "MESSAGE_ID",
+  "pinned": true,
+  "duration": "7d"
+}`}
+        />
+        <h3 id="send-keep">Conservar o dejar de conservar</h3>
+        <p>
+          <code>POST /v1/messages/keep</code>
+        </p>
+        <p>
+          Use <code>kept: false</code> para deshacer. Para mensajes temporales; requiere un mensaje almacenado en esta
+          instancia y conversación.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "messageId": "MESSAGE_ID",
+  "kept": true
+}`}
+        />
+        <h3 id="send-poll-vote">Votar en una encuesta</h3>
+        <p>
+          <code>POST /v1/messages/poll/vote</code>
+        </p>
+        <p>
+          Use los nombres exactos de las opciones; una lista vacía devuelve 400. Requiere la encuesta original
+          almacenada, con autor, <code>fromMe</code>, participante y secreto recuperados por la API, tanto para
+          encuestas enviadas como recibidas. Original ausente: 404; secreto/autor no disponible: 409.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "pollMessageId": "POLL_ID",
+  "options": [
+    "Pizza"
+  ]
+}`}
+        />
+        <h3 id="send-ptv">Nota de vídeo circular (PTV)</h3>
+        <p>
+          <code>POST /v1/messages/ptv</code>
+        </p>
+        <p>
+          Mismo contrato de media de vídeo: <code>mediaUrl</code>, <code>mediaBase64</code> o multipart con archivo{' '}
+          <code>file</code> y campo <code>to</code>. No acepta leyenda; los archivos temporales se eliminan tras el
+          envío o fallo.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "5511999999999",
+  "mediaUrl": "https://cdn.example.com/note.mp4",
+  "mimetype": "video/mp4"
+}`}
+        />
+        <h3 id="send-sticker-pack">Paquete de stickers</h3>
+        <p>
+          <code>POST /v1/messages/sticker-pack</code>
+        </p>
+        <p>
+          JSON con 1–30 stickers (límite del gateway; upstream no declara máximo). Cada <code>media</code>, icono y
+          portada opcional usa exactamente uno de <code>url</code> o <code>base64</code>. Las URL usan la protección
+          SSRF existente. Los nombres de archivo deben ser únicos, incluido el icono. <code>emojis</code> es opcional.{' '}
+          <code>accessibilityLabel</code> no existe en upstream 1.11 y devuelve 400.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "5511999999999",
+  "id": "team-pack",
+  "name": "Team",
+  "publisher": "Example",
+  "stickers": [
+    {
+      "media": {
+        "url": "https://cdn.example.com/hi.webp"
+      },
+      "fileName": "hi.webp",
+      "emojis": [
+        "👋"
+      ]
+    }
+  ],
+  "trayIcon": {
+    "media": {
+      "base64": "BASE64_PNG"
+    },
+    "fileName": "tray.png"
+  },
+  "coverThumbnail": {
+    "url": "https://cdn.example.com/cover.png"
+  }
+}`}
+        />
+        <p>
+          Las portadas se normalizan a JPEG 252×252; omita <code>coverThumbnail</code> para generarla a partir del
+          icono. Todos los archivos de origen más el JPEG generado comparten un único límite{' '}
+          <code>MEDIA_UPLOAD_MAX_BYTES</code>; excederlo devuelve 400 y elimina los archivos temporales.
+        </p>
+        <h3 id="safe-message-context">Contexto seguro y mensajes recibidos</h3>
+        <p>
+          Los envíos tipados aceptan <code>contextInfo</code> opcional con solo <code>expirationSeconds</code> y{' '}
+          <code>ephemeralSettingTimestamp</code> (segundos Unix). Las rutas existentes de texto, respuesta, media,
+          encuesta, reacción, edición y revocación también aceptan estos campos. <code>messageContextInfo</code>{' '}
+          contiene metadatos de protocolo y no se expone.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{ "to": "5511999999999", "text": "Hello", "contextInfo": { "expirationSeconds": 86400 } }`}
+        />
+        <p>
+          El valor explícito de <code>contextInfo.expirationSeconds</code> prevalece sobre el TTL de la conversación.
+          Los mensajes almacenados aceptan alias PN/LID explícitos y mapeados. Un mensaje propio de conversación directa
+          recuperado del historial sin prueba del autor original devuelve 409.
+        </p>
+        <p>
+          Los eventos de mensaje existentes identifican <code>event</code>, <code>event-response</code>,{' '}
+          <code>pin</code>/<code>unpin</code>, <code>keep</code>/<code>unkeep</code>, <code>poll-vote</code>,{' '}
+          <code>ptv</code> y <code>sticker-pack</code> con resúmenes legibles. Las respuestas/votos cifrados muestran el
+          ID original; no se añadieron nuevos nombres de evento SSE/webhook.
+        </p>
+
         <h2 id="to">
           Campo <code>to</code>
         </h2>
@@ -1194,6 +1429,62 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           entra a un grupo se importa con <code>HISTORY_GROUP_BUNDLES</code> activo (por defecto) y se anuncia como{' '}
           <code>history.group</code>.
         </Callout>
+        <h2 id="chat-actions">Acciones de conversación</h2>
+        <p>
+          Las rutas siguientes usan la clave de instancia y aceptan teléfonos, JIDs de usuario/grupo y LIDs. Los cambios
+          afectan a tu cuenta y dispositivos vinculados; los demás participantes conservan sus copias. Ninguna acción
+          abandona un grupo.
+        </p>
+        <p>
+          GET /v1/chats y GET /v1/chats/:chatId devuelven pinned numérico (0 sin fijar, positivo fijado), muted,
+          muteUntil (ISO o null), locked y el muteEndMs existente. El silencio vencido aparece como muted=false sin otro
+          evento del teléfono. Para siempre usa 9999-12-31T23:59:59Z.
+        </p>
+        <CodeBlock
+          language="http"
+          code={`POST /v1/chats/:chatId/pin       { "pinned": true }
+POST /v1/chats/:chatId/mute      { "muted": true, "durationSeconds": 3600 }
+POST /v1/chats/:chatId/mute      { "muted": true, "until": "2090-01-01T00:00:00Z" }
+POST /v1/chats/:chatId/lock      { "locked": true }
+POST /v1/chats/:chatId/clear     { "deleteStarred": false, "deleteMedia": false }
+POST /v1/chats/:chatId/delete    { "deleteMedia": false }
+DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
+        />
+        <p>
+          Fijar también desarchiva. Bloquear elimina archivo y fijación. Usa false para desfijar, reactivar
+          notificaciones o desbloquear.
+        </p>
+        <p>
+          Mute acepta until (fecha ISO futura con zona horaria) o durationSeconds (entero positivo), nunca ambos. Omite
+          ambos para silenciar para siempre. Para reactivar notificaciones, envía solo muted=false.
+        </p>
+        <p>
+          Clear usa deleteStarred=false y deleteMedia=false por defecto. Los destacados permanecen en la proyección y se
+          recalcula la vista previa. Envía deleteStarred=true para borrar todos los mensajes. deleteMedia se reenvía a
+          zapo; los objetos multimedia/CAS de REST siguen su propia retención y no se purgan con estas rutas.
+        </p>
+        <p>
+          POST /v1/chats/:chatId/delete llama a deleteChat de zapo y elimina conversación/mensajes locales, incluidos
+          los alias LID. El DELETE /v1/chats/:chatId anterior elimina solo la fila local de la conversación y conserva
+          los mensajes. zapo construye automáticamente el rango del último mensaje desde su mailbox; sus opciones de
+          deleteChat solo aceptan deleteMedia.
+        </p>
+        <p>
+          Eliminar para mí usa fromMe, participante y timestamp del mensaje almacenado y valida que pertenezca a esta
+          conversación (404 en caso contrario). Usa ?deleteMedia=true para reenviar la opción multimedia. No revoca la
+          copia de los destinatarios.
+        </p>
+        <p>
+          Las nuevas acciones devuelven 409 para conflictos de app-state y 503 para fallos de conexión, con el mensaje
+          del upstream. La proyección local cambia tras el éxito del upstream. Los cambios del teléfono llegan mediante
+          el evento webhook/SSE chat.update existente tras persistir.
+        </p>
+        <p>
+          Los metadatos duraderos conservan eliminaciones y ajustes recientes durante importaciones de mailbox y
+          replays. Clear/delete capturan un límite antes de la llamada de red y preservan mensajes posteriores; las
+          conversaciones vacías conservadas siguen en la lista tras reconcile. Los destacados recibidos antes del
+          mensaje se aplican cuando llega. El cuerpo de clear/delete puede omitirse.
+        </p>
       </>
     ),
   },
@@ -1341,15 +1632,29 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
             <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
             <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
             <code>call.participant_media</code>, <code>call.video_state</code>, <code>call.video_upgraded</code>,{' '}
-            <code>call.screen_share</code>
+            <code>call.screen_share</code>, <code>call.error</code>, <code>call.audio_finished</code>
           </li>
         </ul>
+
+        <p>
+          Solicitudes de ingreso a grupos: consulta <a href="/guide/groups#join-requests">Solicitudes de ingreso</a> —{' '}
+          <code>group.update</code>, <code>payload.type</code>, <code>payload.requesterJid</code> /{' '}
+          <code>payload.requests[].jid</code>. SSE usa <code>data.type</code>, <code>data.requesterJid</code> y{' '}
+          <code>data.requests[].jid</code>.
+        </p>
 
         <h2 id="hmac">HMAC y retries</h2>
         <p>
           Cuando está configurado, el worker firma el POST (<code>X-Webhook-Hmac</code> /{' '}
           <code>X-Webhook-Hmac-Sha512</code>). Retries: policy linear/exponential/constant + attempts + delaySeconds. El
           secret es write-only en la API (nunca se re-eco en GET).
+          <code>newsletter.update</code>, <code>newsletter.message_update</code>.
+        </p>
+        <p>
+          Los cambios de app-state del teléfono ahora emiten chat.update tras la proyección: chatId y los campos
+          públicos (pinned numérico, muted, muteUntil ISO, locked, archived). ClearChat/DeleteChat/DeleteMessageForMe
+          incluyen action y deleted; deleted=true indica que se eliminó la fila de la conversación. No se añade otro
+          nombre de evento ni transporte.
         </p>
         <InteractiveWebhookGuide locale="es" />
       </>
@@ -1403,6 +1708,104 @@ const dec = new TextDecoder
     description: 'Señalización JSON, PCM 16 kHz, grabación, audio blast y STT.',
     body: (
       <>
+        <h2 id="browser-media">Medios en el navegador</h2>
+        <p>
+          <code>VOIP_MEDIA_MODE=local|remote</code> usa local por defecto. Es fijo por cliente de instancia, no por
+          llamada. Cambie el entorno y reinicie el servidor para recrear/reconectar las instancias; termine las llamadas
+          antes. Esta versión no incluye override persistido por instancia (no existe ruta genérica de actualización).
+          La lectura de instancia y los snapshots exponen <code>mediaMode</code>.
+        </p>
+        <p>
+          En modo remoto el dashboard abre micrófono y salida dentro del clic de llamar/contestar con{' '}
+          <code>WaWebCallAudio</code> y ejecuta <code>WaCallMediaReceiver</code> con <code>webMediaHost</code>. El
+          listener se registra antes del primer await. El navegador conecta directamente con los relays de WhatsApp:
+          audio/vídeo no pasan por el servidor, que no necesita <code>@roamhq/wrtc</code> ni{' '}
+          <code>libmlow-wasm-fork</code> para estas llamadas. El modo local conserva PCM/H.264. Use HTTPS (localhost en
+          desarrollo) y WSS en producción.
+        </p>
+        <p>
+          WS privado servidor → host:{' '}
+          <code>{'{ op: "call:media", callId, message: "string codificada upstream" }'}</code>. Host → servidor:{' '}
+          <code>{'{ op: "call:media_event", id, callId, event: "string codificada upstream" }'}</code>. Use{' '}
+          <code>encodeCallMediaMessage</code>/<code>decodeCallMediaMessage</code> y <code>encodeCallMediaEvent</code>/
+          <code>decodeCallMediaEvent</code> para preservar bytes y bigint. El servidor envía{' '}
+          <code>media.snapshot(callId)</code> en conexión tardía y resync. Solo los sockets autenticados con la clave de
+          esa instancia reciben planes. Contienen claves SRTP y credenciales de relay: nunca registrar, persistir ni
+          enviar por SSE/webhooks. Payloads de host y errores del decoder no se registran.
+        </p>
+        <p>
+          El receiver devuelve <code>host</code>, <code>active</code>, <code>relay_answered</code>,{' '}
+          <code>relay_lost</code>, reacciones y <code>sender_media</code> a señalización; upstream decide el cierre al
+          perder relays. Vídeo usa <code>WaWebCallVideoReceiver</code>/<code>WaWebCallVideoSender</code>; cierre cada{' '}
+          <code>VideoFrame</code>. Copie buffers reutilizables PCM/H.264 antes de guardarlos. Al colgar,{' '}
+          <code>receiver.stop()</code> devuelve <code>WaCallMediaStats</code>: el softphone registra solo estadísticas y
+          muestra un resumen. El audio remoto usa cancelación de eco/AGC del navegador; no aplica preferencias de
+          procesamiento local.
+        </p>
+        <p>
+          La autorización se revalida en orden antes de cada plan y evento de host; rotar la clave o eliminar/recrear la
+          instancia cierra el socket anterior con 4403. Se espera el ready autenticado antes de habilitar el clic para
+          llamar. Se respetan mute inicial y micrófono seleccionado, los cambios de salida se serializan y los errores
+          aparecen en el softphone. Cancelaciones y rechazos liberan solo los recursos de su intento, incluso capturas
+          adquiridas después.
+        </p>
+        <h3>Límites remotos</h3>
+        <ul>
+          <li>
+            <code>loadAudio</code>, audio blast, grabación y transcripción del servidor devuelven 409 con el modo
+            remoto. PCM <code>/stream</code> y H.264 <code>/video</code> cierran con 4409. Capture y reproduzca en el
+            host; las reacciones del servidor no están disponibles (use <code>receiver.plane.sendReaction</code>).
+          </li>
+          <li>
+            El navegador no puede alojar grupos: upstream requiere <code>group/1</code> y <code>raw-udp</code>.{' '}
+            <code>voip_call_error</code> llega como webhook/SSE <code>call.error</code> y WS <code>call:error</code>,
+            código <code>REMOTE_GROUP_UNSUPPORTED</code>. No se inventa un fallback UDP.
+          </li>
+          <li>
+            <code>VOIP_MLOW_RED=false</code> se aplica al receiver del navegador en remoto (al plugin en local). RED
+            desactiva DTX y aumenta el ancho de banda para recuperar pérdidas. <code>VOIP_PARTICIPANT_AUDIO=false</code>{' '}
+            sigue siendo solo local.
+          </li>
+          <li>
+            <code>setVideoSubscriptions</code> no está soportado: upstream todavía no lo envía al relay. No hay variante
+            audioFile/audioUrl al iniciar ni grabaciones separadas por participante.
+          </li>
+        </ul>
+        <h2 id="participant-audio">Audio por participante</h2>
+        <p>
+          Active <code>VOIP_PARTICIPANT_AUDIO=true</code> (false por defecto, solo local; copia cada cuadro). Conecte a{' '}
+          <code>/v1/calls/:callId/stream?participants=1</code>: los cuadros binarios del servidor llevan cabecera de 4
+          bytes (versión 1, reservado 0, id uint16 BE), seguida de PCM f32le mono 16 kHz. Id 0 es la mezcla; otros ids
+          se anuncian por JSON <code>stream</code> con <code>participantJid</code> y terminan con{' '}
+          <code>stream_end</code>, sin reutilización. El cliente sigue enviando PCM crudo. Sin el parámetro, los bytes
+          no cambian. Opt-in desactivado cierra con 4409. PCM nunca pasa por webhooks/SSE; grabaciones separadas no
+          implementadas.
+        </p>
+        <h2 id="mlow-red">Redundancia MLow</h2>
+        <p>
+          <code>VOIP_MLOW_RED=false</code> está desactivado por defecto. En modo local envía una copia de baja tasa del
+          cuadro anterior: mejora la recuperación con pérdidas, desactiva DTX y aumenta el ancho de banda. Los hosts
+          remotos deben habilitar RED en su receiver.
+        </p>
+        <h2 id="load-audio">Reproducir un archivo de audio</h2>
+        <p>
+          <code>POST /v1/calls/:callId/audio</code> acepta <code>mediaUrl</code>, <code>mediaBase64</code> (JSON) o{' '}
+          <code>file</code> multipart, limitado por <code>MEDIA_UPLOAD_MAX_BYTES</code>. Requiere ffmpeg en PATH (503 si
+          falta). El archivo se elimina tras decodificar o fallar. Desactiva el audio externo en esa llamada; detenga
+          primero el stream PCM del micrófono. Reabrirlo vuelve al audio en vivo. La respuesta indica audio cargado;{' '}
+          <code>call.audio_finished</code> indica el fin de la reproducción.
+        </p>
+        <p>
+          El modo externo se desactiva antes de decodificar porque upstream borra el buffer al cambiar; si falla, reabra
+          el stream PCM para retomarlo.
+        </p>
+        <h2 id="call-errors">Errores y finalización del audio</h2>
+        <p>
+          Los eventos webhook/SSE <code>call.error</code> y <code>call.audio_finished</code> llegan por el WS de control
+          como <code>call:error</code> y <code>call:audio_finished</code>, con <code>{'{ call, error? }'}</code>. Los
+          errores upstream no identifican la llamada: <code>call</code> es null y mensaje/código están sanitizados, sin
+          stack ni credenciales. La finalización incluye el snapshot y señala el fin del audio cargado.
+        </p>
         <h2 id="control">Control plane — /v1/voip</h2>
         <CodeBlock
           language="json"
@@ -1691,16 +2094,259 @@ const dec = new TextDecoder
     body: (
       <>
         <p>
-          CRUD completo bajo <code>/v1/instances/:name/groups</code>: create, metadata, leave, subject/description,
-          invite-code, participants add/remove, promote/demote, picture, settings (announcement, restrict, ephemeral…).
+          CRUD completo bajo <code>/v1/groups</code> con la clave de la instancia: create, metadata, leave,
+          subject/description, invite-code, participants add/remove, promote/demote, picture, settings (announcement,
+          restrict, ephemeral…).
         </p>
+        <h2 id="member-settings">Permisos de los miembros</h2>
+        <p>
+          Cada ruta acepta <code>{'{ mode }'}</code>:
+        </p>
+        <ul>
+          <li>
+            Quién puede añadir miembros: <code>PUT /v1/groups/:groupId/settings/member-add-mode</code> —{' '}
+            <code>admin_add</code> / <code>all_member_add</code>.
+          </li>
+          <li>
+            Quién puede compartir el enlace de invitación:{' '}
+            <code>PUT /v1/groups/:groupId/settings/member-link-mode</code> — <code>admin_link</code> /{' '}
+            <code>all_member_link</code>.
+          </li>
+          <li>
+            Quién puede enviar historial: <code>PUT /v1/groups/:groupId/settings/history-share-mode</code> —{' '}
+            <code>admin_share</code> / <code>all_member_share</code>.
+          </li>
+        </ul>
+        <CodeBlock
+          language="bash"
+          code={`curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-add-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_add"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-link-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_link"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_share"}'`}
+        />
+        <p>
+          Solo los administradores del grupo pueden cambiar los modos. Valores inválidos devuelven 400 con los valores
+          aceptados; grupo desconocido devuelve 404; permisos denegados por WhatsApp devuelven 403. Los ajustes
+          booleanos siguen usando <code>{'{ enabled }'}</code> (<code>PUT /v1/groups/:groupId/settings/:setting</code>).
+        </p>
+        <p>
+          En <code>GET /v1/groups/:groupId</code> / <code>GET /v1/groups</code>, los metadatos exponen{' '}
+          <code>memberAddMode</code>, <code>memberLinkMode</code>, <code>historyShareMode</code> cuando WhatsApp los
+          informa; los valores ausentes o desconocidos se omiten. El campo upstream{' '}
+          <code>memberShareGroupHistoryMode</code> se mantiene por compatibilidad.
+        </p>
+        <p>
+          Los cambios desde el teléfono al modo de adición llegan en <code>group.update</code> con{' '}
+          <code>action: "member_add_mode"</code>, <code>mode</code>, <code>memberAddMode</code>. zapo-js 1.11.0 no
+          decodifica notificaciones de los modos de enlace e historial: consulte los metadatos para observar esos
+          cambios.
+        </p>
+        <h2 id="group-history">Historial del grupo</h2>
         <p>
           <code>POST .../groups/:groupId/share-history</code> manda el historial reciente a quien entró después (la
           cuenta necesita <code>group_history_send</code>). Los bundles recibidos están activos por defecto (
           <code>HISTORY_GROUP_BUNDLES</code>) y aparecen como <code>history.group</code> más las proyecciones.
         </p>
         <p>
+          El envío respeta el <a href="#member-settings">modo de compartir historial</a> (<code>historyShareMode</code>
+          ): <code>admin_share</code> / <code>all_member_share</code>. <code>HISTORY_GROUP_BUNDLES</code> solo controla
+          la recepción de bundles.
+        </p>
+        <p>
           Referencia detallada: <a href="/guide/api/Groups">Groups API</a>.
+        </p>
+        <h2 id="join-requests">Solicitudes de ingreso</h2>
+        <p>
+          Activa la aprobación por admins con <code>PUT /v1/groups/:groupId/settings/membership_approval_mode</code> y{' '}
+          <code>{'{ "enabled": true }'}</code>. Lista las solicitudes pendientes con{' '}
+          <code>GET /v1/groups/:groupId/membership-requests</code>. La respuesta es{' '}
+          <code>{'{ "requests": [{ "jid": "111@lid", "requestedAt": "2026-11-06T12:00:00.000Z" }] }'}</code>. Campos
+          opcionales: <code>phoneNumber</code> (JID PN del upstream), <code>method</code>, <code>requestor</code>,{' '}
+          <code>requestorUsername</code> y <code>parentGroupJid</code>. Las fechas usan ISO 8601; si el upstream omite
+          la fecha, se representa con la época Unix.
+        </p>
+        <p>
+          Usa <code>POST .../membership-requests/approve</code> o <code>.../reject</code> como admin del grupo;
+          <code>.../cancel</code> retira solicitudes enviadas por esta cuenta. Todos reciben{' '}
+          <code>{'{ "participants": ["5511999999999", "111@lid"] }'}</code> (teléfonos/JIDs, resueltos como add/remove).
+          Listas vacías devuelven 400, grupos desconocidos 404, falta de permisos 403 y aprobación desactivada 409; se
+          conservan los mensajes de error del upstream. Autentica con la clave de instancia en <code>X-Api-Key</code>.
+        </p>
+        <p>
+          Las notificaciones usan <code>group.update</code> en webhooks y SSE. Los campos actuales del upstream,
+          incluido <code>action</code>, se conservan. <code>payload.type</code> es{' '}
+          <code>membership_approval_request</code> con <code>payload.requesterJid</code> del autor del upstream, o{' '}
+          <code>created_membership_requests</code> / <code>revoked_membership_requests</code> con{' '}
+          <code>payload.requests[].jid</code> (<code>phoneJid</code>/<code>username</code> opcionales). Se omiten las
+          identidades que el upstream no proporciona; consulta las solicitudes pendientes para reconciliar la cola. SSE
+          usa <code>data.type</code>, <code>data.requesterJid</code> y <code>data.requests[].jid</code>.
+        </p>
+        <h2>Comunidades</h2>
+        <p>
+          Las comunidades son grupos padre con subgrupos vinculados. Usa la clave de instancia en X-Api-Key; las rutas
+          empiezan en /v1/communities.
+        </p>
+        <p>
+          Crea con subject y, opcionalmente, description, membershipApprovalMode (open o request_required;
+          predeterminado request_required), allowNonAdminSubGroupCreation y createGeneralChat. Los IDs aceptan dígitos o
+          JIDs completos @g.us.
+        </p>
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <code>POST /v1/communities</code>
+              </td>
+              <td>{'Crear → { community }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId</code>
+              </td>
+              <td>{'Consultar metadatos → { community }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>DELETE /v1/communities/:communityId</code>
+              </td>
+              <td>{'Desactivar → { ok: true }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId/subgroups</code>
+              </td>
+              <td>{'Listar → { communityJid, announcementGroup, subGroups }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId/participants</code>
+              </td>
+              <td>{'Participantes agregados → { participants }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>GET /v1/communities/:communityId/subgroups/suggestions?hint=:groupId</code>
+              </td>
+              <td>{'Subgrupos sugeridos → { suggestions }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/subgroups/link</code>
+              </td>
+              <td>{'Vincular → { result: { linkedJids, failed } }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/subgroups/unlink</code>
+              </td>
+              <td>{'Desvincular → { result: { unlinkedJids, failed } }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/subgroups/:groupId/join</code>
+              </td>
+              <td>{'Entrar → { ok: true }'}</td>
+            </tr>
+            <tr>
+              <td>
+                <code>POST /v1/communities/:communityId/owner</code>
+              </td>
+              <td>{'Transferir propiedad → { ok: true }'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Vincular/desvincular exige un array groups no vacío; desvincular también acepta removeOrphanedMembers. Revisa
+          las entradas failed (jid, error) incluso con HTTP 200. Entrar acepta un cuerpo opcional con type y solo
+          devuelve confirmación; consulta /groups/:groupId después para obtener metadatos. La transferencia acepta user
+          (teléfono, JID, LID o @username), resuelto por el resolvedor compartido de destinatarios.
+        </p>
+        <p>
+          Las operaciones sobre comunidades existentes verifican primero los metadatos del grupo padre: comunidades
+          desconocidas y grupos comunes devuelven 404. Listado de subgrupos, sugerencias y transferencia de propiedad
+          requieren el transporte MEX upstream y los permisos de la cuenta. Las rutas REST delegan las operaciones de
+          protocolo a zapo-js.
+        </p>
+        <p>
+          Ambas rutas de consulta de grupos y los metadatos de comunidad preservan isParentGroup, isClosedCommunity,
+          defaultSubgroup, generalSubgroup, hiddenSubgroup, allowNonAdminSubGroupCreation y linkedParentJid, además de
+          los demás campos upstream.
+        </p>
+        <p>
+          Las notificaciones de comunidad usan el evento webhook/SSE existente group.update: action es link, unlink,
+          linked_group_promote o linked_group_demote; linkedGroups contiene jid, subject, subjectTimestampSeconds y
+          hiddenSubgroup cuando se proporcionan. contextGroupJid también se conserva. No hay nuevos nombres de evento.
+        </p>
+        <p>
+          Los JIDs de grupo antiguos, como 5511999999999-1234567890@g.us, se aceptan sin cambios para vincular,
+          desvincular, sugerir y entrar. La ausencia de transporte MEX devuelve 503; los fallos reconocidos de consultas
+          MEX devuelven 502 con un mensaje público estático. Los errores IQ conservan su mapeo de estado existente. El
+          cuerpo de join también es opcional en el contrato OpenAPI.
+        </p>
+        <p>
+          <a href="/guide/api/Communities">Communities API</a>
+        </p>
+        <h2 id="channels">Canales</h2>
+        <p>
+          {
+            'Los canales de WhatsApp usan el área REST Newsletters en /v1/newsletters. Envía la clave de instancia en X-Api-Key o Bearer; los JID terminan en @newsletter. La instancia se obtiene de esa clave.'
+          }
+        </p>
+        <p>
+          {
+            'Descubrimiento: GET en la colección lista los canales seguidos; /:jid consulta metadatos; /by-invite/:code busca por invitación; /search?q=noticias&limit=20&cursor=... devuelve directorio y pageInfo; /recommended?limit=20 lista recomendaciones.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/follow mantiene la asociación; /unfollow deja de seguir. POST /:jid/mute acepta { "muted": true, "type": "follower" } (type también puede ser admin). Seguir no crea una suscripción en vivo: POST /:jid/live-updates devuelve durationSeconds. Renueva antes de que expire; el gateway no renueva automáticamente.'
+          }
+        </p>
+        <p>
+          {
+            'GET /:jid/messages?count=50&before=42 y /:jid/updates?count=50&after=42&since=1700000000 leen directamente de WhatsApp (count de 1 a 100; before y after son mutuamente excluyentes). Las actualizaciones requieren exactamente un cursor, incluso con since. Los metadatos ausentes por JID o invitación devuelven 404. zapo-js 1.11 devuelve páginas BinaryNode sin decodificador público. Las respuestas son sobres de transporte { name, attributes, children?, text?, bytesBase64? }, no proyecciones de mensajes decodificados. Metadatos, directorio y seguidores tienen campos JSON públicos estables.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/messages/:messageId/react recibe { "reaction": "🔥" }; una cadena vacía elimina la reacción. /vote recibe { "options": ["<hash de 32 bytes en base64>"] }; son hashes de opciones de encuesta, no etiquetas ni índices. /view envía confirmación de visualización. Estas tres acciones requieren el ID numérico positivo del servidor obtenido del historial del canal.'
+          }
+        </p>
+        <p>
+          {
+            'Administración: POST en la colección con { name, description?, picture? } crea un canal (picture es un JPEG decodificable en base64, limitado a 256 KiB decodificados y 16 megapíxeles). PATCH /:jid acepta name, description, picture (null la elimina) y reactionCodesSetting. DELETE /:jid elimina permanentemente. GET /:jid/admin devuelve información y capacidades administrativas; /followers?count=50 devuelve seguidores (sin cursor upstream); /pending-invites devuelve JID de usuarios.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote y /:jid/owner reciben { "user": "111@lid" }; teléfonos y @handles pasan por el resolvedor existente de destinatarios. Todos los destinos deben resolver a JID de usuario PN/LID; grupos, broadcasts y canales devuelven 400. POST /:jid/admins/invite/accept acepta para la cuenta actual. Transferir requiere un administrador previamente invitado. El upstream acepta automáticamente los términos de creación/invitación administrativa al crear/aceptar.'
+          }
+        </p>
+        <p>
+          {
+            'Publicación: POST /:jid/messages llama a client.newsletter.send. Usa { "type": "text", "text": "Noticias" } o type image/video/audio/document con mediaUrl, mediaBase64 o archivo multipart file, más caption/mimetype/fileName/ptt según el tipo. PATCH /:jid/messages/:messageId edita con el mismo cuerpo de texto/media; DELETE revoca. Estos ID son los ID de stanza devueltos en id al publicar, distintos de los ID numéricos de servidor usados por react/vote/view. El MIME se detecta en el archivo si falta; los formatos no reconocidos requieren mimetype explícito (400 en caso contrario). Los archivos temporales se eliminan tras éxito o fallo, incluso si falla la detección de MIME.'
+          }
+        </p>
+        <p>
+          {
+            'newsletter.update y newsletter.message_update llegan a webhooks y SSE. Las notificaciones contienen jid, action y detalles escalares; se omiten objetos anidados desconocidos y los bigints pasan a cadenas decimales. Las actualizaciones de mensajes contienen jid, serverId y el tipo edit/revoke/reaction/poll_vote/counters. Las ediciones contienen contenido proyectado y los hashes de votos usan base64. Ningún evento expone nodos brutos, plaintext ni protobuf.'
+          }
+        </p>
+        <p>
+          {
+            'Área propia para canales: los nuevos mensajes y threads de canales del mailbox quedan fuera de app_messages/chats y de las descargas de media de chats. Se conservan las filas existentes. No hay historial/búsqueda local de canales: consulta las rutas dedicadas de WhatsApp y renueva las suscripciones temporales en vivo.'
+          }
+        </p>
+        <p>
+          Contrato completo: <a href="/guide/api/Newsletters">Newsletters API</a> ·{' '}
+          <a href="https://zapo.to/en/guides/newsletters">zapo-js</a>
         </p>
       </>
     ),

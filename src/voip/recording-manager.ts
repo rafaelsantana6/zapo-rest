@@ -36,8 +36,8 @@ export class CallRecordingManager {
   async getConfig(instanceName: string): Promise<InstanceCallConfig & { storageReady: boolean }> {
     const cfg = await this.instances.getConfig(instanceName)
     return {
-      callRecordingEnabled: Boolean(cfg.callRecordingEnabled),
-      storageReady: this.storageReady(),
+      callRecordingEnabled: this._env.VOIP_MEDIA_MODE === 'local' && Boolean(cfg.callRecordingEnabled),
+      storageReady: this._env.VOIP_MEDIA_MODE === 'local' && this.storageReady(),
     }
   }
 
@@ -53,7 +53,7 @@ export class CallRecordingManager {
   }
 
   async isRecordingEnabled(instanceName: string): Promise<boolean> {
-    if (!this.storageReady()) return false
+    if (this._env.VOIP_MEDIA_MODE === 'remote' || !this.storageReady()) return false
     const cfg = await this.instances.getConfig(instanceName)
     return Boolean(cfg.callRecordingEnabled)
   }

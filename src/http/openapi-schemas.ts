@@ -1,3 +1,4 @@
+import { MessageContextSchema } from './message-context-schema'
 import { z } from 'zod'
 
 /** Free-form JSON for OpenAPI (z.unknown has no type and breaks swagger refs). */
@@ -28,6 +29,7 @@ export const EXAMPLES = {
     lastQr: null,
     lastQrAt: null,
     callRecordingEnabled: false,
+    mediaMode: 'local',
     createdAt: '2026-07-11T12:00:00.000Z',
     updatedAt: '2026-07-11T12:05:00.000Z',
   },
@@ -262,6 +264,9 @@ const instanceBaseShape = z.object({
     .nullable()
     .meta({ description: 'Raw QR payload from last `auth_qr` event — render as QR image on clients', example: null }),
   lastQrAt: z.string().nullable().meta({ description: 'ISO-8601 time when lastQr was updated', example: null }),
+  mediaMode: z
+    .enum(['local', 'remote'])
+    .meta({ description: 'Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE).' }),
   callRecordingEnabled: z.boolean().optional().meta({
     description: 'Whether call PCM recording is enabled for this instance',
     example: false,
@@ -365,6 +370,7 @@ export const RecipientToSchema = z.string().min(1).meta({
 export const SendTextBodySchema = z
   .object({
     to: RecipientToSchema,
+    contextInfo: MessageContextSchema.optional(),
     text: z.string().min(1).meta({ description: 'Plain-text body', example: EXAMPLES.textMessage.text }),
     linkPreview: z
       .boolean()
@@ -383,6 +389,7 @@ export const SendTextBodySchema = z
 export const SendMediaBodySchema = z
   .object({
     to: RecipientToSchema,
+    contextInfo: MessageContextSchema.optional(),
     mediaUrl: z.string().url().optional().meta({
       description: 'Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.',
       example: EXAMPLES.imageMessage.mediaUrl,
@@ -596,6 +603,7 @@ export const CallParticipantSchema = z.object({
 
 export const CallInfoSchema = z
   .object({
+    mediaMode: z.enum(['local', 'remote']),
     callId: z.string().meta({ description: 'Id for control routes and PCM stream', example: EXAMPLES.callInfo.callId }),
     peerJid: z.string().nullable().optional().meta({ example: EXAMPLES.callInfo.peerJid }),
     peerJidRaw: z.string().nullable().optional(),
@@ -867,6 +875,10 @@ export const ReadyResponseSchema = z
   .meta({ example: EXAMPLES.ready })
 
 export const StreamQuerySchema = z.object({
+  participants: z
+    .enum(['0', '1'])
+    .optional()
+    .meta({ description: 'Audio stream only: opt into framed per-participant PCM (VOIP_PARTICIPANT_AUDIO required).' }),
   apiKey: z.string().optional().meta({
     description: 'API key for browsers (WebSocket cannot always set custom headers). Prefer X-Api-Key when possible.',
     example: 'zr_AbCdEfGhIjKlMnOpQrStUvWx',
@@ -951,22 +963,411 @@ export const OPENAPI_TAGS = [
       'When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n' +
       '```json\n' +
       '{\n' +
+      ' "id": "01K9D453G00000000000000000",\n' +
       ' "event": "message.inbound",\n' +
       ' "instance": "sales-1",\n' +
-      ' "timestamp": "2026-07-11T12:10:00.000Z",\n' +
-      ' "data": { }\n' +
+      ' "timestamp": 1793966400000,\n' +
+      ' "engine": "zapo",\n' +
+      ' "payload": { }\n' +
       '}\n' +
       '```\n\n' +
+      '**Channel events:** `newsletter.update`, `newsletter.message_update`.\n\n' +
       '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, ' +
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
-      '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
+      '`call.incoming`, `call.state`, `call.ended`, `call.error`, `call.audio_finished`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
-      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.' +
-      ' Message payloads additionally expose readable interactive/business types and optional `interactive` selection IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and quoted flowToken. Existing event names are unchanged.',
+      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
+      'Message payloads additionally expose readable interactive/business types and optional `interactive` selection IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and quoted flowToken. Existing event names are unchanged.\n\n' +
+      '`group.update` membership notifications preserve upstream `action` and add `payload.type`: ' +
+      '`membership_approval_request` has `payload.requesterJid` from the upstream author; ' +
+      '`created_membership_requests` / `revoked_membership_requests` have `payload.requests[].jid` ' +
+      '(optional `phoneJid` / `username`). Identities are omitted when upstream does not supply them. ' +
+      'SSE carries the same fields under `data` (`data.type`, `data.requesterJid`, `data.requests[].jid`). ' +
+      'Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests.',
+  },
+  {
+    name: 'Communities',
+    description:
+      'WhatsApp parent groups: lifecycle, linked sub-groups, participants, suggestions and ownership. Sub-groups, suggestions and ownership require the upstream MEX transport (503 when absent; recognized MEX failures return 502).',
+  },
+  {
+    name: 'Newsletters',
+    description:
+      'WhatsApp channels: discovery, followers, administration and publishing. Separate from chat projections. Live subscriptions are temporary; renew using durationSeconds.',
   },
 ] as const
+
+export const GroupMemberAddModeSchema = z.enum(['admin_add', 'all_member_add']).meta({
+  description: 'Who can add group members: admins only or all members.',
+  example: 'admin_add',
+})
+
+export const GroupMemberLinkModeSchema = z.enum(['admin_link', 'all_member_link']).meta({
+  description: 'Who can share the group invite link: admins only or all members.',
+  example: 'admin_link',
+})
+
+export const GroupHistoryShareModeSchema = z.enum(['admin_share', 'all_member_share']).meta({
+  description: 'Who can send group history bundles: admins only or all members.',
+  example: 'admin_share',
+})
+
+export const GroupMetadataSchema = z
+  .looseObject({
+    jid: z.string().optional(),
+    subject: z.string().optional(),
+    isParentGroup: z.boolean().optional(),
+    isClosedCommunity: z.boolean().optional(),
+    defaultSubgroup: z.boolean().optional(),
+    generalSubgroup: z.boolean().optional(),
+    hiddenSubgroup: z.boolean().optional(),
+    allowNonAdminSubGroupCreation: z.boolean().optional(),
+    linkedParentJid: z.string().optional(),
+    memberAddMode: GroupMemberAddModeSchema.optional(),
+    memberLinkMode: GroupMemberLinkModeSchema.optional(),
+    historyShareMode: GroupHistoryShareModeSchema.optional(),
+  })
+  .meta({
+    description: 'Upstream group metadata plus normalized member modes, omitted when not reported or unrecognized.',
+  })
+export const GroupMembershipParamsSchema = z.object({
+  groupId: z.string().min(1).meta({ description: 'Group ID or full group JID', example: '120363000000000000@g.us' }),
+})
+
+export const GroupMembershipParticipantsSchema = z.object({
+  participants: z
+    .array(z.string().trim().min(1))
+    .min(1)
+    .meta({
+      description: 'Requester phones or JIDs; cancel is limited to requests sent by this account',
+      example: ['5511999999999@s.whatsapp.net'],
+    }),
+})
+
+export const GroupMembershipRequestSchema = z.object({
+  jid: z.string().meta({ description: 'Pending requester JID', example: '123456789@lid' }),
+  phoneNumber: z.string().optional().meta({ description: 'Upstream requestorPhone (PN JID when available)' }),
+  requestedAt: z.iso.datetime().meta({
+    description: 'Upstream requestTime in seconds converted to ISO 8601',
+    example: '2026-11-06T12:00:00.000Z',
+  }),
+  method: z.string().optional().meta({ description: 'Upstream requestMethod, e.g. invite_link' }),
+  requestor: z.string().optional().meta({ description: 'Upstream requestor identity' }),
+  requestorUsername: z.string().optional().meta({ description: 'Upstream requester username' }),
+  parentGroupJid: z.string().optional().meta({ description: 'Parent community JID when supplied upstream' }),
+})
+
+export const GroupMembershipRequestsSchema = z.object({ requests: z.array(GroupMembershipRequestSchema) })
+/** Group metadata is passed through without dropping upstream fields. */
+export const CommunityGroupMetadataSchema = GroupMetadataSchema.extend({
+  jid: z.string(),
+  subject: z.string(),
+  isParentGroup: z.boolean().meta({ description: 'True for a community parent group.' }),
+  isClosedCommunity: z.boolean(),
+  defaultSubgroup: z.boolean(),
+  generalSubgroup: z.boolean(),
+  hiddenSubgroup: z.boolean(),
+  allowNonAdminSubGroupCreation: z.boolean(),
+  linkedParentJid: z.string().optional().meta({ description: 'Parent community JID of a linked sub-group.' }),
+  participants: z.array(
+    z.looseObject({
+      jid: z.string(),
+      type: z.string(),
+      isAdmin: z.boolean(),
+      isSuperAdmin: z.boolean(),
+    }),
+  ),
+})
+
+export const CommunityParamsSchema = z.object({
+  communityId: z
+    .string()
+    .regex(/^(?:\d+|\d+(?:-\d+)?@g\.us)$/)
+    .meta({
+      description: 'Group/community JID (including legacy hyphenated JIDs) or bare numeric id.',
+      example: '120363000000000000',
+    }),
+})
+
+export const CommunityCreateSchema = z
+  .object({
+    subject: z.string().min(1).max(100),
+    description: z.string().optional(),
+    membershipApprovalMode: z
+      .enum(['open', 'request_required'])
+      .optional()
+      .meta({ description: 'Defaults to request_required upstream.' }),
+    allowNonAdminSubGroupCreation: z.boolean().optional(),
+    createGeneralChat: z.boolean().optional(),
+  })
+  .meta({ example: { subject: 'My community', description: 'Community announcements', createGeneralChat: true } })
+
+export const CommunityGroupsSchema = z.object({
+  groups: z
+    .array(CommunityParamsSchema.shape.communityId)
+    .min(1)
+    .meta({ description: 'Sub-group JIDs or bare numeric ids.', example: ['120363000000000001'] }),
+})
+
+export const CommunityUnlinkSchema = CommunityGroupsSchema.extend({ removeOrphanedMembers: z.boolean().optional() })
+export const CommunityJoinParamsSchema = CommunityParamsSchema.extend({
+  groupId: CommunityParamsSchema.shape.communityId,
+})
+export const CommunityJoinSchema = z.object({ type: z.string().min(1).optional() }).nullish()
+export const CommunityOwnerSchema = z.object({
+  user: z.string().min(1).meta({ description: 'New owner phone, JID, LID or @username.', example: '5511999999999' }),
+})
+export const CommunityHintSchema = z.object({ hint: CommunityParamsSchema.shape.communityId })
+
+const CommunityFailedGroupSchema = z.object({ jid: z.string(), error: z.number().optional() })
+export const CommunityLinkResultSchema = z.object({
+  result: z.object({ linkedJids: z.array(z.string()), failed: z.array(CommunityFailedGroupSchema) }),
+})
+export const CommunityUnlinkResultSchema = z.object({
+  result: z.object({ unlinkedJids: z.array(z.string()), failed: z.array(CommunityFailedGroupSchema) }),
+})
+
+const CommunitySubGroupSchema = z.object({
+  jid: z.string(),
+  subject: z.string().optional(),
+  subjectTime: z.number().optional(),
+  defaultSubgroup: z.boolean(),
+  generalSubgroup: z.boolean(),
+  hiddenSubgroup: z.boolean(),
+  membershipApprovalEnabled: z.boolean(),
+  pendingMembershipRequests: z.number(),
+})
+export const CommunitySubGroupsSchema = z.object({
+  communityJid: z.string(),
+  announcementGroup: CommunitySubGroupSchema.nullable(),
+  subGroups: z.array(CommunitySubGroupSchema),
+})
+export const CommunityParticipantsSchema = z.object({ participants: CommunityGroupMetadataSchema.shape.participants })
+export const CommunitySuggestionsSchema = z.object({
+  suggestions: z.array(
+    z.object({
+      jid: z.string(),
+      subject: z.string().nullable(),
+      description: z.string().nullable(),
+      creator: z.string().nullable(),
+      creationTime: z.number().nullable(),
+      participantCount: z.number().nullable(),
+      isExistingGroup: z.boolean(),
+      hiddenGroup: z.boolean(),
+    }),
+  ),
+})
+export const CommunityMetadataSchema = z.object({ community: CommunityGroupMetadataSchema })
+// Chat actions share request/response contracts with their OpenAPI definitions.
+export const ChatPinBodySchema = z.object({ pinned: z.boolean() })
+export const ChatLockBodySchema = z.object({ locked: z.boolean() })
+export const ChatMuteBodySchema = z
+  .object({
+    muted: z.boolean(),
+    until: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .meta({ description: 'Absolute notification resume time (ISO 8601)', example: '2027-01-01T12:00:00Z' }),
+    durationSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(253402300799)
+      .optional()
+      .meta({ description: 'Mute duration from now; mutually exclusive with until', example: 3600 }),
+  })
+  .refine((body) => !(body.until && body.durationSeconds !== undefined), {
+    message: 'Use until or durationSeconds, not both',
+  })
+  .refine((body) => body.muted || (body.until === undefined && body.durationSeconds === undefined), {
+    message: 'Unmuting does not accept until or durationSeconds',
+  })
+export const ChatDeleteBodySchema = z.object({ deleteMedia: z.boolean().optional() }).strict()
+export const ChatClearBodySchema = ChatDeleteBodySchema.extend({
+  deleteStarred: z.boolean().optional().meta({ description: 'Default false: preserve starred messages' }),
+})
+export const PublicChatSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  isGroup: z.boolean(),
+  unreadCount: z.number(),
+  archived: z.boolean(),
+  pinned: z.number().meta({ description: 'Existing numeric pin flag: 0 unpinned, positive pinned' }),
+  muted: z.boolean(),
+  muteUntil: z
+    .string()
+    .nullable()
+    .meta({ description: 'ISO notification resume time; null when unmuted. Forever uses year 9999.' }),
+  muteEndMs: z.number().nullable(),
+  locked: z.boolean(),
+  markedAsUnread: z.boolean(),
+  lastMessage: z
+    .object({ id: z.string(), preview: z.string().nullable(), timestamp: z.number().nullable() })
+    .nullable(),
+  altJids: z.array(z.string()),
+  _data: z.unknown(),
+})
+
+export const SendEventBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    name: z.string().min(1),
+    description: z.string().optional(),
+    startTime: z.iso.datetime({ offset: true }),
+    endTime: z.iso.datetime({ offset: true }).optional(),
+    location: z
+      .object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        name: z.string().optional(),
+        address: z.string().optional(),
+      })
+      .optional(),
+    joinLink: z.url().optional(),
+    extraGuestsAllowed: z.boolean().optional(),
+    isScheduleCall: z.boolean().optional(),
+    isCanceled: z.boolean().optional(),
+    hasReminder: z.boolean().optional(),
+    reminderOffsetSec: z.number().int().nonnegative().optional(),
+    contextInfo: MessageContextSchema.optional(),
+  })
+  .refine((body) => !body.endTime || Date.parse(body.endTime) >= Date.parse(body.startTime), {
+    path: ['endTime'],
+    message: 'endTime must be at or after startTime',
+  })
+  .meta({
+    description: 'Calendar event. ISO 8601 dates with timezone are converted to Unix seconds.',
+    example: {
+      to: '120363000000000@g.us',
+      name: 'Team sync',
+      startTime: '2026-12-01T15:00:00Z',
+      endTime: '2026-12-01T16:00:00Z',
+    },
+  })
+
+export const SendEventResponseBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    eventMessageId: z.string().min(1),
+    response: z.enum(['going', 'not_going', 'maybe']),
+    extraGuestCount: z.number().int().nonnegative().optional(),
+  })
+  .meta({
+    description: 'Respond using the stored event identity and secret.',
+    example: { to: '120363000000000@g.us', eventMessageId: 'EVENT_ID', response: 'going', extraGuestCount: 1 },
+  })
+
+export const SendPinBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    messageId: z.string().min(1),
+    pinned: z.boolean(),
+    duration: z.enum(['24h', '7d', '30d']).default('24h'),
+  })
+  .meta({
+    description:
+      'Pin/unpin a stored message. Pins always include durationSecs: clients silently drop pins without a duration.',
+    example: { to: '120363000000000@g.us', messageId: 'MESSAGE_ID', pinned: true, duration: '7d' },
+  })
+
+export const SendKeepBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    messageId: z.string().min(1),
+    kept: z.boolean(),
+  })
+  .meta({
+    description: 'Keep/unkeep a stored message in a disappearing-message chat.',
+    example: { to: '120363000000000@g.us', messageId: 'MESSAGE_ID', kept: true },
+  })
+
+export const SendPollVoteBodySchema = z
+  .object({
+    to: RecipientToSchema,
+    pollMessageId: z.string().min(1),
+    options: z.array(z.string().min(1)).min(1),
+  })
+  .meta({
+    description: 'Vote using exact option names and the stored poll identity and secret.',
+    example: { to: '120363000000000@g.us', pollMessageId: 'POLL_ID', options: ['Pizza'] },
+  })
+
+export const SendPtvBodySchema = SendMediaBodySchema.omit({ caption: true, ptt: true, viewOnce: true })
+  .strict()
+  .meta({
+    description: 'Round video note, without caption. Same media sources as video.',
+    example: { to: '5511999999999', mediaUrl: 'https://cdn.example.com/note.mp4' },
+  })
+
+// Upstream does not specify a count maximum; the gateway bounds each pack to 30 stickers.
+export const MAX_STICKER_PACK_STICKERS = 30
+const StickerPackMediaSchema = z
+  .strictObject({
+    url: z.url().optional(),
+    base64: z.string().min(1).optional(),
+  })
+  .refine((media) => Boolean(media.url) !== Boolean(media.base64), {
+    message: 'media requires exactly one of url or base64',
+  })
+const StickerPackFileNameSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .regex(/^[^/\\]+$/, 'fileName must be a plain file name')
+export const SendStickerPackBodySchema = z
+  .strictObject({
+    to: RecipientToSchema,
+    id: z.string().min(1),
+    name: z.string().min(1),
+    publisher: z.string().min(1),
+    stickers: z
+      .array(
+        z.strictObject({
+          media: StickerPackMediaSchema,
+          fileName: StickerPackFileNameSchema,
+          emojis: z.array(z.string()).default([]),
+        }),
+      )
+      .min(1)
+      .max(MAX_STICKER_PACK_STICKERS),
+    trayIcon: z.strictObject({ media: StickerPackMediaSchema, fileName: StickerPackFileNameSchema }),
+    coverThumbnail: StickerPackMediaSchema.optional().meta({
+      description: 'Optional image source, normalized to a 252x252 JPEG. Omit to derive the cover from trayIcon.',
+    }),
+    contextInfo: MessageContextSchema.optional(),
+  })
+  .refine(
+    (body) =>
+      new Set([...body.stickers.map((sticker) => sticker.fileName), body.trayIcon.fileName]).size ===
+      body.stickers.length + 1,
+    {
+      path: ['stickers'],
+      message: 'Sticker and tray icon fileName values must be unique',
+    },
+  )
+  .meta({
+    description:
+      'Sticker pack; gateway limit: 30 stickers. Total source bytes plus generated JPEG cover are limited by MEDIA_UPLOAD_MAX_BYTES. A 252x252 JPEG cover is derived from trayIcon when omitted. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11.',
+    example: {
+      to: '5511999999999',
+      id: 'team-pack',
+      name: 'Team',
+      publisher: 'Example',
+      stickers: [{ media: { url: 'https://cdn.example.com/hi.webp' }, fileName: 'hi.webp', emojis: ['👋'] }],
+      trayIcon: { media: { url: 'https://cdn.example.com/tray.png' }, fileName: 'tray.png' },
+    },
+  })
+
+export const CallAudioBodySchema = z
+  .object({
+    mediaUrl: z.url().optional().meta({ description: 'Public audio URL (SSRF guarded).' }),
+    mediaBase64: z.string().optional().meta({ description: 'Inline audio bytes, optionally a data URL.' }),
+    mimetype: z.string().optional(),
+    fileName: z.string().optional(),
+  })
+  .meta({ description: 'Audio URL, base64, or multipart file. Limited by MEDIA_UPLOAD_MAX_BYTES.' })
 
 // Interactive sends keep their contract together while typed upstream builders are pending.
 export {

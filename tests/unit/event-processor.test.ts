@@ -82,6 +82,17 @@ describe('EventProcessor', () => {
     expect(webhooks.emit).toHaveBeenCalledTimes(3)
   })
 
+  it('excludes live and history channel messages from message/chat/contact projections', async () => {
+    const event = textMessageEvent({ id: 'CHANNEL1', text: 'News' })
+    event.key.remoteJid = '1234567890@newsletter'
+    await processor.onMessage('sales-1', event)
+    await processor.onMessage('sales-1', event, 'history')
+    expect(await messages.get('sales-1', 'CHANNEL1')).toBeNull()
+    expect(chats.byKey.size).toBe(0)
+    expect(contacts.byKey.size).toBe(0)
+    expect(webhooks.emit).not.toHaveBeenCalled()
+  })
+
   it('skips webhooks on duplicate live event but still upserts projection', async () => {
     await processor.onMessage('sales-1', textMessageEvent({ id: 'DUP', text: 'first' }))
     webhooks.emit.mockClear()
@@ -438,6 +449,24 @@ describe('EventProcessor', () => {
     expect(result.messages).toBeGreaterThanOrEqual(1)
     expect(result.chats).toBeGreaterThanOrEqual(1)
     expect(await messages.get('sales-1', 'ZM1')).toBeTruthy()
+  })
+
+  it('excludes channel threads during mailbox history import', async () => {
+    function fakeChannelMailboxClient() {
+      return {
+        store: {
+          session: () => ({
+            contacts: { list: async () => [] },
+            threads: { list: async () => [{ jid: '1234567890@newsletter', name: 'News', unreadCount: 1 }] },
+            messages: { listByThread: vi.fn(async () => [{ id: 'CHANNEL_HISTORY' }]) },
+          }),
+        },
+      }
+    }
+    const client = fakeChannelMailboxClient()
+    expect(await processor.importFromZapoStore('sales-1', client as never)).toEqual({ chats: 0, messages: 0 })
+    expect(chats.byKey.size).toBe(0)
+    expect(await messages.get('sales-1', 'CHANNEL_HISTORY')).toBeNull()
   })
 
   it('importFromZapoStore does not throw when contact store has no list() (real WaContactStore)', async () => {

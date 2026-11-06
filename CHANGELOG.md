@@ -21,6 +21,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Message webhook/SSE payloads decode buttons, lists, native flows (first button name), carousels, products, orders and reply selections into readable types/summaries. Optional `interactive` carries selected IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and the token from the quoted form. Existing message event names are unchanged.
 
+## [0.11.0] - 2026-11-06
+
+### Added
+
+- Browser-owned VoIP media behind `VOIP_MEDIA_MODE=remote` (default local): private upstream-encoded `call:media` / `call:media_event` over the authenticated instance control WS, late-join/resync snapshots and `mediaMode` on instance/call reads. The softphone runs MLow, SRTP, audio and H.264 directly in the browser, with gesture-bound audio, RED, and stop statistics. Secret plans never enter logs, SSE, webhooks or persistence.
+- Remote media limits return clear 409 / WS 4409. Browser group calls surface `REMOTE_GROUP_UNSUPPORTED` (upstream needs group/1 + raw-udp). Finish calls and restart after changing media mode; persisted per-instance overrides are deferred.
+
+- Local per-participant audio: `VOIP_PARTICIPANT_AUDIO=false` by default; opt in on the PCM WebSocket with `participants=1` for stream announcements and framed f32le PCM per participant (mix id 0). Existing clients keep the original raw PCM protocol. No PCM on SSE/webhooks.
+
+- Opt-in `VOIP_MLOW_RED=false` passes MLow RED to local call media: low-rate previous-frame redundancy, DTX disabled, higher bandwidth. Call harness: `CALL_HARNESS_MLOW_RED=true`.
+
+- `POST /v1/calls/:callId/audio` loads URL/base64/multipart audio through upstream ffmpeg (503 if missing), switches off external audio and cleans temporary files after decoding; completion arrives as `call.audio_finished`.
+
+- VoIP `call.error` and `call.audio_finished` webhook/SSE events and control WS `call:error` / `call:audio_finished`. Errors expose a sanitized public message/code and `call: null` because upstream omits call identity; playback completion includes the call snapshot.
+- Seven typed message routes: calendar events (`POST /v1/messages/event`, ISO dates with end ≥ start), event responses (`.../event/respond`), pin/unpin (`.../pin`, explicit 24h/7d/30d TTL), keep/unkeep (`.../keep`), poll votes (`.../poll/vote`), round video notes (`.../ptv`, URL/base64/multipart without caption), and sticker packs (`.../sticker-pack`, gateway limit 30 stickers). All return `{ id, result }`. Targeted actions recover the original instance/chat identity; votes/responses use the original secret from the session cache or stored payload (`404` absent original, `409` unavailable secret/author).
+- Safe `contextInfo` (`expirationSeconds`, `ephemeralSettingTimestamp`) on typed sends; raw `messageContextInfo` stays internal. Sticker `accessibilityLabel` is rejected because zapo-js 1.11 does not expose it.
+- Inbound type/summary decoding for events, event responses, pin/unpin, keep/unkeep, poll votes and sticker packs; PTV retains its video MIME type.
+- **Group member modes.** Admin-only `PUT /v1/groups/:groupId/settings/member-add-mode`, `.../member-link-mode`, and `.../history-share-mode` accept `{ mode }` with the upstream enums. Metadata reads (single and list) expose `memberAddMode`, `memberLinkMode`, and `historyShareMode` when reported. The last controls who can send `share-history` bundles, independently of receiving via `HISTORY_GROUP_BUNDLES`. Invalid modes return 400 with accepted values; WhatsApp missing-group and admin errors map to 404/403.
+- `group.update` for upstream `member_add_mode` changes now also carries `memberAddMode`, retaining `action` and `mode`. zapo-js 1.11.0 does not decode link/history-share mode notifications; query metadata to observe those changes.
+- **Group join requests.** `GET /v1/groups/:groupId/membership-requests` lists pending requests with ISO timestamps and optional requester metadata. `POST .../membership-requests/approve`, `/reject`, and `/cancel` accept `{ "participants": ["phone-or-jid"] }`; cancel withdraws requests sent by this account. The existing `membership_approval_mode` setting enables approval. Known upstream permission, missing-group and approval-mode errors return 403/404/409 with the upstream message.
+
+- **WhatsApp Communities.** Ten instance-scoped endpoints under `/v1/communities`: create/deactivate, metadata, linked sub-groups, merged participants, suggestions, link/unlink, join and ownership transfer. Creation exposes all upstream community options; unlink supports `removeOrphanedMembers`, join supports optional `type`, and owner inputs use recipient resolution. Group ids accept digits or `@g.us` JIDs. Link/unlink preserve per-group partial failures. Unknown communities and ordinary groups return 404. Sub-group listing, suggestions and ownership transfer require the upstream MEX transport.
+- Group and community metadata share serialization and expose `isParentGroup`, `isClosedCommunity`, `defaultSubgroup`, `generalSubgroup`, `hiddenSubgroup`, `allowNonAdminSubGroupCreation` and `linkedParentJid` in OpenAPI. Existing `group.update` webhook/SSE payloads preserve upstream community `link`/`unlink`, `linkedGroups` and `contextGroupJid`; no new event names.
+
+- Chat actions: `POST /v1/chats/:chatId/pin`, `/mute`, `/lock`, `/clear`, `/delete` and `DELETE /v1/chats/:chatId/messages/:messageId/for-me`. Mute accepts ISO `until` or `durationSeconds`, defaulting to forever. Clear preserves starred messages/media by default. Synced delete removes the chat/history for your account, without leaving groups; the existing `DELETE /v1/chats/:chatId` remains projection-only.
+- Chat reads expose `muted`, `muteUntil`, `locked` alongside existing numeric `pinned` and `muteEndMs`. Phone app-state pin/mute/lock/archive/read/clear/delete changes update projections and emit the existing `chat.update` webhook/SSE event after persistence. Lock storage is migrated idempotently.
+
+- **WhatsApp Channels (`Newsletters`).** 28 instance-key operations under `/v1/newsletters`: discovery/search/recommendations, message/update reads, follow/unfollow/mute, temporary live subscriptions, reactions/poll votes/view receipts, channel metadata CRUD, admin capabilities/followers/invitations/ownership, and publishing/editing/revoking text or image/video/audio/document media (URL, base64 or multipart). Public metadata and event payloads use explicit schemas. New webhook/SSE events: `newsletter.update` and `newsletter.message_update`.
+- Channel guides in Portuguese, English and Spanish, with separate publishing stanza IDs vs numeric server IDs, base64 poll option hashes, and caller-managed live-subscription renewal. Upstream read pages remain typed transport envelopes with base64 bytes because zapo-js 1.11 does not export a decoded page API.
+
+### Changed
+
+- `group.update` preserves its upstream payload and adds `type` for membership notifications: `membership_approval_request` adds `requesterJid` from the upstream author, while `created_membership_requests` / `revoked_membership_requests` add `requests` with requester JIDs when supplied upstream. The event name and SSE transport stay the same.
+
+- Membership notification documentation distinguishes webhook `payload.*` from SSE `data.*`; the OpenAPI webhook example now matches the delivered envelope (`id`, numeric `timestamp`, `engine`, `payload`).
+
+- Chat actions persist per-chat cutoffs, settings and pending message stars/deletions so mailbox imports and live replays cannot restore removed history or overwrite newer settings. Clear/delete preserve messages newer than the action boundary; empty cleared chats remain listed through reconcile, and LID/PN listings use authoritative settings. Stale app-state mutations are rejected by timestamp; current mutations can retry after partial persistence failures. OpenAPI now marks clear/delete bodies optional.
+- Chat projection upserts preserve omitted settings, so new messages do not reset pin/archive/mute/read/lock state. New chat-action routes return upstream conflicts as 409 and connection failures as 503, without applying a successful local-only fallback.
+
+- Channel messages are explicitly excluded from new `app_messages`/chat projections and mailbox history imports, consistent with their existing exclusion from chat listings. Existing stored rows are not migrated or deleted; use the dedicated channel read endpoints.
+
+- Stored-message targets accept explicit and mapped PN/LID aliases. Group targets recover a valid author from the mailbox sender; group/broadcast/newsletter JIDs cannot be authors. Self-authored direct-message history requires proof of the original author (`409` if unavailable), rather than using the peer.
+- Explicit safe context settings are forwarded as send options so the upstream chat-ephemeral auto-injection cannot override the requested expiration.
+- Sticker-pack covers are always normalized to JPEG 252×252 and derived from the tray icon when omitted. The complete pack (source files plus generated JPEG) shares one `MEDIA_UPLOAD_MAX_BYTES` budget; over-budget downloads abort and all temporary files are removed.
+
+### Fixed
+
+- Community sub-group inputs accept legacy hyphenated `@g.us` JIDs for linking, unlinking, suggestions and joining. The join request body is optional in OpenAPI as well as at runtime. Community operations document 401 and 502 responses; missing MEX transport returns 503, and recognized MEX failures return 502 with a static public message while IQ errors retain their existing status mapping.
+- Newsletter update reads now require exactly one `before`/`after` cursor; message pages reject both cursors together. Examples include the cursor required by zapo-js even when `since` is provided.
+- Channel base64/data-URL media without `mimetype` now uses file detection before publishing/editing; unrecognized formats return an actionable `400`, with temporary media cleaned on every path.
+- Missing channel metadata envelopes from upstream JID/invite lookups now return `404`, while unrelated transport failures remain errors.
+- Inline channel pictures are checked as decodable JPEGs (max 256 KiB decoded / 16 megapixels). Admin actions reject group, broadcast and channel targets and require resolved PN/LID user JIDs.
+
+- Independent review: revoke private VoIP sockets after key rotation or instance deletion/recreation by revalidating ordered plan deliveries and host events; reject remote multipart audio before parsing/downloading it.
+- Remote softphone: preserve initial mute and selected microphone, wait for authenticated media-mode negotiation before dialing, release media after rejected accepts and late screen/camera acquisition, size the video canvas responsively, and serialize/report audio output switches.
+
+- File playback switches external audio off **before** decoding: upstream clears its buffer when leaving external mode, so switching after `loadAudio` would discard the loaded file. Decode failure leaves external mode off; reopen the PCM stream to resume live audio.
+
 ## [0.10.0] - 2026-11-06
 
 ### Added
@@ -457,7 +515,8 @@ First public release of **zapo-rest**: multi-session WhatsApp gateway over
 - Repository URLs set to `github.com/rafaelsantana6/zapo-rest`.
 - `pnpm build:api` cleans `dist/` first (avoids stale artifacts like old `events-ws`).
 
-[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/rafaelsantana6/zapo-rest/compare/v0.8.0...v0.8.1

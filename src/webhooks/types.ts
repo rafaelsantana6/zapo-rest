@@ -22,6 +22,8 @@ export const WEBHOOK_EVENTS = [
   'call.incoming',
   'call.state',
   'call.ended',
+  'call.error',
+  'call.audio_finished',
   /** Peer announced its own mic state. */
   'call.peer_mute',
   /** Remote participant raised or lowered its hand. */
@@ -47,6 +49,8 @@ export const WEBHOOK_EVENTS = [
   'profile.username',
   /** Contact/group avatar set/delete from WA picture notification */
   'contact.picture',
+  'newsletter.update',
+  'newsletter.message_update',
   // legacy aliases kept for backward compat
   'message.inbound',
 ] as const

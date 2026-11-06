@@ -31,7 +31,7 @@ describe.skipIf(!pool)('MessageStore (Postgres)', () => {
       timestampMs: 1_700_000_000_000,
       ack: 0,
     })
-    expect(a.body).toBe('hello')
+    expect(a?.body).toBe('hello')
 
     const b = await messages.upsert({
       instanceName: inst,
@@ -41,8 +41,8 @@ describe.skipIf(!pool)('MessageStore (Postgres)', () => {
       type: 'text',
       ack: 2,
     })
-    expect(b.body).toBe('hello-edited-fields')
-    expect(b.ack).toBe(2)
+    expect(b?.body).toBe('hello-edited-fields')
+    expect(b?.ack).toBe(2)
 
     // lower ack must not decrease
     const c = await messages.upsert({
@@ -52,7 +52,7 @@ describe.skipIf(!pool)('MessageStore (Postgres)', () => {
       ack: 1,
       type: 'text',
     })
-    expect(c.ack).toBe(2)
+    expect(c?.ack).toBe(2)
 
     const got = await messages.get(inst, 'M1')
     expect(got?.messageId).toBe('M1')

@@ -1,3 +1,4 @@
+import { newsletterRoutes } from '~/routes/newsletters'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import cors from '@fastify/cors'
@@ -19,13 +20,16 @@ import { securityHeadersPlugin } from '~/plugins/security-headers'
 import { swaggerPlugin } from '~/plugins/swagger'
 import type { CacheClient } from '~/redis/client'
 import { blastRoutes } from '~/routes/blast'
+import { callAudioRoutes } from '~/routes/call-audio'
 import { callInteractionRoutes } from '~/routes/call-interactions'
 import { callRoutes } from '~/routes/calls'
 import { chatRoutes } from '~/routes/chats'
 import { contactRoutes } from '~/routes/contacts'
 import { eventsSseRoutes } from '~/routes/events-sse'
 import { groupHistoryRoutes } from '~/routes/group-history'
+import { communityRoutes } from '~/routes/communities'
 import { groupRoutes } from '~/routes/groups'
+import { groupMembershipRoutes } from '~/routes/group-membership'
 import { healthRoutes } from '~/routes/health'
 import { instanceRoutes } from '~/routes/instances'
 import { labelRoutes } from '~/routes/labels'
@@ -33,6 +37,7 @@ import { lidRoutes } from '~/routes/lids'
 import { meRoutes } from '~/routes/me'
 import { mediaRoutes } from '~/routes/media'
 import { messageRoutes } from '~/routes/messages'
+import { messageExtraRoutes } from '~/routes/messages-extra'
 import { interactiveMessageRoutes } from '~/routes/messages-interactive'
 import { metricsRoutes } from '~/routes/metrics'
 import { presenceRoutes } from '~/routes/presence'
@@ -157,6 +162,13 @@ export async function buildApp(deps: BuildAppDeps) {
     messages: deps.messages,
     cache: deps.cache,
   })
+  await app.register(messageExtraRoutes, {
+    manager: deps.manager,
+    env: deps.env,
+    messages: deps.messages,
+    cache: deps.cache,
+    lidMap: deps.lidMap,
+  })
   await app.register(interactiveMessageRoutes, {
     manager: deps.manager,
     env: deps.env,
@@ -182,6 +194,7 @@ export async function buildApp(deps: BuildAppDeps) {
     mediaStorage: deps.mediaStorage,
     cache: deps.cache,
   })
+  await app.register(callAudioRoutes, { manager: deps.manager, env: deps.env })
   await app.register(callInteractionRoutes, { manager: deps.manager })
   await app.register(blastRoutes, {
     manager: deps.manager,
@@ -203,6 +216,9 @@ export async function buildApp(deps: BuildAppDeps) {
   }
 
   await app.register(groupRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
+  await app.register(groupMembershipRoutes, { manager: deps.manager, cache: deps.cache })
+  await app.register(communityRoutes, { manager: deps.manager, cache: deps.cache })
+  await app.register(newsletterRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
   await app.register(groupHistoryRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(profileRoutes, { manager: deps.manager, env: deps.env })
   await app.register(profileUsernameRoutes, { manager: deps.manager })

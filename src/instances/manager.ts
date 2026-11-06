@@ -1,3 +1,6 @@
+import { serializeNewsletterEvent, serializeNewsletterMessageUpdate } from '~/newsletters/serialize'
+
+import { setCallMediaMode } from '~/voip/media-mode'
 import type { Pool } from 'pg'
 import type { WaAuthCredentials, WaClient, WaConnectionEvent, WaIncomingMessageEvent } from 'zapo-js'
 import type { Env } from '~/config/env'
@@ -9,6 +12,7 @@ import {
   resolveAvatarsByPolicy,
 } from '~/lib/avatar-resolve'
 import { badRequest, conflict, notFound, serviceUnavailable } from '~/lib/errors'
+import { serializeMembershipGroupEvent } from '~/lib/group-membership'
 import { toRecipientJid } from '~/lib/jid'
 import { bareUserJid, isLidJid } from '~/lib/jid-canon'
 import { getLogger } from '~/lib/logger'
@@ -20,6 +24,8 @@ import { AvatarStore } from '~/store/avatars'
 import type { ContactStore } from '~/store/contacts'
 import { asPhoneJid, serializeCallInfo } from '~/voip/call-serialize'
 import { serializeScreenShare, serializeVideoState } from '~/voip/call-video-controls'
+import { serializeGroupEvent } from '~/groups/metadata'
+import type { WaGroupEvent } from 'zapo-js'
 import { serializeCompositionDiff } from '~/voip/group-call'
 import type { WebhookDispatcher } from '~/webhooks/dispatcher'
 import { createSharedRuntime, createWaClient, type SharedZapoRuntime, type TestClientHooks } from './client-factory'
@@ -195,7 +201,7 @@ export class InstanceManager {
     }
 
     const avatarUrl = await this.resolveOwnAvatarUrl(row.name, meJid, client)
-    return toPublicInstance(row, { pushName, avatarUrl })
+    return toPublicInstance(row, { pushName, avatarUrl, mediaMode: this.opts.env.VOIP_MEDIA_MODE })
   }
 
   /**
@@ -301,7 +307,7 @@ export class InstanceManager {
 
     const row = await this.opts.repo.create(input)
     this.log.info({ name: row.name }, 'instance created')
-    return toPublicInstance(row, { avatarUrl: null })
+    return toPublicInstance(row, { avatarUrl: null, mediaMode: this.opts.env.VOIP_MEDIA_MODE })
   }
 
   /**
@@ -538,6 +544,12 @@ export class InstanceManager {
       runSafe('message', () => this.onIncomingMessage(name, client, event))
     })
 
+    client.on('mutation', (event) => {
+      runSafe('mutation', async () => {
+        if (this.opts.events) await this.opts.events.onAppStateMutation(name, event)
+      })
+    })
+
     client.on('receipt', (event) => {
       runSafe('receipt', async () => {
         if (this.opts.events) await this.opts.events.onReceipt(name, event)
@@ -553,6 +565,20 @@ export class InstanceManager {
     client.on('history_sync_chunk', (event) => {
       runSafe('history_sync_chunk', async () => {
         if (this.opts.events) await this.opts.events.onHistorySync(name, event, client)
+      })
+    })
+
+    client.on('newsletter', (event) => {
+      runSafe('newsletter', async () => {
+        const row = await this.getRecord(name)
+        if (row) await this.opts.webhooks.emit(row, 'newsletter.update', serializeNewsletterEvent(event))
+      })
+    })
+    client.on('newsletter_message_update', (event) => {
+      runSafe('newsletter_message_update', async () => {
+        const row = await this.getRecord(name)
+        if (row)
+          await this.opts.webhooks.emit(row, 'newsletter.message_update', serializeNewsletterMessageUpdate(event))
       })
     })
 
@@ -589,6 +615,7 @@ export class InstanceManager {
     })
 
     client.on('group', (event) => {
+      event = serializeMembershipGroupEvent(event)
       runSafe('group', () => this.onGroup(name, event))
     })
 
@@ -602,15 +629,42 @@ export class InstanceManager {
     const onVoip = client.on.bind(client) as (event: string, fn: (payload: any) => void) => void
 
     onVoip('voip_call_incoming', (call) => {
+      setCallMediaMode(call, this.opts.env.VOIP_MEDIA_MODE)
       runSafe('voip_call_incoming', () => this.onVoipIncoming(name, call))
     })
 
     onVoip('voip_call_state', (call) => {
+      setCallMediaMode(call, this.opts.env.VOIP_MEDIA_MODE)
       runSafe('voip_call_state', () => this.onVoipState(name, call))
     })
 
     onVoip('voip_call_ended', (call) => {
+      setCallMediaMode(call, this.opts.env.VOIP_MEDIA_MODE)
       runSafe('voip_call_ended', () => this.onVoipEnded(name, call))
+    })
+
+    onVoip('voip_call_error', (error: Error) => {
+      // Upstream drops the call context. Never expose arbitrary messages or stacks:
+      // a media-host failure can carry credentials from its private plan.
+      runSafe('voip_call_error', async () => {
+        const row = await this.getRecord(name)
+        const unsupportedGroup =
+          /^the media host lacks (group\/1|raw-udp|group\/1, raw-udp), which a group call needs$/.test(error.message)
+        if (row)
+          await this.opts.webhooks.emit(row, 'call.error', {
+            call: null,
+            error: {
+              message: unsupportedGroup
+                ? 'Group calls in remote media mode require group/1 and raw-udp; browser hosts are unsupported.'
+                : 'Call media or signaling failed; verify the media host capabilities and connection.',
+              code: unsupportedGroup ? 'REMOTE_GROUP_UNSUPPORTED' : 'VOIP_CALL_ERROR',
+            },
+          })
+      })
+    })
+
+    onVoip('voip_call_outbound_audio_finished', (call) => {
+      runSafe('voip_call_outbound_audio_finished', () => this.onVoipInteraction(name, 'call.audio_finished', call, {}))
     })
 
     // Peer-side interactions (voip 1.2): data = { call, ...detail }
@@ -793,6 +847,7 @@ export class InstanceManager {
   }
 
   private async onIncomingMessage(name: string, client: WaClient, event: WaIncomingMessageEvent): Promise<void> {
+    if (event.key.remoteJid.endsWith('@newsletter')) return
     const events = this.opts.events
     if (events) {
       // Pass client so media is downloaded+stored before webhooks
@@ -849,9 +904,9 @@ export class InstanceManager {
     })
   }
 
-  private async onGroup(name: string, event: unknown): Promise<void> {
+  private async onGroup(name: string, event: WaGroupEvent): Promise<void> {
     const row = await this.getRecord(name)
-    if (row) await this.opts.webhooks.emit(row, 'group.update', event)
+    if (row) await this.opts.webhooks.emit(row, 'group.update', serializeGroupEvent(event))
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: picture event shape from zapo
@@ -1149,5 +1204,12 @@ export class InstanceManager {
       void this.runtime.store.destroy().catch(() => undefined)
       this.runtime = null
     }
+  }
+
+  /** Session-scoped originals and secrets for message-targeting routes. */
+  getMessageStores(name: string): Pick<import('zapo-js').WaStoreSession, 'messages' | 'messageSecret'> | null {
+    if (!this.runtime) return null
+    const { messages, messageSecret } = this.runtime.store.session(name)
+    return { messages, messageSecret }
   }
 }

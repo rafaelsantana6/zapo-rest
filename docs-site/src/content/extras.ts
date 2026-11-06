@@ -42,6 +42,7 @@ export const EXTRA_ENDPOINTS: EndpointDoc[] = [
       '**URL:** `ws(s)://<host>/v1/voip?apiKey=<key>&instance=<opcional>`\n\n' +
       '**Client → server:** `instance:attach`, `call:start`, `call:accept`, `call:reject`, `call:end`, `call:mute`, `ping`.\n\n' +
       '**Server → client:** `ready`, `ack`, `calls:snapshot`, `call:offer`, `call:ringing`, `call:accepted`, `call:state`, `call:ended`, `device:status`, `pong`.\n\n' +
+      'Modo remoto (`VOIP_MEDIA_MODE=remote`): `call:media` envia `message` (string de encodeCallMediaMessage); `call:media_event` devolve `event` (string de encodeCallMediaEvent). Snapshot no attach tardio/resync; planos privados nunca vão a SSE/webhooks/logs. Erros/completion: `call:error`, `call:audio_finished`. PCM/vídeo locais fecham 4409 em remoto. ' +
       'Áudio PCM permanece em `GET.../calls/{callId}/stream` (canal separado). Chamadas com `isVideo: true` abrem também `GET.../calls/{callId}/video` (H.264 Annex-B, binário separado).',
     tags: ['Calls'],
     security: true,

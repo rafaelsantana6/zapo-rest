@@ -1,7 +1,10 @@
-import type { WaClient } from 'zapo-js'
+import type { WaAppStateMutationEvent, WaClient } from 'zapo-js'
 import type { Env } from '~/config/env'
 import type { InstanceRepo } from '~/instances/repo'
 import type { InstanceRecord } from '~/instances/types'
+import { createHash } from 'node:crypto'
+import { MUTE_FOREVER_MS } from '~/lib/chat-actions'
+import { toPublicChat, type UpsertChatInput } from '~/store/chats'
 import { isLidJid, isPnJid, toPnJid } from '~/lib/jid-canon'
 import { getLogger } from '~/lib/logger'
 import { Semaphore } from '~/lib/semaphore'
@@ -80,6 +83,8 @@ export class EventProcessor {
   ): Promise<void> {
     const decoded = decodeIncomingMessage(event)
     if (!decoded) return
+    // Channels use their own read/publish surface; do not seed hidden chat rows or download channel media.
+    if (decoded.chatJid.endsWith('@newsletter')) return
 
     // Persist LID↔PN from message key / remoteJidAlt
     if (decoded.lidPnPair && this.deps.lidMap) {
@@ -90,6 +95,7 @@ export class EventProcessor {
     const isNew = await this.deps.idempotency.tryClaim(instanceName, `msg:${decoded.messageId}`, 'message')
 
     let msg = await this.projectMessage(instanceName, decoded, chatJid, source)
+    if (!msg) return
     await this.projectChat(instanceName, decoded, chatJid)
     await this.projectContact(instanceName, decoded, chatJid)
     msg = await this.maybeDownloadMedia(instanceName, event, decoded, source, client, msg)
@@ -115,7 +121,7 @@ export class EventProcessor {
     decoded: DecodedMessage,
     chatJid: string,
     source: 'live' | 'history',
-  ): Promise<AppMessage> {
+  ): Promise<AppMessage | null> {
     return this.deps.messages.upsert({
       instanceName,
       messageId: decoded.messageId,
@@ -275,6 +281,140 @@ export class EventProcessor {
     if (storageUrl && !storageUrl.includes('mmg.whatsapp.net')) return storageUrl
     if (msg.mediaStorageKey) return storageUrl ?? apiMediaPath
     return apiMediaPath ?? decoded.mediaDirectUrl ?? storageUrl
+  }
+
+  /** Project phone app-state changes before broadcasting the existing chat.update event. */
+  async onAppStateMutation(instanceName: string, event: WaAppStateMutationEvent): Promise<void> {
+    const sourceJid =
+      'chatJid' in event
+        ? event.chatJid
+        : event.schema === 'DeleteMessageForMe' || event.schema === 'Star'
+          ? event.remote
+          : undefined
+    if (!sourceJid) return
+    const chatJid = await this.canonicalChatJid(instanceName, sourceJid)
+    if (
+      ![
+        'Star',
+        'Pin',
+        'Mute',
+        'LockChat',
+        'Archive',
+        'MarkChatAsRead',
+        'ClearChat',
+        'DeleteChat',
+        'DeleteMessageForMe',
+      ].includes(event.schema)
+    )
+      return
+    if (!Number.isSafeInteger(event.timestamp) || event.timestamp < 0) return
+    if (await this.deps.idempotency.has(instanceName, this.chatMutationKey(event))) return
+    if (
+      !(await this.deps.chats.actions.acceptMutation(instanceName, {
+        collection: event.collection,
+        index: `${event.schema}:${event._raw.index}`,
+        timestamp: event.timestamp,
+      }))
+    )
+      return
+    const patch: UpsertChatInput = { instanceName, chatJid }
+    const active = event.operation === 'set'
+    switch (event.schema) {
+      case 'Star': {
+        const message = await this.deps.messages.get(instanceName, event.id)
+        if (
+          message &&
+          (message.fromMe !== event.fromMe || (await this.canonicalChatJid(instanceName, message.chatJid)) !== chatJid)
+        )
+          return
+        await this.deps.messages.setStarred(instanceName, event.id, active && Boolean(event.starred), event.timestamp)
+        return
+      }
+      case 'Pin':
+        patch.pinned = active && event.pinned ? 1 : 0
+        if (patch.pinned) patch.archived = false
+        break
+      case 'Mute': {
+        const end = active && event.muted ? Number(event.muteEndTimestamp ?? MUTE_FOREVER_MS) : null
+        if (end !== null && (!Number.isSafeInteger(end) || end < 0 || end > MUTE_FOREVER_MS)) return
+        patch.muteEndMs = end
+        break
+      }
+      case 'LockChat':
+        patch.locked = active && Boolean(event.locked)
+        if (patch.locked) {
+          patch.archived = false
+          patch.pinned = 0
+        }
+        break
+      case 'Archive':
+        patch.archived = active && Boolean(event.archived)
+        if (patch.archived) patch.pinned = 0
+        break
+      case 'MarkChatAsRead':
+        patch.unreadCount = active && !event.read ? 1 : 0
+        patch.markedAsUnread = patch.unreadCount > 0
+        break
+      case 'ClearChat':
+      case 'DeleteChat':
+      case 'DeleteMessageForMe':
+        if (!active) return
+        await this.projectChatDeletion(instanceName, chatJid, event)
+        return
+      default:
+        return
+    }
+    const chat =
+      event.schema === 'MarkChatAsRead'
+        ? await this.deps.chats.upsert(patch)
+        : await this.deps.chats.setState(patch, event.timestamp)
+    if (chat) await this.emitChatUpdate(instanceName, event, { chatId: chatJid, ...toPublicChat(chat) })
+  }
+
+  private async projectChatDeletion(
+    instanceName: string,
+    chatJid: string,
+    event: Extract<
+      WaAppStateMutationEvent,
+      { schema: 'ClearChat' | 'DeleteChat' | 'DeleteMessageForMe'; operation: 'set' }
+    >,
+  ): Promise<void> {
+    const jids = [
+      ...new Set([chatJid, ...(this.deps.lidMap ? await this.deps.lidMap.expandAliases(instanceName, chatJid) : [])]),
+    ]
+    if (event.schema === 'DeleteMessageForMe') {
+      const message = await this.deps.messages.get(instanceName, event.id)
+      if (message && (!jids.includes(message.chatJid) || message.fromMe !== event.fromMe)) return
+      await this.deps.messages.deleteForMe(instanceName, message?.chatJid ?? chatJid, event.id)
+    } else {
+      // An old range must never erase messages received after the phone's action.
+      const lastTimestamp = event.messageRange?.lastMessageTimestamp
+      const beforeMs = lastTimestamp == null ? event.timestamp : Number(lastTimestamp) * 1000 + 999
+      if (!Number.isSafeInteger(beforeMs) || beforeMs < 0) return
+      await this.deps.messages.clearChat(instanceName, jids, {
+        deleteStarred: event.schema === 'DeleteChat' || event.deleteStarred === '1',
+        beforeMs,
+        deleteChat: event.schema === 'DeleteChat',
+        timestampMs: event.timestamp,
+      })
+    }
+    if (event.schema === 'DeleteMessageForMe') {
+      for (const jid of jids) await this.deps.chats.refreshLastMessage(instanceName, jid, jids)
+    }
+    const deleted = event.schema === 'DeleteChat' && !(await this.deps.chats.get(instanceName, chatJid))
+    await this.emitChatUpdate(instanceName, event, { chatId: chatJid, action: event.schema, deleted })
+  }
+
+  private chatMutationKey(event: WaAppStateMutationEvent): string {
+    const digest = createHash('sha256').update(JSON.stringify(event)).digest('hex')
+    return `chat:${digest}`
+  }
+
+  private async emitChatUpdate(instanceName: string, event: WaAppStateMutationEvent, payload: unknown): Promise<void> {
+    const key = this.chatMutationKey(event)
+    const claimed = await this.deps.idempotency.tryClaim(instanceName, key, 'chat.update')
+    const row = await this.deps.instanceRepo.getByName(instanceName)
+    if (claimed && row) await this.deps.webhooks.emit(row, 'chat.update', payload)
   }
 
   async onReceipt(instanceName: string, event: unknown): Promise<void> {
@@ -595,6 +735,7 @@ export class EventProcessor {
     messageStore: any,
   ): Promise<{ chats: number; messages: number }> {
     const threadJid = String(t.jid)
+    if (threadJid.endsWith('@newsletter')) return { chats: 0, messages: 0 }
     if (threadJid === '0@s.whatsapp.net' || threadJid.endsWith('@broadcast')) return { chats: 0, messages: 0 }
 
     const threadMsgs: readonly ZapoThreadMessage[] = messageStore?.listByThread
@@ -612,6 +753,7 @@ export class EventProcessor {
     if (isLidJid(chatJid) && threadMsgs.length === 0) return { chats: 0, messages: 0 }
 
     const { lastId, lastTs, count } = await this.importThreadMessages(instanceName, threadMsgs, chatJid)
+    if (await this.deps.chats.actions.isDeleted(instanceName, chatJid)) return { chats: 0, messages: count }
 
     if (threadMsgs.length === 0 && !t.name && !t.unreadCount) return { chats: 0, messages: count }
     await this.deps.chats.upsert({
@@ -620,9 +762,9 @@ export class EventProcessor {
       name: t.name ?? null,
       isGroup: chatJid.endsWith('@g.us'),
       unreadCount: t.unreadCount ?? 0,
-      archived: t.archived ?? false,
-      pinned: t.pinned ?? 0,
-      muteEndMs: t.muteEndMs ?? null,
+      archived: t.archived,
+      pinned: t.pinned,
+      muteEndMs: t.muteEndMs,
       markedAsUnread: t.markedAsUnread ?? false,
       lastMessageId: lastId,
       lastMessageTs: lastTs,
@@ -642,7 +784,7 @@ export class EventProcessor {
     let count = 0
     for (const m of threadMsgs) {
       const msgChat = await this.canonicalThreadJid(instanceName, m.threadJid, chatJid)
-      await this.deps.messages.upsert({
+      const materialized = await this.deps.messages.upsert({
         instanceName,
         messageId: m.id,
         chatJid: msgChat,
@@ -654,6 +796,7 @@ export class EventProcessor {
         source: 'history',
         raw: { fromZapoStore: true, hasBytes: Boolean(m.messageBytes) },
       })
+      if (!materialized) continue
       count++
       if (m.timestampMs != null && (lastTs == null || m.timestampMs >= lastTs)) {
         lastTs = m.timestampMs

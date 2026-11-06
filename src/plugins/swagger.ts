@@ -6,7 +6,9 @@ import scalarApiReference from '@scalar/fastify-api-reference'
 import type { FastifyPluginAsync } from 'fastify'
 import fp from 'fastify-plugin'
 import { createJsonSchemaTransform, jsonSchemaTransformObject } from 'fastify-type-provider-zod'
+import { documentOptionalCommunityJoinBody } from '~/http/openapi-communities'
 import { injectMultipartMediaBodies } from '~/http/openapi-multipart'
+import { optionalChatActionBodies } from '~/http/openapi-chat-actions'
 import { EXAMPLES, OPENAPI_TAGS } from '~/http/openapi-schemas'
 
 function packageVersion(): string {
@@ -210,7 +212,8 @@ const plugin: FastifyPluginAsync = async (app) => {
     }),
     transformObject: (input) => {
       const openapiObject = jsonSchemaTransformObject(input) as Record<string, unknown>
-      return injectMultipartMediaBodies(injectWebsocketStreamPath(openapiObject))
+      documentOptionalCommunityJoinBody(openapiObject)
+      return optionalChatActionBodies(injectMultipartMediaBodies(injectWebsocketStreamPath(openapiObject)))
     },
   })
 

@@ -1,3 +1,4 @@
+import { decodeExtraMessage } from './decode-message-extra'
 /**
  * Extract a stable, API-friendly projection from zapo incoming message events.
  * Canonical chat JID prefers PN over LID (PN preference rewrite + LID↔PN map).
@@ -166,6 +167,8 @@ function richResponseText(message: any): string | null {
 // biome-ignore lint/suspicious/noExplicitAny: proto bag
 function detectType(message: any): string {
   if (!message || typeof message !== 'object') return 'unknown'
+  const extra = decodeExtraMessage(message)
+  if (extra) return extra.type
   if (message.richResponseMessage || message.botForwardedMessage) return 'text'
   if (message.conversation || message.extendedTextMessage) return 'text'
   if (message.imageMessage) return 'image'
@@ -193,6 +196,8 @@ function detectType(message: any): string {
 // biome-ignore lint/suspicious/noExplicitAny: proto bag
 function extractBody(message: any): string | null {
   if (!message) return null
+  const extra = decodeExtraMessage(message)
+  if (extra) return extra.body
   const rich = richResponseText(message)
   if (rich) return rich
   if (typeof message.text === 'string') return message.text
@@ -235,6 +240,7 @@ function extractMime(message: any): string | null {
   const m =
     message?.imageMessage?.mimetype ??
     message?.videoMessage?.mimetype ??
+    message?.ptvMessage?.mimetype ??
     message?.audioMessage?.mimetype ??
     message?.documentMessage?.mimetype ??
     message?.stickerMessage?.mimetype ??

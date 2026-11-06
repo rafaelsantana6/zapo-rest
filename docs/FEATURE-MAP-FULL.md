@@ -21,9 +21,26 @@ Last updated: 2026-07-14
 | Group-safe private quick replies | ✅ opt-in `groupSafe` on buttons/interactive, own PN wa.me links |
 | Standalone catalog_message | ❌ upstream biz-name fix pending; working alternative: cta_catalog in interactive/carousel (include URL CTA on mobile cards) |
 | Cloud templates | ❌ |
+| Calendar event + response (`/messages/event`, `/messages/event/respond`) | ✅ ISO dates; original identity + secret for responses |
+| Pin/unpin + keep/unkeep (`/messages/pin`, `/messages/keep`) | ✅ stored targets; explicit pin duration, default 24h |
+| Poll vote (`/messages/poll/vote`) | ✅ original author/fromMe/participant + secret; non-empty names |
+| Video note (`/messages/ptv`) | ✅ URL/base64/multipart; no caption |
+| Sticker pack (`/messages/sticker-pack`) | ✅ gateway cap 30; SSRF-guarded URL/base64 media; JPEG cover derived from tray when omitted; total MEDIA_UPLOAD_MAX_BYTES budget; no accessibilityLabel upstream |
+| Typed send context + extended inbound types | ✅ safe contextInfo expiration settings; event / event-response / pin / keep / poll-vote / ptv / sticker-pack summaries |
 | Chats (list/messages/read/archive/history-sync) | ✅ |
+| Chat pin/mute/lock + phone app-state projection | ✅ numeric pinned, muted, muteUntil, locked; chat.update |
+| Durable action metadata / stale-replay guard / retained empty chats | ✅ survives restart and mailbox imports; canonical alias flags |
+| Clear chat / synced delete chat / delete message for me | ✅ preserve starred by default; own devices only; legacy DELETE remains projection-only |
 | Contacts (resolve/check/block/picture/about) | ✅ |
 | Groups (full lifecycle) | ✅ |
+| Group member modes (add, invite link, history bundles) | ✅ Admin-only `PUT /v1/groups/:groupId/settings/{member-add-mode,member-link-mode,history-share-mode}` with `{ mode }`; metadata single/list exposes `memberAddMode`, `memberLinkMode`, `historyShareMode` |
+| Group member mode events | 🟡 `group.update` includes `memberAddMode`; zapo-js 1.11.0 has no decoded link/history mode notifications — read metadata |
+| Group membership requests | ✅ `GET .../groups/:groupId/membership-requests`; `POST .../approve`, `.../reject`, `.../cancel` (our requests); existing `membership_approval_mode` setting |
+| Membership request notifications | ✅ `group.update` with membership `type`, `requesterJid` or `requests[].jid` when supplied upstream |
+| Communities lifecycle + metadata | ✅ `POST /v1/communities`, `GET/DELETE /v1/communities/:communityId`; community flags also in group reads |
+| Community sub-groups + participants + suggestions | ✅ `GET .../:communityId/subgroups`, `.../participants`, `.../subgroups/suggestions?hint=`; listing/suggestions require MEX |
+| Community links + join + ownership | ✅ `POST .../:communityId/subgroups/link`, `.../unlink` (per-group results), `.../:groupId/join`, `.../:communityId/owner` (recipient resolution; MEX) |
+| Community notifications | ✅ Existing `group.update` webhook/SSE preserves `link`/`unlink`, `linkedGroups`, `contextGroupJid`; no new event names |
 | Labels | ✅ |
 | Calls / VoIP (offer/accept/reject/end/mute/stream) | ✅ |
 | In-call hand raise + emoji reactions (`/calls/:id/hand`, `/calls/:id/reaction`) | ✅ |
@@ -88,3 +105,28 @@ Last updated: 2026-07-14
 ## Interactive receive
 
 Existing message webhooks/SSE expose readable buttons/list/interactive/carousel/product/order and response types. Optional `interactive` includes selected ID/text, first native button name/parsed params, or native-form fields across screens, answers, sensitivity and quoted flowToken. Decoder extension lives in `src/events/decode-interactive.ts`. One pure builder per send format stays isolated under `src/messages/interactive/`; upstream owns secrets/biz/encryption. See [wire contract and limitations](../README.md#interactive-and-business-messages).
+
+
+## WhatsApp Channels / Newsletters
+
+| Feature | Status |
+|---------|--------|
+| Dedicated `/v1/newsletters` area (28 operations, instance key only) | ✅ |
+| Discovery, search + cursor, invite lookup and recommendations | ✅ |
+| Follow/unfollow/mute and live subscription duration | ✅ caller-managed renewal |
+| Reactions, poll votes and view receipts | ✅ numeric server message IDs; option hashes in base64 |
+| Metadata CRUD, admin capabilities, followers and admin/ownership lifecycle | ✅ follower count only (no upstream cursor); JPEG pictures ≤256 KiB / 16 MP, PN/LID admin targets |
+| Text/image/video/audio/document publish/edit/revoke | ✅ existing URL/base64/multipart helpers; newsletter coordinator; missing MIME is detected, unknown formats → 400 |
+| `newsletter.update` / `newsletter.message_update` on webhooks and SSE | ✅ JSON-safe payloads without raw protobuf |
+| Channel read/update pages | 🟡 typed transport envelope; decoded pages require an upstream public API; updates require exactly one `before`/`after` cursor, messages allow at most one |
+| Channel projection into `app_messages`/chats and chat media storage | N/A — deliberately excluded; existing rows retained |
+
+VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.
+
+VoIP file playback: ✅ `POST /v1/calls/:callId/audio` (`loadAudio`), URL/base64/multipart via capped media helpers, ffmpeg required (503), selects file playback and removes temporary files after decoding.
+
+MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.
+
+Per-participant PCM (local only): `VOIP_PARTICIPANT_AUDIO=false` by default. Opt in via `/v1/calls/:callId/stream?participants=1`: every server frame gains a 4-byte header (`u8 version=1`, `u8 reserved=0`, `u16 BE streamId`), then f32le PCM. Mix id 0; participant ids announced with JSON `stream` (`participantJid`) and retired with `stream_end`. Client frames stay raw PCM. Without the flag, protocol unchanged. Disabled opt-in: close 4409. No PCM on SSE/webhooks; no separate participant recordings.
+
+Remote call media: ✅ `VOIP_MEDIA_MODE=local|remote` (default local, fixed per instance client; restart after changes). `mediaMode` in instance/call reads; private WS `call:media` / `call:media_event` with upstream wire strings, snapshots on late join/resync, direct browser MLow/SRTP/H.264 and stop stats. Secret plans bypass bus/webhooks/logs/persistence. Local-only file/PCM/video/recording/blast/STT → 409 / WS 4409 in remote mode. Browser group host → `call.error` (`REMOTE_GROUP_UNSUPPORTED`, needs group/1 + raw-udp). Deferred: persisted per-instance mode override, start-call audioFile/audioUrl, participant recordings. Upstream unsupported: `setVideoSubscriptions`.

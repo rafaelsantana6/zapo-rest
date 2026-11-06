@@ -38,3 +38,11 @@ sits close to them on voip 1.4 and can fail on a slow run. The fake phone stream
 does not react to key-frame requests (PLI/FIR). The browser WebCodecs path is not exercised.
 "Decodable" means the frame arrived byte-intact and every frame since the last IDR also arrived
 intact. It is how the metrics estimate what a real decoder would display.
+
+MLow RED comparison (zapo → phone; the phone still sends normal MLow):
+
+```sh
+CALL_HARNESS_MLOW_RED=false pnpm test:call-quality
+CALL_HARNESS_MLOW_RED=true pnpm test:call-quality
+```
+The fake phone uses upstream `decodeSequenced` for PT 120/121, including RED recovery. RED disables DTX and adds bandwidth for loss recovery. Reports go to the same cache directory; preserve each run before the next one.

@@ -161,3 +161,35 @@ describe('VoIP video events (voip 1.4)', () => {
     })
   })
 })
+
+describe('VoIP failures and playback completion', () => {
+  it('sanitizes call.error without guessing call identity', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit(
+      'voip_call_error',
+      Object.assign(new Error('SRTP_KEY=private-secret'), { code: 'private-secret', key: 'private-secret' }),
+    )
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    const [, event, payload] = webhooks.emit.mock.calls[0] ?? []
+    expect(event).toBe('call.error')
+    expect(payload).toMatchObject({ call: null, error: { code: 'VOIP_CALL_ERROR' } })
+    expect(JSON.stringify(payload)).not.toContain('private-secret')
+    expect(payload).not.toHaveProperty('stack')
+  })
+
+  it('emits call.audio_finished with the call snapshot', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_outbound_audio_finished', call)
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[1]).toBe('call.audio_finished')
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ call: { callId: 'C1' } })
+  })
+  it('explains the unsupported remote browser group host without exposing private errors', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_error', new Error('the media host lacks group/1, raw-udp, which a group call needs'))
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({
+      error: { code: 'REMOTE_GROUP_UNSUPPORTED', message: expect.stringContaining('group/1 and raw-udp') },
+    })
+  })
+})

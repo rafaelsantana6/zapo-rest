@@ -1,3 +1,4 @@
+import { requireLocalMedia } from '~/voip/media-mode'
 import type { FastifyPluginAsync } from 'fastify'
 import type { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
@@ -12,7 +13,7 @@ import {
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
-import { badRequest, notFound, serviceUnavailable } from '~/lib/errors'
+import { conflict, badRequest, notFound, serviceUnavailable } from '~/lib/errors'
 import { mediaPreValidation, parseMediaRequest } from '~/media/request-media'
 import type { MediaStorage } from '~/media/storage'
 import type { CacheClient } from '~/redis/client'
@@ -38,7 +39,12 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
   app.post<InstanceParams & { Body: z.infer<typeof BlastBodySchema> }>(
     scopedInstancePaths('/calls/blast'),
     {
-      preValidation: mediaPreValidation(env),
+      preValidation: [
+        async (request) => {
+          requireLocalMedia(manager.requireRegisteredClient(resolveInstanceName(request)), 'Audio blast')
+        },
+        mediaPreValidation(env),
+      ],
       schema: {
         tags: ['Calls'],
         summary: 'Audio blast — call + play predefined audio + record response',
@@ -71,6 +77,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
           401: ErrorBodySchema,
           403: ErrorBodySchema,
           404: ErrorBodySchema,
+          409: ErrorBodySchema,
           503: ErrorBodySchema,
         },
       },
@@ -148,6 +155,7 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
           401: ErrorBodySchema,
           403: ErrorBodySchema,
           404: ErrorBodySchema,
+          409: ErrorBodySchema,
           503: ErrorBodySchema,
         },
       },
@@ -156,6 +164,8 @@ export const blastRoutes: FastifyPluginAsync<BlastRoutesDeps> = async (app, deps
       const params = request.params
       const name = resolveInstanceName(request)
 
+      if (env.VOIP_MEDIA_MODE === 'remote')
+        throw conflict('Call transcription is unavailable in remote media mode; media runs on the host')
       if (!env.STT_ENABLED || !env.STT_API_URL || !env.STT_API_KEY) {
         throw serviceUnavailable('STT not configured — set STT_ENABLED=true, STT_API_URL, and STT_API_KEY')
       }

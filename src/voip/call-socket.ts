@@ -1,3 +1,4 @@
+import { clientMediaMode } from '~/voip/media-mode'
 /** Shared auth + call lookup for the per-call media WebSockets (PCM stream, H.264 video). */
 
 import type { WebSocket } from 'ws'
@@ -54,6 +55,11 @@ export async function openCallSocket(opts: CallSocketOpts): Promise<OpenedCallSo
     client = asVoipClient(manager.getClient(instanceName))
   } catch {
     socket.close(4503, 'instance not connected')
+    return null
+  }
+
+  if (clientMediaMode(client) === 'remote') {
+    socket.close(4409, 'PCM/video streams unavailable in remote media mode; use /v1/voip media host')
     return null
   }
 

@@ -30,6 +30,7 @@ import {
   startCallVideo,
   startCameraTest,
 } from '../voip/call-video'
+import { RemoteCallMedia } from '../voip/remote-call-media'
 import { type VoipConnectionState, voipSocket } from '../voip/voip-socket'
 
 /** Softphone mounts outside <Route>, so useParams() is empty — parse path. */
@@ -108,6 +109,8 @@ export function Softphone() {
   const [phone, setPhone] = useState('')
   const [phase, setPhase] = useState<Phase>('idle')
   const [activeCall, setActiveCall] = useState<LiveCall | null>(null)
+  const [mediaMode, setMediaMode] = useState<'local' | 'remote'>(voipSocket.mediaMode)
+  const [mediaSummary, setMediaSummary] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [muted, setMuted] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -138,6 +141,7 @@ export function Softphone() {
   const [upgradeAsked, setUpgradeAsked] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
+  const remoteMediaRef = useRef<RemoteCallMedia | null>(null)
   const audioRef = useRef<CallAudioHandles | null>(null)
   const mutedRef = useRef(false)
   const activeSinceRef = useRef<number | null>(null)
@@ -262,6 +266,7 @@ export function Softphone() {
       /* */
     }
     audioRef.current = null
+    remoteMediaRef.current = null
     if (wsRef.current) {
       try {
         wsRef.current.close()
@@ -294,6 +299,28 @@ export function Softphone() {
     setScreenSharing(false)
   }, [])
 
+  const prepareRemoteMedia = useCallback(
+    (callId?: string) => {
+      if (voipSocket.mediaMode !== 'remote') return
+      cleanupAudio()
+      setMediaSummary(null)
+      const media = new RemoteCallMedia({
+        callId,
+        muted: mutedRef.current,
+        prefs: audioPrefsRef.current,
+        onError: setError,
+        onStats: (stats) =>
+          setMediaSummary(
+            `Mídia no navegador · áudio enviado ${stats.audioSent}, recebido ${stats.audioReceived} · erros SRTP ${stats.srtpErrors} · decode ${stats.decodeErrors}`,
+          ),
+      })
+      remoteMediaRef.current = media
+      audioRef.current = media
+      return media
+    },
+    [cleanupAudio],
+  )
+
   /**
    * Video rides its own WS (.../calls/:id/video) next to the PCM stream. Opens once audio
    * streaming started and the call is a video call; torn down with the audio stream.
@@ -310,6 +337,34 @@ export function Softphone() {
     }
 
     let disposed = false
+    if (mediaMode === 'remote') {
+      const media = remoteMediaRef.current
+      if (!media) return
+      void media
+        .openVideo(localVideo, remoteContainer, () => {
+          setScreenSharing(false)
+          void voipSocket.setScreenShare(activeCallId, false)
+        })
+        .then((handles) => {
+          if (disposed) {
+            handles.stop()
+            return
+          }
+          handles.setCameraEnabled(cameraOnRef.current)
+          videoRef.current = handles
+          void refreshDevices()
+        })
+        .catch(() => setError('Não foi possível iniciar vídeo no navegador'))
+      const poll = setInterval(() => {
+        setRemoteVideoFrames(videoRef.current?.getRemoteFrames() ?? 0)
+        setOutboundStats(videoRef.current?.getOutboundStats() ?? null)
+      }, 500)
+      return () => {
+        disposed = true
+        clearInterval(poll)
+        cleanupVideo()
+      }
+    }
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
     const ws = new WebSocket(
       `${proto}://${window.location.host}/v1/calls/${encodeURIComponent(activeCallId)}/video?apiKey=${encodeURIComponent(key)}`,
@@ -377,7 +432,7 @@ export function Softphone() {
       clearInterval(poll)
       cleanupVideo()
     }
-  }, [streaming, activeCallId, videoPanelShown, cleanupVideo, refreshDevices])
+  }, [streaming, activeCallId, videoPanelShown, cleanupVideo, refreshDevices, mediaMode])
 
   const updatePrefs = useCallback((patch: Partial<SoftphoneAudioPrefs>) => {
     setAudioPrefs((prev) => {
@@ -433,6 +488,16 @@ export function Softphone() {
    */
   const openStream = useCallback(
     async (callId: string) => {
+      if (voipSocket.mediaMode === 'remote') {
+        const media = remoteMediaRef.current
+        if (!media) throw new Error('Clique em ligar/atender novamente para abrir o áudio no navegador')
+        media.bind(callId)
+        await media.ready()
+        callIdRef.current = callId
+        streamingRef.current = true
+        setStreaming(true)
+        return
+      }
       if (streamingRef.current && sameId(callIdRef.current, callId) && wsRef.current) {
         return
       }
@@ -555,6 +620,10 @@ export function Softphone() {
   const placeCall = useCallback(
     async (video: boolean) => {
       if (!instanceName || !phone.trim()) return
+      if (voipSocket.connection !== 'connected') {
+        setError('Aguarde a conexão da linha antes de ligar')
+        return
+      }
       setBusy(true)
       setError(null)
       setPhase('dialing')
@@ -563,6 +632,7 @@ export function Softphone() {
       activeSinceRef.current = null
       setElapsed(0)
       try {
+        prepareRemoteMedia()
         // Wait for control WS (auto-reconnect) before startCall
         await voipSocket.ensureConnected()
         const res = await voipSocket.startCall(phone.trim(), { video })
@@ -607,7 +677,7 @@ export function Softphone() {
         setBusy(false)
       }
     },
-    [instanceName, phone, openStream, cleanupAudio],
+    [instanceName, phone, openStream, cleanupAudio, prepareRemoteMedia],
   )
 
   const onAccept = useCallback(async () => {
@@ -643,7 +713,9 @@ export function Softphone() {
       prev && sameId(prev.callId, wanted) ? { ...prev, state: 'connecting', canAccept: false, isRinging: false } : prev,
     )
 
+    let attempt: RemoteCallMedia | undefined
     try {
+      attempt = prepareRemoteMedia(wanted)
       let callId = wanted
       let acceptErr: unknown = null
 
@@ -692,6 +764,9 @@ export function Softphone() {
         setError(streamErr instanceof Error ? streamErr.message : 'Áudio falhou após atender')
       }
     } catch (err) {
+      // A rejected accept owns only the media it prepared, never a newer attempt.
+      if (attempt && remoteMediaRef.current !== attempt) return
+      if (attempt) cleanupAudio()
       setError(err instanceof Error ? err.message : 'Falha ao atender')
       // Roll back only if we never left the offer (server rejected).
       if (phaseRef.current === 'connecting') {
@@ -706,7 +781,7 @@ export function Softphone() {
     } finally {
       setBusy(false)
     }
-  }, [instanceName, activeCall, openStream])
+  }, [instanceName, activeCall, openStream, prepareRemoteMedia, cleanupAudio])
 
   const onReject = useCallback(async () => {
     if (!instanceName) return
@@ -873,6 +948,8 @@ export function Softphone() {
     if (!instanceName || !getStoredKey()) return
 
     const unsub = voipSocket.subscribe({
+      onReady: setMediaMode,
+      onAudioFinished: () => setMediaSummary('Reprodução do arquivo de áudio concluída'),
       onConnection: (s) => {
         setVoipConn(s)
         if (s === 'connected') {
@@ -1034,6 +1111,14 @@ export function Softphone() {
             </div>
           )}
 
+          {mediaMode === 'remote' && (
+            <p className="muted">Mídia no navegador · chamadas individuais · HTTPS necessário</p>
+          )}
+          {mediaSummary && (
+            <p className="muted" role="status">
+              {mediaSummary}
+            </p>
+          )}
           {error && <div className="softphone-error">{error}</div>}
 
           {phase === 'incoming' && activeCall && (
@@ -1195,7 +1280,7 @@ export function Softphone() {
                 <button
                   type="button"
                   className="btn primary call-btn"
-                  disabled={busy || phone.length < 8}
+                  disabled={busy || voipConn !== 'connected' || phone.length < 8}
                   onClick={() => void placeCall(false)}
                 >
                   Ligar
@@ -1203,7 +1288,7 @@ export function Softphone() {
                 <button
                   type="button"
                   className="btn ghost call-btn"
-                  disabled={busy || phone.length < 8 || !isVideoCallSupported()}
+                  disabled={busy || voipConn !== 'connected' || phone.length < 8 || !isVideoCallSupported()}
                   title={isVideoCallSupported() ? 'Chamada de vídeo (H.264)' : 'Navegador sem WebCodecs'}
                   onClick={() => void placeCall(true)}
                 >

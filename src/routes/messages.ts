@@ -1,3 +1,4 @@
+import { MessageContextSchema } from '~/http/message-context-schema'
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
@@ -28,6 +29,7 @@ export type MessageRoutesDeps = {
 }
 
 const ReactBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   messageId: z.string().min(1),
   emoji: z.string().describe('Emoji reaction; empty string removes reaction'),
@@ -36,17 +38,20 @@ const ReactBody = z.object({
 })
 
 const EditBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   messageId: z.string().min(1),
   text: z.string().min(1),
 })
 
 const RevokeBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   messageId: z.string().min(1),
 })
 
 const PollBody = z.object({
+  contextInfo: MessageContextSchema.optional(),
   to: z.string().min(1),
   name: z.string().min(1),
   options: z.array(z.string().min(1)).min(2).max(12),
@@ -137,10 +142,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
       const content =
-        body.linkPreview !== undefined
+        body.linkPreview !== undefined || body.contextInfo !== undefined
           ? { type: 'text' as const, text: body.text, linkPreview: body.linkPreview }
           : body.text
       const result = await client.message.send(jid, content, {
+        contextInfo: body.contextInfo,
         mentions: body.mentions,
       })
       await projectOutbound({
@@ -177,6 +183,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
           text: body.text,
         },
         {
+          contextInfo: body.contextInfo,
           mentions: body.mentions,
           quote: {
             remoteJid: jid,
@@ -238,7 +245,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
             mimetype: media.mimetype ?? body.mimetype,
             caption: body.caption,
           },
-          { viewOnce: body.viewOnce },
+          { viewOnce: body.viewOnce, contextInfo: body.contextInfo },
         )
         await projectOutbound({
           instanceName: name,
@@ -276,12 +283,16 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'video',
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
-          caption: body.caption,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'video',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
+            caption: body.caption,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -319,12 +330,16 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'audio',
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype,
-          ptt: body.ptt,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'audio',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype,
+            ptt: body.ptt,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -361,13 +376,17 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'document',
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype,
-          fileName: body.fileName ?? media.fileName,
-          caption: body.caption,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'document',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype,
+            fileName: body.fileName ?? media.fileName,
+            caption: body.caption,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -405,11 +424,15 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'sticker',
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype ?? 'image/webp',
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'sticker',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'image/webp',
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -476,12 +499,16 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const result = await client.message.send(jid, {
-        type: 'poll',
-        name: body.name,
-        options: body.options,
-        selectableCount: body.selectableCount ?? 1,
-      })
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'poll',
+          name: body.name,
+          options: body.options,
+          selectableCount: body.selectableCount ?? 1,
+        },
+        { contextInfo: body.contextInfo },
+      )
       await projectOutbound({
         instanceName: name,
         messageId: result.id,
@@ -509,16 +536,20 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const result = await client.message.send(jid, {
-        type: 'reaction',
-        emoji: body.emoji,
-        target: {
-          remoteJid: jid,
-          fromMe: body.fromMe ?? false,
-          id: body.messageId,
-          participant: body.participant,
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'reaction',
+          emoji: body.emoji,
+          target: {
+            remoteJid: jid,
+            fromMe: body.fromMe ?? false,
+            id: body.messageId,
+            participant: body.participant,
+          },
         },
-      })
+        { contextInfo: body.contextInfo },
+      )
       return { id: result.id, result }
     },
   )
@@ -541,7 +572,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const result = await client.message.send(
         jid,
         { type: 'text', text: body.text },
-        { editKey: { id: body.messageId } },
+        { editKey: { id: body.messageId }, contextInfo: body.contextInfo },
       )
       if (messages) {
         await messages.markEdited(name, body.messageId, body.text)
@@ -565,10 +596,14 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const result = await client.message.send(jid, {
-        type: 'revoke',
-        target: { remoteJid: jid, fromMe: true, id: body.messageId },
-      })
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'revoke',
+          target: { remoteJid: jid, fromMe: true, id: body.messageId },
+        },
+        { contextInfo: body.contextInfo },
+      )
       if (messages) {
         await messages.markDeleted(name, body.messageId)
       }
@@ -721,6 +756,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         },
         body.starred,
       )
+      await messages?.setStarred(name, body.messageId, body.starred)
       return { ok: true as const, messageId: body.messageId, starred: body.starred }
     },
   )

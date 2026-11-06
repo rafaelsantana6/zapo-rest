@@ -1,8 +1,15 @@
+import type { EventEmitter } from 'node:events'
 import { getEnv } from '~/config/env'
 import { getLogger } from '~/lib/logger'
+import {
+  attachParticipantAudio,
+  encodeParticipantAudio,
+  PARTICIPANT_AUDIO_HEADER_BYTES,
+} from '~/voip/participant-audio'
 import { binaryMessage, type CallSocketOpts, openCallSocket } from '~/voip/call-socket'
 
 export type AttachCallStreamOpts = CallSocketOpts & {
+  participants?: boolean
   callRecording?: import('~/voip/recording-manager').CallRecordingManager
 }
 
@@ -22,6 +29,13 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
   if (!opened) return
   const { client, callId: resolvedId, call } = opened
 
+  if (opts.participants && !opts.env.VOIP_PARTICIPANT_AUDIO) {
+    socket.close(4409, 'participant audio disabled; set VOIP_PARTICIPANT_AUDIO=true (local media)')
+    return
+  }
+  const detachParticipants = opts.participants
+    ? attachParticipantAudio(client as unknown as EventEmitter, socket, resolvedId)
+    : undefined
   client.voip.setExternalAudioMode(resolvedId, true)
 
   socket.send(
@@ -30,6 +44,9 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
       sampleRate: 16_000,
       channels: 1,
       format: 'f32le',
+      ...(opts.participants
+        ? { headerBytes: PARTICIPANT_AUDIO_HEADER_BYTES, participants: true, mixedStreamId: 0 }
+        : {}),
       callId: resolvedId,
       state: (call as { stateData?: { state?: string } }).stateData?.state,
     }),
@@ -46,7 +63,9 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
     if (!sameCall(c?.callId)) return
     if (socket.readyState !== socket.OPEN) return
     // Copy — pcm buffer may be reused by the codec
-    const copy = Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength)
+    const copy = opts.participants
+      ? encodeParticipantAudio(0, pcm)
+      : Buffer.from(new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength))
     socket.send(copy)
   }
 
@@ -114,6 +133,7 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
   })
 
   socket.on('close', () => {
+    detachParticipants?.()
     // biome-ignore lint/suspicious/noExplicitAny: plugin event map
     ;(client as any).off?.('voip_call_inbound_audio', onInbound)
     // biome-ignore lint/suspicious/noExplicitAny: plugin event map

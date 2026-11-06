@@ -40,6 +40,7 @@
 | Live events | **SSE** `GET /v1/events` (server → client; prefer header auth) |
 | Voice & video calls | **WebSocket** control + live PCM stream (`@zapo-js/voip`); a second WS carries H.264 (1:1 and group, upgrade mid-call, screen share) — not a second events bus |
 | Media | Local or S3/MinIO/R2 with **CAS dedup**, rehydrate-from-WA, optional auto-download |
+| WhatsApp Channels | Discovery, follow/live updates, admin lifecycle and text/media publishing under `/v1/newsletters`; dedicated webhook/SSE events |
 | Ops UI | Dashboard for QR, chat, send tester, webhooks, softphone |
 
 Not affiliated with WhatsApp/Meta. Independent gateway for engineering and interoperability.
@@ -52,6 +53,8 @@ You do **not** need to open another file to see why this stack is shaped this wa
 
 **At a glance**
 
+- **Browser-owned call media** — remote mode removes the server media hop and codec/native peer requirement for those calls; private plans stay on the instance control WS.
+
 - **Cheaper media** — CAS dedup (SHA-256 per instance); forwards/stickers do not multiply objects
 - **Recoverable media** — missing object re-downloads from WhatsApp; an expired CDN blob (404/410) asks the sender to re-upload once
 - **Reliable webhooks** — persist chat first, outbox + retries, HMAC, no double-fire on redelivery
@@ -61,6 +64,8 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
 - **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
 - **@handle and late group history** — send to `@handle`; members who join a group later still receive shared history (`HISTORY_GROUP_BUNDLES`)
+- **Synced chat settings** — successful actions and phone app-state update Postgres; mute expiration is reflected on reads; durable action metadata preserves deletions and newer settings across mailbox imports/replays
+- **Separate channel surface** — channel discovery/publishing/events stay outside chat projections; callers renew temporary live subscriptions
 - **Video on its own binary channel** — H.264 frames never share the PCM socket; a lagging viewer drops to the next key frame instead of growing server memory or blocking audio
 
 | Decision | Benefit |
@@ -81,7 +86,10 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 | **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
 | **Interactive/business proto isolated per format; opt-in private group replies** | Upstream owns secrets, biz nodes and media encryption; `groupSafe` sends replies to the account PN. See [interactive sends](#interactive-and-business-messages). |
+| **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Durable cutoffs/settings survive mailbox imports; clear/delete preserve newer messages and empty cleared chats stay listed. |
+| **Dedicated channel routes and events** | Channel traffic does not create hidden chat projections or trigger chat media downloads. Read history directly from WhatsApp; renew live updates using `durationSeconds`. |
 | **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
+| **Browser-owned call media** (`VOIP_MEDIA_MODE=remote`) | No server audio/video hop or media peers for those calls. SRTP/relay plans go only to authenticated sockets of that instance, outside SSE/webhooks/logs. Authorization is revalidated on every ordered plan/host event; revoked keys close with 4403. |
 
 ---
 
@@ -253,6 +261,42 @@ GET  /v1/instance               # same as GET  /v1/instances/:name
 POST /v1/instance/connect       # same as POST /v1/instances/:name/connect
 ```
 
+Channel quick reference (instance API key; `jid` ends in `@newsletter`):
+
+```http
+GET    /v1/newsletters                     # followed channels
+GET    /v1/newsletters/search?q=news&limit=20&cursor=...
+GET    /v1/newsletters/recommended
+GET    /v1/newsletters/by-invite/:code
+GET    /v1/newsletters/:jid
+GET    /v1/newsletters/:jid/messages?count=50&before=42
+GET    /v1/newsletters/:jid/updates?count=50&after=42&since=1700000000
+POST   /v1/newsletters/:jid/follow         # also /unfollow
+POST   /v1/newsletters/:jid/mute           # { "muted": true }
+POST   /v1/newsletters/:jid/live-updates   # renew before durationSeconds expires
+POST   /v1/newsletters/:jid/messages/:messageId/react  # { "reaction": "🔥" }; empty removes
+POST   /v1/newsletters/:jid/messages/:messageId/vote   # { "options": ["<base64 32-byte option hash>"] }
+POST   /v1/newsletters/:jid/messages/:messageId/view
+POST   /v1/newsletters                     # { "name": "News", "description": "...", "picture": "<base64 JPEG>" }
+PATCH  /v1/newsletters/:jid                 # name/description/picture (null removes)/reactionCodesSetting
+DELETE /v1/newsletters/:jid                 # permanent upstream deletion
+GET    /v1/newsletters/:jid/admin            # info + capabilities
+GET    /v1/newsletters/:jid/followers?count=50
+GET    /v1/newsletters/:jid/pending-invites
+POST   /v1/newsletters/:jid/admins/invite    # { "user": "@handle" }, phone or user JID also accepted
+POST   /v1/newsletters/:jid/admins/invite/accept
+POST   /v1/newsletters/:jid/admins/invite/revoke # { "user": "111@lid" }
+POST   /v1/newsletters/:jid/admins/demote    # { "user": "111@lid" }
+POST   /v1/newsletters/:jid/owner            # { "user": "111@lid" }
+POST   /v1/newsletters/:jid/messages         # { "type": "text", "text": "News" }
+PATCH  /v1/newsletters/:jid/messages/:messageId # same text/media body
+DELETE /v1/newsletters/:jid/messages/:messageId
+```
+
+Media uses `type: image|video|audio|document` with the existing `mediaUrl`, `mediaBase64`, or multipart `file` fields. Publishing calls `client.newsletter.send`, not the regular message coordinator. Publishing/edit/revoke IDs are stanza IDs; react/vote/view require the **numeric server ID** from channel history. Poll options are base64 hashes, not labels. Following persists membership; live updates are a separate temporary subscription, renewed by the caller. Create/accept-invite automatically accept the corresponding WhatsApp terms upstream.
+
+`newsletter.update` and `newsletter.message_update` reach webhooks and SSE with JSON-safe payloads (edits contain projected content, votes contain base64 hashes). Channels are excluded from new chat/message projections and chat media storage. Read/update pages expose `{ name, attributes, children?, text?, bytesBase64? }` because upstream returns `BinaryNode`; metadata, directory and followers use explicit public fields. Followers support `count` only, without cursors. Message pages accept at most one of `before` or `after`; update pages require exactly one, even when `since` is supplied. Missing channel metadata returns `404`. Media MIME is detected from the file when absent; unrecognized formats need an explicit `mimetype` (`400` otherwise). Inline channel pictures must be decodable JPEGs of at most **256 KiB** and **16 megapixels**. Admin invitation/demotion/ownership targets must resolve to PN/LID users; groups, broadcasts and channel JIDs return `400`. See [Channels guide](https://rafaelsantana6.github.io/zapo-rest/groups#channels).
+
 Lifecycle short form uses singular `/v1/instance` so it never collides with the admin collection `/v1/instances`.
 
 ---
@@ -284,6 +328,16 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 > **Current code is SSE-only for app events.** VoIP remains WebSocket because it is bidirectional.
 
 In-call hand raise (`POST .../calls/:callId/hand`, WS `call:hand`) and emoji reactions (`POST .../calls/:callId/reaction`, WS `call:reaction`) round-trip to the peer as `call.peer_mute`, `call.hand_raise`, and `call.reaction` (webhook + WS). The call snapshot adds `peerAudioMuted`, `handRaised`, and `raisedHands`.
+
+`POST /v1/calls/:callId/audio` plays `mediaUrl` / `mediaBase64` / multipart `file` (cap: `MEDIA_UPLOAD_MAX_BYTES`, ffmpeg required; 503 if missing). Stop the microphone PCM stream first: loading disables external mode before decoding (the upstream transition clears its buffer); on failure, reopen `/stream` to resume live audio; reopening `/stream` selects live audio. Temporary files are removed after decoding.
+
+Browser media: `VOIP_MEDIA_MODE=local|remote` (default `local`) is fixed per instance client. Finish calls and restart the server after changing it; no persisted per-instance override in this release. Instance reads/call snapshots expose `mediaMode`. In remote mode the softphone opens mic/speaker from the dial/answer click, uses `WaCallMediaReceiver` + `webMediaHost` + browser audio/video adapters, and sends media directly to WhatsApp relays. HTTPS/localhost and WSS in production are required. Server `@roamhq/wrtc`/`libmlow-wasm-fork` are unnecessary for these calls (still installed for local mode).
+
+Private `/v1/voip` ops: server `{ op: "call:media", callId, message }`, host `{ op: "call:media_event", id, callId, event }`; `message`/`event` are **strings from upstream encode/decode functions**, preserving bytes/bigint. Late joins/resync receive `media.snapshot(callId)`. Plans carry SRTP keys/relay credentials: never log/persist/broadcast through SSE or webhooks. Dial/answer waits for authenticated `ready`; mute and the selected microphone are applied before capture. Device changes preserve ownership, serialize output changes and surface failures; rejected accepts and late camera/screen acquisitions release their resources. Host `relay_lost` goes to upstream; `receiver.stop()` stats go to the softphone console and summary line. Close every decoded `VideoFrame`; copy reusable buffers before retaining them.
+
+Remote limits: server loadAudio, audio blast, recording and transcription → **409** naming remote mode; PCM `/stream` and H.264 `/video` → **4409**. Reactions belong on the browser receiver (`plane.sendReaction`). Browser **group calls are unsupported** (`group/1` + `raw-udp` required), reported via `call.error` / `call:error` (`REMOTE_GROUP_UNSUPPORTED`). `setVideoSubscriptions` is unsupported upstream. `VOIP_MLOW_RED` moves to the browser receiver; `VOIP_PARTICIPANT_AUDIO` stays local only. Optional start-call audioFile/audioUrl and participant recordings are not implemented.
+
+Call errors and playback completion: webhook/SSE `call.error` / `call.audio_finished`, control WS `call:error` / `call:audio_finished`. Errors have `call: null` (upstream omits identity) and a sanitized public message/code; playback completion includes the call snapshot.
 
 Video: `isVideo: true` on 1:1 and group calls; an audio call upgrades with `POST .../calls/:callId/video/upgrade` (the peer's own request arrives as `call.video_state` with `upgradeRequested: true`), a group camera toggles with `.../video`, and `.../screen-share` swaps the camera for the screen. Frames ride `.../calls/:callId/video`, one `streamId` per sender (`stream_end` when it leaves). Control WS: `call:video_upgrade`, `call:video_upgrade_accept|reject|cancel`, `call:video`, `call:screen_share`. Events: `call.video_state`, `call.video_upgraded`, `call.screen_share` (WS `call:screen_share_changed`). `mediaType` reads `video` once a 1:1 call upgraded. The dashboard softphone tests and switches the camera and shares the screen.
 
@@ -350,13 +404,19 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 - **Instances** — create / connect / disconnect / QR / pairing / restart / delete / rotate key
 - **Messages** — text, reply, image, video, audio, document, sticker, location, poll, react, edit, revoke, contact, forward, star/unstar
 - **Interactive/business** — response buttons, native-flow CTAs (including catalog), single-select lists, image/video carousels, phone-created forms, PIX key cards, review-and-pay charges and real catalog product cards; structured inbound selections/form answers
+- **Extended messages** — calendar events and responses, pin/unpin (24h/7d/30d), keep/unkeep, poll votes, PTV video notes, sticker packs (up to 30); safe `contextInfo` expiration settings on typed sends.
 - **Chats** — list, messages, read, archive, delete, history-sync
+- **Chat actions** — pin/unpin, mute/unmute (ISO or duration; forever by default), lock/unlock, clear with starred preservation, synced chat delete and delete-message-for-me; reads include `pinned` (numeric), `muted`, `muteUntil`, `locked`
 - **Contacts** — list, check exists, about, profile picture, blocklist, BR 9th-digit aware resolve
-- **Groups** — create, metadata, invite, participants, promote/demote, picture
+- **Groups** — create, metadata, invite, participants, promote/demote, picture; admin/member permissions to add members, share invite links, and share history
+- **Group join requests** — list, approve/reject, cancel our requests; `membership_approval_mode` toggle; notifications through `group.update`
+- **Communities** — create/deactivate, metadata, sub-group link/unlink/join, merged participants, suggestions and ownership transfer; community flags also appear in group reads
 - **Profile / presence / privacy / status stories / labels / lids**
 - **Webhooks** — multi-config, HMAC-SHA512, exponential retries, custom headers
 - **Realtime SSE** + **VoIP WebSocket**
 - **Dashboard** + **OpenAPI** + narrative **guide** at `/guide`
+
+Member modes use explicit `/settings/...` routes with `{ mode }`; boolean settings keep `{ enabled }` at `/settings/:setting`. Invalid modes return 400 with accepted values, unknown groups 404, and WhatsApp admin denials 403. Reads omit modes WhatsApp does not report (or values outside the supported enums); the original `memberShareGroupHistoryMode` metadata field remains for compatibility. `historyShareMode` governs who may send history bundles; `HISTORY_GROUP_BUNDLES` controls receiving them. Phone changes to add mode arrive on `group.update` as `action: "member_add_mode"`, `mode`, and `memberAddMode`. zapo-js 1.11.0 does not decode link/history mode notifications; use metadata reads for those changes. See the [groups guide](https://rafaelsantana6.github.io/zapo-rest/guide/groups).
 
 Parity matrices: [`docs/API-COVERAGE.md`](docs/API-COVERAGE.md), [`docs/FEATURE-MAP-FULL.md`](docs/FEATURE-MAP-FULL.md).
 
@@ -390,6 +450,13 @@ POST /v1/messages/native-form                 # phone-created form, 1:1 only; re
 POST /v1/messages/pix                         # payment_info static PIX key card
 POST /v1/messages/charge                      # review_and_pay; major-unit BRL input
 POST /v1/messages/product                     # real catalog product; thousandth prices
+POST /v1/messages/event                       # ISO startTime/endTime → Unix seconds
+POST /v1/messages/event/respond               # stored eventMessageId + response
+POST /v1/messages/pin                         # messageId + pinned + duration (default 24h)
+POST /v1/messages/keep                        # messageId + kept
+POST /v1/messages/poll/vote                   # stored pollMessageId + non-empty options
+POST /v1/messages/ptv                         # URL/base64/multipart video note, no caption
+POST /v1/messages/sticker-pack                # id/name/publisher/stickers/trayIcon
 
 # Own profile (push name, avatar, @handle) — instance key + short paths
 PUT /v1/profile/name
@@ -399,8 +466,30 @@ GET/PUT/DELETE /v1/profile/username
 GET /v1/profile/username/check?username=loja
 POST /v1/profile/username/resolve               # { "username": "@loja" }
 
-# Group history shared with members who joined later
+# Group member modes — instance key; changing these requires group admin
+PUT /v1/groups/:groupId/settings/member-add-mode     # { "mode": "admin_add" | "all_member_add" }
+PUT /v1/groups/:groupId/settings/member-link-mode    # { "mode": "admin_link" | "all_member_link" }
+PUT /v1/groups/:groupId/settings/history-share-mode  # { "mode": "admin_share" | "all_member_share" }
+GET /v1/groups/:groupId                            # group.memberAddMode, memberLinkMode, historyShareMode
+GET /v1/groups                                    # same fields in groups[]
+
+# Group history shared with members who joined later (subject to historyShareMode)
 POST /v1/groups/:groupId/share-history          # { "to": ["@lid-or-phone"], "count": 50 }
+GET  /v1/groups/:groupId/membership-requests   # { requests: [{ jid, requestedAt, ... }] }
+POST /v1/groups/:groupId/membership-requests/approve # { "participants": ["phone-or-jid"] }
+POST /v1/groups/:groupId/membership-requests/reject  # { "participants": ["phone-or-jid"] }
+POST /v1/groups/:groupId/membership-requests/cancel  # own pending requests only
+PUT  /v1/groups/:groupId/settings/membership_approval_mode # { "enabled": true }
+POST /v1/communities                           # { "subject": "My community", "description": "..." }
+GET  /v1/communities/:communityId              # { community } (full group metadata)
+DELETE /v1/communities/:communityId            # deactivate → { ok: true }
+GET  /v1/communities/:communityId/subgroups    # { communityJid, announcementGroup, subGroups }
+GET  /v1/communities/:communityId/participants # { participants } (merged across linked groups)
+GET  /v1/communities/:communityId/subgroups/suggestions?hint=:groupId
+POST /v1/communities/:communityId/subgroups/link   # { "groups": ["120363...@g.us"] }
+POST /v1/communities/:communityId/subgroups/unlink # { "groups": ["120363..."], "removeOrphanedMembers": true }
+POST /v1/communities/:communityId/subgroups/:groupId/join # optional { "type": "..." } → { ok: true }
+POST /v1/communities/:communityId/owner         # { "user": "phone, JID, LID or @handle" }
 
 # Chats / history — named or short
 GET /v1/instances/:name/chats
@@ -408,12 +497,20 @@ GET /v1/chats                                   # instance key
 GET /v1/instances/:name/chats/:chatId/messages
 POST /v1/instances/:name/chats/:chatId/messages/read
 POST /v1/instances/:name/chats/:chatId/history-sync
+POST /v1/chats/:chatId/pin                     # { "pinned": true }
+POST /v1/chats/:chatId/mute                    # { "muted": true, "durationSeconds": 3600 } or "until": ISO
+POST /v1/chats/:chatId/lock                    # { "locked": true }
+POST /v1/chats/:chatId/clear                   # { "deleteStarred": false, "deleteMedia": false }
+POST /v1/chats/:chatId/delete                  # { "deleteMedia": false }; synced account deletion
+DELETE /v1/chats/:chatId                       # legacy local chat projection only; messages kept
+DELETE /v1/chats/:chatId/messages/:messageId/for-me # optional ?deleteMedia=true; recipients keep copies
 
 # Realtime SSE (prefer header auth)
 GET /v1/events?instance=optional
 X-Api-Key: …
 
 # VoIP remains WebSocket
+# POST /v1/calls/:id/audio  (mediaUrl / mediaBase64 / multipart file; ffmpeg)
 # /v1/voip · /v1/calls/:id/stream  (instance key; ?apiKey= for browsers)
 # /v1/calls/:id/video — H.264, one stream id per sender; also on audio calls (they can upgrade)
 # POST /v1/instances/:name/calls/blast
@@ -437,11 +534,27 @@ POST /v1/calls/:callId/video                    # { "enabled": true } — group 
 POST /v1/calls/:callId/screen-share             # { "sharing": true }
 ```
 
+Community and sub-group ids accept bare digits or `@g.us` JIDs, including legacy hyphenated
+group JIDs such as `5511999999999-1234567890@g.us`. Creation also accepts
+`membershipApprovalMode` (`open` / `request_required`, default `request_required`),
+`allowNonAdminSubGroupCreation` and `createGeneralChat`. Link/unlink return the upstream
+`result` with `linkedJids` / `unlinkedJids` and per-group `failed` entries (`jid`, `error`):
+HTTP 200 can contain partial failures. Existing-community operations verify parent metadata
+first (404 for unknown communities or ordinary groups). Sub-group listing, suggestions and
+ownership transfer require the upstream MEX transport (503 when absent). Recognized MEX
+query failures return 502 with a static public message; IQ failures keep their existing
+status mapping. Join accepts an optional request body and acknowledges success; read
+`GET /v1/groups/:groupId` for the joined group's metadata. The existing `group.update`
+webhook/SSE event preserves `action: link | unlink | linked_group_promote | linked_group_demote`,
+`linkedGroups` (`jid`, `subject`, `subjectTimestampSeconds`, `hiddenSubgroup`) and
+`contextGroupJid` when upstream supplies them.
+
+
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.
 
 ### Media inputs (URL · base64 · multipart)
 
-Avatar, message media (`image|video|audio|document|sticker`), status, group picture, and call blast accept **one** of:
+Avatar, message media (`image|video|audio|document|sticker|ptv`), status, group picture, and call blast accept **one** of:
 
 | Input | How |
 | ----- | --- |
@@ -493,6 +606,14 @@ curl -s -X POST "$BASE/v1/instances/sales-1/contacts/resolve" \
 Outbound sends resolve the correct JID automatically (cache + usync).
 
 ---
+
+
+### Extended message targets and context
+
+`event/respond`, `pin`, `keep`, and `poll/vote` use originals stored in the same instance and chat; `fromMe` and group participants are recovered rather than guessed. Responses and votes require the original 32-byte message secret (session cache or stored payload): `404` when the original is absent, `409` when its secret/author is unavailable. Receive/sync the original first. A pin always sends its duration because receiving clients silently drop pins without it.
+
+Typed sends accept only the safe `contextInfo` subset `{ "expirationSeconds": 86400, "ephemeralSettingTimestamp": 1796137200 }`; raw `messageContextInfo` is not exposed. Sticker-pack media uses `{ "url": "https://…" }` or `{ "base64": "…" }` for each sticker, tray icon and optional cover; all URLs use the existing SSRF-guarded resolver. The gateway caps packs at 30 stickers (upstream declares no count maximum) and limits all source bytes plus the generated JPEG cover to `MEDIA_UPLOAD_MAX_BYTES` in total. Covers are normalized to JPEG 252×252; omitting `coverThumbnail` derives it from `trayIcon`. Explicit `contextInfo.expirationSeconds` overrides the chat TTL. Known PN/LID aliases are accepted. A self-authored DM from history with no proven original author returns `409`. `accessibilityLabel` is not supported by zapo-js 1.11 and is rejected. Full examples: guide [Messages](https://rafaelsantana6.github.io/zapo-rest/guide/messages).
+
 
 ## Project layout
 
@@ -595,6 +716,10 @@ The WhatsApp protocol implementation is provided by **zapo-js** under its own MI
 ## Disclaimer
 
 Use this software in accordance with WhatsApp’s terms and applicable law. You are solely responsible for how you operate instances, store messages, and contact end users. The authors provide the software “as is”, without warranty.
+
+MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.
+
+Per-participant PCM (local only): `VOIP_PARTICIPANT_AUDIO=false` by default. Opt in via `/v1/calls/:callId/stream?participants=1`: every server frame gains a 4-byte header (`u8 version=1`, `u8 reserved=0`, `u16 BE streamId`), then f32le PCM. Mix id 0; participant ids announced with JSON `stream` (`participantJid`) and retired with `stream_end`. Client frames stay raw PCM. Without the flag, protocol unchanged. Disabled opt-in: close 4409. No PCM on SSE/webhooks; no separate participant recordings.
 
 ## Interactive and business messages
 

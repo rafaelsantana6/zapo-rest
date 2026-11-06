@@ -4,9 +4,12 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
 import type { Env } from '~/config/env'
-import { ErrorBodySchema } from '~/http/openapi-schemas'
+import { ErrorBodySchema, GroupMetadataSchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
+import { serializeGroupMetadata } from '~/groups/metadata'
+import { registerGroupMemberModeRoutes } from './group-member-modes'
 import { badRequest, serviceUnavailable } from '~/lib/errors'
+import { normalizeGroupJid } from '~/lib/group-metadata'
 import { parseWaIqError } from '~/lib/wa-iq-error'
 import { resolveWhatsAppNumbers } from '~/lib/phone-resolve'
 import { normalizeProfileJpeg } from '~/media/profile-image'
@@ -52,7 +55,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
         summary: 'List groups',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         response: {
-          200: z.object({ groups: z.array(z.any().meta({ type: 'object', additionalProperties: true })) }),
+          200: z.object({ groups: z.array(GroupMetadataSchema) }),
           503: ErrorBodySchema,
         },
       },
@@ -61,7 +64,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
       const groups = await client.group.queryAllGroups()
-      return { groups: [...groups] }
+      return { groups: groups.map(serializeGroupMetadata) }
     },
   )
 
@@ -87,7 +90,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       const group = await client.group.createGroup(body.subject, participants, {
         description: body.description,
       })
-      return { group }
+      return { group: serializeGroupMetadata(group) }
     },
   )
 
@@ -97,6 +100,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       schema: {
         tags: ['Groups'],
         summary: 'Get group metadata',
+        response: { 200: z.object({ group: GroupMetadataSchema }), 403: ErrorBodySchema, 404: ErrorBodySchema },
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: GroupParams,
       },
@@ -107,7 +111,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       const client = manager.requireRegisteredClient(name)
       const jid = normalizeGroupJid(params.groupId)
       const group = await client.group.queryGroupMetadata(jid)
-      return { group }
+      return { group: serializeGroupMetadata(group) }
     },
   )
 
@@ -227,7 +231,7 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       const client = manager.requireRegisteredClient(name)
       const code = body.code.replace(/^https?:\/\/chat\.whatsapp\.com\//, '')
       const group = await client.group.joinGroupViaInvite(code)
-      return { group }
+      return { group: serializeGroupMetadata(group) }
     },
   )
 
@@ -518,9 +522,5 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
       return { ok: true as const, enabled: body.enabled }
     },
   )
-}
-
-function normalizeGroupJid(input: string): string {
-  if (input.includes('@')) return input
-  return `${input.replace(/\D/g, '')}@g.us`
+  registerGroupMemberModeRoutes(fastify, manager, normalizeGroupJid)
 }
