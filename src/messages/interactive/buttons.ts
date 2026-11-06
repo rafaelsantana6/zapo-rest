@@ -1,7 +1,8 @@
 import { proto, type Proto } from 'zapo-js'
 import type { z } from 'zod'
 import type { SendButtonsBodySchema } from '~/http/interactive-schemas'
-import { buildNativeButton, type ButtonContext, nativeFlow } from './common'
+import { buildNativeButtons, type ButtonContext, nativeFlow } from './common'
+import { reserveReplyIds } from './reply-ids'
 
 export function buildButtons(
   input: z.infer<typeof SendButtonsBodySchema>,
@@ -10,11 +11,13 @@ export function buildButtons(
   if (context.isGroup && input.groupSafe)
     return nativeFlow(
       input.text,
-      input.buttons.map((button, index) =>
-        buildNativeButton({ type: 'quick_reply', ...button }, index, { ...context, groupSafe: true }),
+      buildNativeButtons(
+        input.buttons.map((button) => ({ type: 'quick_reply', ...button })),
+        { ...context, groupSafe: true },
       ),
       input.footer,
     )
+  const allocateId = reserveReplyIds(input.buttons)
   return {
     documentWithCaptionMessage: {
       message: {
@@ -23,7 +26,7 @@ export function buildButtons(
           ...(input.footer !== undefined ? { footerText: input.footer } : {}),
           headerType: proto.Message.ButtonsMessage.HeaderType.EMPTY,
           buttons: input.buttons.map((button, index) => ({
-            buttonId: button.id ?? `button_${index + 1}`,
+            buttonId: button.id ?? allocateId(`button_${index + 1}`),
             buttonText: { displayText: button.text },
             type: proto.Message.ButtonsMessage.Button.Type.RESPONSE,
           })),

@@ -1,10 +1,15 @@
 import { z } from 'zod'
+import { parseInlineBase64 } from '~/media/inline-base64'
+import { hasUniqueReplyIds } from '~/messages/interactive/reply-ids'
 
 const Text = z.string().trim().min(1)
 const To = Text.meta({ description: 'Phone, JID or @username, resolved like /messages/text', example: '5511999999999' })
 const Footer = Text.max(60).optional()
 const ButtonText = Text.max(20)
-const Id = Text.max(256).optional()
+const Id = Text.max(256).optional().meta({
+  description:
+    'Explicit reply ID, unique within the message (all list sections/carousel cards). Generated IDs reserve all explicit IDs and gain suffixes on collision.',
+})
 const HttpUrl = z.url({ protocol: /^https?$/ })
 const GroupSafe = z.boolean().optional().meta({
   description: 'In groups, turn quick replies into private wa.me links to the connected phone. Default false.',
@@ -17,7 +22,13 @@ export const InteractiveButtonSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('call'), text: ButtonText, phoneNumber: Text.regex(/^\+?[1-9]\d{6,14}$/) }),
   z.object({ type: z.literal('catalog'), productId: Text.optional() }),
 ])
-const Buttons = z.array(InteractiveButtonSchema).min(1).max(3)
+const Buttons = z
+  .array(InteractiveButtonSchema)
+  .min(1)
+  .max(3)
+  .refine((buttons) => hasUniqueReplyIds(buttons.filter((button) => button.type === 'quick_reply')), {
+    message: 'Quick-reply IDs must be unique within a message',
+  })
 
 export const SendButtonsBodySchema = z
   .object({
@@ -28,7 +39,8 @@ export const SendButtonsBodySchema = z
     buttons: z
       .array(z.object({ id: Id, text: ButtonText }))
       .min(1)
-      .max(3),
+      .max(3)
+      .refine(hasUniqueReplyIds, { message: 'Button IDs must be unique within a message' }),
   })
   .meta({
     description:
@@ -78,6 +90,10 @@ export const SendListBodySchema = z
     path: ['sections'],
     message: 'At most 10 rows across all sections',
   })
+  .refine((input) => hasUniqueReplyIds(input.sections.flatMap((section) => section.rows)), {
+    path: ['sections'],
+    message: 'Row IDs must be unique across all sections',
+  })
   .meta({
     description:
       'single_select native flow: 1–10 sections, 1–10 rows in total; generated row IDs include section and row indexes.',
@@ -92,10 +108,18 @@ export const SendListBodySchema = z
 export const InteractiveMediaSchema = z
   .union([
     z.object({ url: HttpUrl, base64: z.never().optional(), mimetype: Text.optional() }),
-    z.object({ base64: Text, url: z.never().optional(), mimetype: Text.optional() }),
+    z.object({
+      base64: Text.refine(
+        (value) => parseInlineBase64(value) !== null,
+        'Expected nonempty valid base64 or a base64 data URI',
+      ),
+      url: z.never().optional(),
+      mimetype: Text.optional(),
+    }),
   ])
   .meta({
-    description: 'Exactly one HTTP(S) url or base64 (data URI accepted). Download limits and SSRF protection apply.',
+    description:
+      'Exactly one HTTP(S) url or valid nonempty base64 (base64 data URI accepted). Empty content returns 400. Unrecognized content requires mimetype declared in the request or data URI; no default JPEG/MP4. Download limits and SSRF protection apply.',
   })
 
 export const SendCarouselBodySchema = z
@@ -115,6 +139,11 @@ export const SendCarouselBodySchema = z
       .min(2)
       .max(10),
   })
+  .refine(
+    (input) =>
+      hasUniqueReplyIds(input.cards.flatMap((card) => card.buttons.filter((button) => button.type === 'quick_reply'))),
+    { path: ['cards'], message: 'Quick-reply IDs must be unique across all carousel cards' },
+  )
   .meta({
     description:
       'Carousel with 2–10 image/video cards, each with 1–3 native-flow buttons. Media is encrypted/uploaded by zapo-js before sending. The 1.11 addon resolver ignores carousel cards; device delivery/rendering needs verification and may require an upstream fix. Include a URL CTA before catalog on mobile cards.',

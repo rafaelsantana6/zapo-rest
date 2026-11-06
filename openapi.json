@@ -6428,6 +6428,7 @@
                       "type": "object",
                       "properties": {
                         "id": {
+                          "description": "Explicit reply ID, unique within the message (all list sections/carousel cards). Generated IDs reserve all explicit IDs and gain suffixes on collision.",
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 256
@@ -6674,6 +6675,7 @@
                               ]
                             },
                             "id": {
+                              "description": "Explicit reply ID, unique within the message (all list sections/carousel cards). Generated IDs reserve all explicit IDs and gain suffixes on collision.",
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 256
@@ -7030,6 +7032,7 @@
                             "type": "object",
                             "properties": {
                               "id": {
+                                "description": "Explicit reply ID, unique within the message (all list sections/carousel cards). Generated IDs reserve all explicit IDs and gain suffixes on collision.",
                                 "type": "string",
                                 "minLength": 1,
                                 "maxLength": 256
@@ -7317,7 +7320,7 @@
                               ]
                             }
                           ],
-                          "description": "Exactly one HTTP(S) url or base64 (data URI accepted). Download limits and SSRF protection apply."
+                          "description": "Exactly one HTTP(S) url or valid nonempty base64 (base64 data URI accepted). Empty content returns 400. Unrecognized content requires mimetype declared in the request or data URI; no default JPEG/MP4. Download limits and SSRF protection apply."
                         },
                         "mediaType": {
                           "default": "image",
@@ -7353,6 +7356,7 @@
                                     ]
                                   },
                                   "id": {
+                                    "description": "Explicit reply ID, unique within the message (all list sections/carousel cards). Generated IDs reserve all explicit IDs and gain suffixes on collision.",
                                     "type": "string",
                                     "minLength": 1,
                                     "maxLength": 256
@@ -8528,7 +8532,7 @@
                         ]
                       }
                     ],
-                    "description": "Exactly one HTTP(S) url or base64 (data URI accepted). Download limits and SSRF protection apply."
+                    "description": "Exactly one HTTP(S) url or valid nonempty base64 (base64 data URI accepted). Empty content returns 400. Unrecognized content requires mimetype declared in the request or data URI; no default JPEG/MP4. Download limits and SSRF protection apply."
                   },
                   "productImageCount": {
                     "type": "integer",

@@ -21,6 +21,8 @@ const copy = {
       'Campos PIX + reference e items:[{name, amount, quantity}]. subtotal?, total?, discount?, shipping?, tax?. BRL em unidades principais, até 2 casas: 49.90 → {value:4990, offset:100}. Subtotal = soma de preço unitário × quantidade; total = subtotal − desconto + frete + imposto. Totais informados devem coincidir. O envio do cartão não inicia transferência.',
     product:
       'to, productId, title, description, currencyCode, priceAmount1000, salePriceAmount1000?, retailerId?, url?, productImage?: {url}|{base64}, productImageCount?, businessOwnerJid?. PN próprio por padrão. Preços em milésimos: 49900 = BRL 49,90; imagem opcional é enviada antes. Só renderiza um produto real no catálogo daquele negócio; IDs arbitrários não criam produtos.',
+    validation:
+      'IDs explícitos de resposta devem ser únicos na mensagem, inclusive entre seções e cards; duplicatas retornam 400. IDs gerados reservam os explícitos e recebem sufixos _2, _3… em colisões. Base64/data URI devem ser válidos e não vazios (base64 sem padding é aceito); downloads vazios retornam 400. Conteúdo não reconhecido exige mimetype no pedido ou na data URI; Content-Type do download não basta. A detecção tem precedência. MIME declarado é metadado, não validação de decodificação/renderização.',
     safe: 'Resposta rápida em grupo publica a escolha para todo o grupo. groupSafe: true em buttons/interactive converte apenas respostas rápidas de grupos em cta_url: https://wa.me/<PN próprio>?text=<texto codificado>. O participante abre o privado e envia o texto, sem o ID de resposta original. Padrão: sem conversão; 1:1 mantém quick_reply. Ausência de PN próprio retorna 503 em catálogo, link privado e produto sem owner explícito.',
     pending:
       'catalog_message avulso está pendente de correção upstream: zapo-js 1.11 escolhe biz mixed e o celular mostra não suportado. Use catalog (cta_catalog) em /messages/interactive ou em um carousel, observando as ressalvas acima. Os limites de listas/carrosséis são limites conservadores da API; o guia raw e os handlers de referência não especificam máximos para esses formatos.',
@@ -51,6 +53,8 @@ const copy = {
       'PIX fields + reference and items:[{name, amount, quantity}]. subtotal?, total?, discount?, shipping?, tax?. BRL in major units, max 2 decimals: 49.90 → {value:4990, offset:100}. Subtotal = sum of unit price × quantity; total = subtotal − discount + shipping + tax. Supplied totals must match. Sending a card does not initiate a transfer.',
     product:
       'to, productId, title, description, currencyCode, priceAmount1000, salePriceAmount1000?, retailerId?, url?, productImage?:{url}|{base64}, productImageCount?, businessOwnerJid?. Defaults to own PN. Prices in thousandths: 49900 = BRL 49.90; optional image uploaded first. Only a real product in that business catalog renders; arbitrary IDs do not create products.',
+    validation:
+      'Explicit reply IDs must be unique across the message, including sections/cards; duplicates return 400. Generated IDs reserve explicit IDs and gain _2, _3… suffixes on collision. Base64/data URIs must be valid and nonempty (unpadded base64 accepted); empty downloads return 400. Unknown content requires mimetype in the request or data URI; a download Content-Type alone is insufficient. Detection takes precedence. A declared MIME is metadata, not decoding/rendering validation.',
     safe: 'A group quick reply posts the choice to the whole group. groupSafe: true on buttons/interactive converts only group quick replies to cta_url: https://wa.me/<own PN>?text=<encoded text>. The participant opens a private chat and sends the text, without the original reply ID. Default: no conversion; 1:1 keeps quick_reply. Missing own PN returns 503 for catalog, private links and products without an explicit owner.',
     pending:
       'Standalone catalog_message awaits an upstream fix: zapo-js 1.11 chooses biz mixed and phones show unsupported. Use catalog (cta_catalog) in /messages/interactive or a carousel, with the caveats above. List/carousel limits are conservative API bounds; the supplied raw guide and reference handlers do not specify maxima for these formats.',
@@ -81,6 +85,8 @@ const copy = {
       'Campos PIX + reference e items:[{name, amount, quantity}]. subtotal?, total?, discount?, shipping?, tax?. BRL en unidades principales, hasta 2 decimales: 49.90 → {value:4990, offset:100}. Subtotal = suma de precio unitario × cantidad; total = subtotal − descuento + envío + impuesto. Totales informados deben coincidir. Enviar una tarjeta no inicia una transferencia.',
     product:
       'to, productId, title, description, currencyCode, priceAmount1000, salePriceAmount1000?, retailerId?, url?, productImage?:{url}|{base64}, productImageCount?, businessOwnerJid?. PN propio por defecto. Precios en milésimas: 49900 = BRL 49,90; imagen opcional cargada antes. Solo muestra un producto real en el catálogo de ese negocio; IDs arbitrarios no crean productos.',
+    validation:
+      'IDs explícitos de respuesta deben ser únicos en el mensaje, incluso entre secciones/tarjetas; duplicados devuelven 400. IDs generados reservan los explícitos y añaden sufijos _2, _3… ante colisión. Base64/data URI deben ser válidos y no vacíos (base64 sin padding aceptado); descargas vacías devuelven 400. Contenido desconocido requiere mimetype en el pedido o data URI; Content-Type de descarga no basta. Detección tiene prioridad. MIME declarado es metadato, no validación de decodificación/renderización.',
     safe: 'Una respuesta rápida en grupo publica la elección para todo el grupo. groupSafe: true en buttons/interactive convierte solo respuestas rápidas de grupos a cta_url: https://wa.me/<PN propio>?text=<texto codificado>. El participante abre un privado y envía el texto, sin el ID original. Por defecto sin conversión; 1:1 conserva quick_reply. PN propio ausente devuelve 503 para catálogo, enlaces privados y productos sin propietario explícito.',
     pending:
       'catalog_message independiente espera corrección upstream: zapo-js 1.11 selecciona biz mixed y el teléfono muestra no compatible. Use catalog (cta_catalog) en /messages/interactive o un carousel, con las limitaciones anteriores. Límites de listas/carousel son límites conservadores de la API; la guía raw y los handlers de referencia no especifican máximos para estos formatos.',
@@ -120,6 +126,7 @@ export function InteractiveMessagesGuide({ locale }: { locale: Locale }) {
           ))}
         </tbody>
       </table>
+      <p>{t.validation}</p>
       <p>{t.safe}</p>
       <p>{t.pending}</p>
       <CodeBlock

@@ -1,11 +1,13 @@
 import { createReadStream } from 'node:fs'
 import { finished } from 'node:stream/promises'
+import { stat } from 'node:fs/promises'
 import { fileTypeFromFile } from 'file-type'
 import type { Proto, WaClient } from 'zapo-js'
 import type { Env } from '~/config/env'
 import type { InteractiveMedia } from '~/http/interactive-schemas'
 import { badRequest } from '~/lib/errors'
 import { resolveMediaToFile } from '~/media/fetch'
+import { parseInlineBase64 } from '~/media/inline-base64'
 
 /** Reuse bounded downloads and upstream media encryption; never synthesize upload descriptors. */
 export async function uploadInteractiveMedia(
@@ -14,13 +16,18 @@ export async function uploadInteractiveMedia(
   type: 'image' | 'video',
   env: Env,
 ): Promise<Proto.Message.IImageMessage & Proto.Message.IVideoMessage> {
+  const inline = input.base64 === undefined ? undefined : parseInlineBase64(input.base64)
+  if (inline === null) throw badRequest('Expected nonempty valid base64 or a base64 data URI')
+  const declaredMimetype = input.mimetype ?? inline?.mimetype
   const media = await resolveMediaToFile(
-    { mediaUrl: input.url, mediaBase64: input.base64, mimetype: input.mimetype },
+    { mediaUrl: input.url, mediaBase64: inline?.base64, mimetype: declaredMimetype },
     env,
   )
   try {
+    if ((await stat(media.path)).size === 0) throw badRequest('Media content must not be empty')
     const detected = await fileTypeFromFile(media.path)
-    const mimetype = detected?.mime ?? media.mimetype ?? (type === 'image' ? 'image/jpeg' : 'video/mp4')
+    const mimetype = detected?.mime ?? declaredMimetype
+    if (!mimetype) throw badRequest(`Cannot identify media content; provide an explicit ${type} mimetype`)
     if (!mimetype.startsWith(`${type}/`)) throw badRequest(`mediaType ${type} requires ${type}/*, received ${mimetype}`)
     const stream = createReadStream(media.path)
     try {

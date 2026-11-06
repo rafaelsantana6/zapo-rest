@@ -1,5 +1,6 @@
 import type { Proto } from 'zapo-js'
 import type { InteractiveButton } from '~/http/interactive-schemas'
+import { reserveReplyIds, type ReplyIdAllocator } from './reply-ids'
 
 export type ButtonContext = { ownPhone?: string; isGroup?: boolean; groupSafe?: boolean }
 export function nativeButton(
@@ -27,15 +28,14 @@ function requireOwnPhone(context: ButtonContext): string {
     throw new Error('Connected account PN required; LID is not a phone number')
   return context.ownPhone
 }
-export function buildNativeButton(
+function buildNativeButton(
   button: InteractiveButton,
-  index: number,
+  id: string,
   context: ButtonContext,
 ): Proto.Message.InteractiveMessage.NativeFlowMessage.INativeFlowButton {
   switch (button.type) {
     case 'quick_reply': {
-      if (!context.isGroup || !context.groupSafe)
-        return nativeButton('quick_reply', { display_text: button.text, id: button.id ?? `button_${index + 1}` })
+      if (!context.isGroup || !context.groupSafe) return nativeButton('quick_reply', { display_text: button.text, id })
       const url = `https://wa.me/${requireOwnPhone(context)}?text=${encodeURIComponent(button.text)}`
       return nativeButton('cta_url', { display_text: button.text, url, merchant_url: url })
     }
@@ -56,4 +56,18 @@ export function buildNativeButton(
         ...(button.productId ? { catalog_product_id: button.productId } : {}),
       })
   }
+}
+
+export function buildNativeButtons(
+  buttons: InteractiveButton[],
+  context: ButtonContext,
+  allocateId: ReplyIdAllocator = reserveReplyIds(buttons.filter((button) => button.type === 'quick_reply')),
+): Proto.Message.InteractiveMessage.NativeFlowMessage.INativeFlowButton[] {
+  return buttons.map((button, index) =>
+    buildNativeButton(
+      button,
+      button.type === 'quick_reply' ? (button.id ?? allocateId(`button_${index + 1}`)) : '',
+      context,
+    ),
+  )
 }

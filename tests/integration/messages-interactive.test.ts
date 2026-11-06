@@ -264,4 +264,70 @@ describe('interactive/business message routes', () => {
     expect((await post('buttons', { to, text: 'Choose', buttons: [{ text: 'Yes' }] }, ADMIN_KEY)).statusCode).toBe(403)
     expect(client.message.send).not.toHaveBeenCalled()
   })
+  it.each([
+    '!!!!',
+    'data:image/png;base64,',
+    'data:image/png,not-base64',
+    'data:image/png;base64,!!!!',
+    'abcde',
+    'YQ=',
+    'YQ===',
+    'YW,Jj',
+    Buffer.from('plain text').toString('base64'),
+  ])('rejects invalid or unidentified media %s before upload/send', async (base64) => {
+    const card = { media: { base64 }, body: 'Card', buttons: [{ type: 'quick_reply', text: 'Buy' }] }
+    expect((await post('carousel', { to, body: 'Products', cards: [card, card] })).statusCode).toBe(400)
+    expect((await post('product', { ...PRODUCT_INPUT, productImage: { base64 } })).statusCode).toBe(400)
+    expect(client.message.upload).not.toHaveBeenCalled()
+    expect(client.message.send).not.toHaveBeenCalled()
+  })
+  it('accepts valid padded/unpadded base64 and standard base64 data URIs', async () => {
+    for (const base64 of [PNG_BASE64, PNG_BASE64.replace(/=+$/, ''), `data:image/png;base64,${PNG_BASE64}`]) {
+      expect((await post('product', { ...PRODUCT_INPUT, productImage: { base64 } })).statusCode).toBe(200)
+      expect(client.message.upload.mock.calls.at(-1)?.[1]).toEqual({ type: 'image', mimetype: 'image/png' })
+    }
+  })
+  it.each(['buttons', 'interactive'])('rejects duplicate explicit IDs in %s before sending', async (path) => {
+    const buttons = [
+      { id: 'duplicate', text: 'A' },
+      { id: 'duplicate', text: 'B' },
+    ]
+    const payload =
+      path === 'buttons'
+        ? { to, text: 'Choose', buttons }
+        : { to, body: 'Choose', buttons: buttons.map((button) => ({ ...button, type: 'quick_reply' })) }
+    expect((await post(path, payload)).statusCode).toBe(400)
+    expect(client.message.send).not.toHaveBeenCalled()
+  })
+
+  it('rejects an empty media download even when its response declares an image MIME', async () => {
+    async function emptyMediaDownload() {
+      return new Response(new Uint8Array(), { headers: { 'content-type': 'image/png' } })
+    }
+    const download = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(emptyMediaDownload)
+    try {
+      expect(
+        (await post('product', { ...PRODUCT_INPUT, productImage: { url: 'https://8.8.8.8/image' } })).statusCode,
+      ).toBe(400)
+      expect(client.message.upload).not.toHaveBeenCalled()
+      expect(client.message.send).not.toHaveBeenCalled()
+    } finally {
+      download.mockRestore()
+    }
+  })
+  it('requires a caller-declared MIME for unknown content, ignoring a misleading download header', async () => {
+    async function unrecognizedMediaDownload() {
+      return new Response('plain text', { headers: { 'content-type': 'image/jpeg' } })
+    }
+    const download = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(unrecognizedMediaDownload)
+    try {
+      expect(
+        (await post('product', { ...PRODUCT_INPUT, productImage: { url: 'https://8.8.8.8/image' } })).statusCode,
+      ).toBe(400)
+      expect(client.message.upload).not.toHaveBeenCalled()
+      expect(client.message.send).not.toHaveBeenCalled()
+    } finally {
+      download.mockRestore()
+    }
+  })
 })

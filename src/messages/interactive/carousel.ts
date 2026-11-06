@@ -1,7 +1,8 @@
 import type { Proto } from 'zapo-js'
 import type { z } from 'zod'
 import type { SendCarouselBodySchema } from '~/http/interactive-schemas'
-import { buildNativeButton, type ButtonContext } from './common'
+import { buildNativeButtons, type ButtonContext } from './common'
+import { reserveReplyIds } from './reply-ids'
 
 export type UploadedCardMedia =
   | { imageMessage: Proto.Message.IImageMessage }
@@ -12,6 +13,9 @@ export function buildCarousel(
   context: ButtonContext = {},
 ): Proto.IMessage {
   if (media.length !== input.cards.length) throw new Error('Each carousel card requires uploaded media')
+  const allocateId = reserveReplyIds(
+    input.cards.flatMap((card) => card.buttons.filter((button) => button.type === 'quick_reply')),
+  )
   return {
     interactiveMessage: {
       body: { text: input.body },
@@ -25,7 +29,7 @@ export function buildCarousel(
           },
           body: { text: card.body },
           nativeFlowMessage: {
-            buttons: card.buttons.map((button, buttonIndex) => buildNativeButton(button, buttonIndex, context)),
+            buttons: buildNativeButtons(card.buttons, context, allocateId),
             messageParamsJson: '',
             messageVersion: 1,
           },

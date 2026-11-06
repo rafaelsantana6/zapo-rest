@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Generated button/list reply IDs now reserve all explicit IDs and add collision suffixes; carousel cards share the reservation. Duplicate explicit reply IDs return 400, including across list sections and carousel cards.
+- Interactive carousel/product uploads reject malformed base64/data URIs, empty content and unidentified media without a caller-declared MIME (request field or data URI). They no longer invent JPEG/MP4 for unrecognized bytes or trust a download MIME header for those bytes.
+
 ### Added
 
 - Interactive/business raw-proto sends over zapo-js 1.11: `POST /v1/messages/buttons`, `/interactive`, `/list`, `/carousel`, `/native-form`, `/pix`, `/charge`, and `/product`. Shared Zod/OpenAPI validation; same recipient resolution and `{ id, result }` as text. Carousel/product images use upstream encrypted uploads. Forms return a supplied token or generated UUID, and reject groups/broadcasts.
