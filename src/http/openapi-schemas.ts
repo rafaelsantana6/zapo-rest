@@ -967,7 +967,7 @@ export const OPENAPI_TAGS = [
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
-      '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
+      '`call.incoming`, `call.state`, `call.ended`, `call.error`, `call.audio_finished`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
       '`group.update` membership notifications preserve upstream `action` and add `payload.type`: ' +

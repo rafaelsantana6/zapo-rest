@@ -1617,7 +1617,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
             <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
             <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
             <code>call.participant_media</code>, <code>call.video_state</code>, <code>call.video_upgraded</code>,{' '}
-            <code>call.screen_share</code>
+            <code>call.screen_share</code>, <code>call.error</code>, <code>call.audio_finished</code>
           </li>
         </ul>
 
@@ -1692,6 +1692,13 @@ const dec = new TextDecoder
     description: 'Señalización JSON, PCM 16 kHz, grabación, audio blast y STT.',
     body: (
       <>
+        <h2 id="call-errors">Errores y finalización del audio</h2>
+        <p>
+          Los eventos webhook/SSE <code>call.error</code> y <code>call.audio_finished</code> llegan por el WS de control
+          como <code>call:error</code> y <code>call:audio_finished</code>, con <code>{'{ call, error? }'}</code>. Los
+          errores upstream no identifican la llamada: <code>call</code> es null y mensaje/código están sanitizados, sin
+          stack ni credenciales. La finalización incluye el snapshot y señala el fin del audio cargado.
+        </p>
         <h2 id="control">Control plane — /v1/voip</h2>
         <CodeBlock
           language="json"

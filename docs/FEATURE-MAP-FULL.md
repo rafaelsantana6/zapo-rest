@@ -109,3 +109,5 @@ Last updated: 2026-07-14
 | `newsletter.update` / `newsletter.message_update` on webhooks and SSE | ✅ JSON-safe payloads without raw protobuf |
 | Channel read/update pages | 🟡 typed transport envelope; decoded pages require an upstream public API; updates require exactly one `before`/`after` cursor, messages allow at most one |
 | Channel projection into `app_messages`/chats and chat media storage | N/A — deliberately excluded; existing rows retained |
+
+VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.

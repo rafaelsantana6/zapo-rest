@@ -139,3 +139,5 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Text/image/video/audio/document publishing, edit, revoke | ✅ `POST /:jid/messages`, `PATCH/DELETE /:jid/messages/:messageId`; URL/base64/multipart; detect absent MIME or return 400 for unknown formats |
 | Channel events | ✅ `newsletter.update`, `newsletter.message_update` via webhook/SSE; no raw protobuf |
 | Local channel projections / stored channel media | N/A — deliberately excluded; read from WhatsApp directly |
+
+VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.

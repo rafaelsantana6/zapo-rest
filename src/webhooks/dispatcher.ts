@@ -32,6 +32,8 @@ export type WebhookEvent =
   | 'call.incoming'
   | 'call.state'
   | 'call.ended'
+  | 'call.error'
+  | 'call.audio_finished'
   | 'call.peer_mute'
   | 'call.hand_raise'
   | 'call.reaction'

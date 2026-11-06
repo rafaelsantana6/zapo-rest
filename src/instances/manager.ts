@@ -638,6 +638,26 @@ export class InstanceManager {
       runSafe('voip_call_ended', () => this.onVoipEnded(name, call))
     })
 
+    onVoip('voip_call_error', (_error: Error) => {
+      // Upstream drops the call context. Never expose arbitrary messages or stacks:
+      // a media-host failure can carry credentials from its private plan.
+      runSafe('voip_call_error', async () => {
+        const row = await this.getRecord(name)
+        if (row)
+          await this.opts.webhooks.emit(row, 'call.error', {
+            call: null,
+            error: {
+              message: 'Call media or signaling failed; verify the media host capabilities and connection.',
+              code: 'VOIP_CALL_ERROR',
+            },
+          })
+      })
+    })
+
+    onVoip('voip_call_outbound_audio_finished', (call) => {
+      runSafe('voip_call_outbound_audio_finished', () => this.onVoipInteraction(name, 'call.audio_finished', call, {}))
+    })
+
     // Peer-side interactions (voip 1.2): data = { call, ...detail }
     onVoip('voip_call_peer_mute', (payload) => {
       runSafe('voip_call_peer_mute', () =>

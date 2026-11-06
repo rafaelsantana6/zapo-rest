@@ -96,6 +96,8 @@ const INTERACTION_EVENTS: Record<string, string> = {
   'call.peer_mute': 'call:peer_mute',
   'call.hand_raise': 'call:hand_raise',
   'call.reaction': 'call:reaction',
+  'call.error': 'call:error',
+  'call.audio_finished': 'call:audio_finished',
   'call.participants_changed': 'call:participants_changed',
   'call.mute_requested': 'call:mute_requested',
   'call.participant_media': 'call:participant_media',

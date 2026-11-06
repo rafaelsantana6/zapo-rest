@@ -1592,7 +1592,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
             <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
             <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
             <code>call.participant_media</code>, <code>call.video_state</code>, <code>call.video_upgraded</code>,{' '}
-            <code>call.screen_share</code>
+            <code>call.screen_share</code>, <code>call.error</code>, <code>call.audio_finished</code>
           </li>
         </ul>
 
@@ -1664,6 +1664,14 @@ const dec = new TextDecoder
     description: 'JSON signaling, 16 kHz PCM, recording, audio blast and STT.',
     body: (
       <>
+        <h2 id="call-errors">Call failures and playback completion</h2>
+        <p>
+          Webhook/SSE events <code>call.error</code> and <code>call.audio_finished</code> also arrive on the control WS
+          as <code>call:error</code> and <code>call:audio_finished</code>. Both use <code>{'{ call, error? }'}</code>.
+          Upstream errors have no call identity, so <code>call</code> is null and the public message/code are sanitized;
+          no stack or credentials. Playback completion carries the call snapshot and means queued audio finished
+          playing.
+        </p>
         <h2 id="control">Control plane — /v1/voip</h2>
         <CodeBlock
           language="json"

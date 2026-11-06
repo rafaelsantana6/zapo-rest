@@ -22,6 +22,8 @@ export const WEBHOOK_EVENTS = [
   'call.incoming',
   'call.state',
   'call.ended',
+  'call.error',
+  'call.audio_finished',
   /** Peer announced its own mic state. */
   'call.peer_mute',
   /** Remote participant raised or lowered its hand. */
