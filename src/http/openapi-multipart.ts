@@ -46,6 +46,12 @@ const MEDIA_ROUTE_RULES: Array<{
   preferFileOnly?: boolean
 }> = [
   {
+    path: /\/messages\/ptv$/,
+    methods: ['post'],
+    fileDescription: 'Round video note (`file` / `media` / `video`). Form field: `to`. No caption.',
+    fileContentType: 'video/mp4, video/*, application/octet-stream',
+  },
+  {
     path: /\/profile\/(image|picture)$/,
     methods: ['put'],
     fileDescription:

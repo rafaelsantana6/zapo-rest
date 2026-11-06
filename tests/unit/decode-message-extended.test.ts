@@ -231,3 +231,61 @@ describe('decodeIncomingMessage — message types', () => {
     expect(raw.messageBytes).toBeUndefined()
   })
 })
+
+describe('decodeIncomingMessage — events, addons and video notes', () => {
+  const key = { id: 'EXTRA', remoteJid: '120363000000000@g.us', fromMe: false }
+
+  it.each([
+    ['event', { eventMessage: { name: 'Team sync', startTime: 1796137200 } }, 'Team sync'],
+    [
+      'event-response',
+      { encEventResponseMessage: { eventCreationMessageKey: { id: 'EVENT' }, encPayload: new Uint8Array([1]) } },
+      'Event response: EVENT',
+    ],
+    ['pin', { pinInChatMessage: { type: 1, key: { id: 'TARGET' } } }, 'pin: TARGET'],
+    ['unpin', { pinInChatMessage: { type: 2, key: { id: 'TARGET' } } }, 'unpin: TARGET'],
+    ['keep', { keepInChatMessage: { keepType: 1, key: { id: 'TARGET' } } }, 'keep: TARGET'],
+    ['unkeep', { keepInChatMessage: { keepType: 2, key: { id: 'TARGET' } } }, 'unkeep: TARGET'],
+    [
+      'poll-vote',
+      { pollUpdateMessage: { pollCreationMessageKey: { id: 'POLL' }, vote: { encPayload: new Uint8Array([1]) } } },
+      'Poll vote: POLL',
+    ],
+    ['sticker-pack', { stickerPackMessage: { name: 'Team', stickerPackId: 'team-pack' } }, 'Team'],
+  ])('decodes %s with a useful summary (%j)', (type, message, summary) => {
+    const decoded = decodeIncomingMessage({ key, message })
+    expect(decoded).toMatchObject({ type, body: summary, hasMedia: false })
+    expect(decoded && previewFromDecoded(decoded)).toBe(summary)
+  })
+
+  it('keeps PTV media metadata and preview', () => {
+    const decoded = decodeIncomingMessage({
+      key,
+      message: {
+        ptvMessage: { mimetype: 'video/mp4', url: 'https://mmg.whatsapp.net/note.mp4' },
+      },
+    })
+    expect(decoded).toMatchObject({
+      type: 'ptv',
+      hasMedia: true,
+      mediaMime: 'video/mp4',
+      mediaDirectUrl: 'https://mmg.whatsapp.net/note.mp4',
+    })
+    expect(decoded && previewFromDecoded(decoded)).toBe('[ptv]')
+  })
+
+  it('recognizes events inside ephemeral wrappers', () => {
+    expect(
+      decodeIncomingMessage({
+        key,
+        message: {
+          ephemeralMessage: {
+            message: {
+              eventMessage: { name: 'Wrapped event' },
+            },
+          },
+        },
+      }),
+    ).toMatchObject({ type: 'event', body: 'Wrapped event' })
+  })
+})

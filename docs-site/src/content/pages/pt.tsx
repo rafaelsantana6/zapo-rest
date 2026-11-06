@@ -1035,6 +1035,193 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
           </tbody>
         </table>
 
+        <h2 id="extended-message-types">Eventos, ações e novos tipos de mídia</h2>
+        <p>
+          Todas as rotas abaixo usam POST com chave da instância e retornam <code>{`{ id, result }`}</code>.
+        </p>
+        <h3 id="send-event">Criar evento</h3>
+        <p>
+          <code>POST /v1/messages/event</code>
+        </p>
+        <p>
+          Datas ISO 8601 com fuso são convertidas para segundos Unix. <code>endTime</code> deve ser igual ou posterior a{' '}
+          <code>startTime</code>; datas inválidas retornam 400. Também aceita <code>isCanceled</code>.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "name": "Team sync",
+  "description": "Weekly",
+  "startTime": "2026-12-01T15:00:00Z",
+  "endTime": "2026-12-01T16:00:00Z",
+  "location": {
+    "latitude": -23.5,
+    "longitude": -46.6,
+    "name": "HQ"
+  },
+  "joinLink": "https://meet.example.com/team",
+  "extraGuestsAllowed": true,
+  "isScheduleCall": false,
+  "hasReminder": true,
+  "reminderOffsetSec": 600
+}`}
+        />
+        <h3 id="send-event-respond">Responder a evento</h3>
+        <p>
+          <code>POST /v1/messages/event/respond</code>
+        </p>
+        <p>
+          Respostas: <code>going</code>, <code>not_going</code> ou <code>maybe</code>. O original deve estar armazenado
+          nesta instância e conversa; a API recupera autor, <code>fromMe</code>, participante e segredo de 32 bytes.
+          Original ausente: 404; segredo/autor indisponível: 409. Receba/sincronize o original primeiro.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "eventMessageId": "EVENT_ID",
+  "response": "going",
+  "extraGuestCount": 1
+}`}
+        />
+        <h3 id="send-pin">Fixar ou desafixar</h3>
+        <p>
+          <code>POST /v1/messages/pin</code>
+        </p>
+        <p>
+          Use <code>pinned: false</code> para desafixar. Duração: <code>24h</code> (padrão), <code>7d</code> ou{' '}
+          <code>30d</code>, mapeadas para 86400, 604800 e 2592000 segundos. A API sempre inclui a duração ao fixar:
+          clientes descartam silenciosamente pins sem duração. Requer mensagem armazenada nesta instância e conversa.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "messageId": "MESSAGE_ID",
+  "pinned": true,
+  "duration": "7d"
+}`}
+        />
+        <h3 id="send-keep">Manter ou deixar de manter</h3>
+        <p>
+          <code>POST /v1/messages/keep</code>
+        </p>
+        <p>
+          Use <code>kept: false</code> para desfazer. Para mensagens temporárias; requer mensagem armazenada nesta
+          instância e conversa.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "messageId": "MESSAGE_ID",
+  "kept": true
+}`}
+        />
+        <h3 id="send-poll-vote">Votar em enquete</h3>
+        <p>
+          <code>POST /v1/messages/poll/vote</code>
+        </p>
+        <p>
+          Use os nomes exatos das opções; lista vazia retorna 400. Requer enquete original armazenada, com autor,{' '}
+          <code>fromMe</code>, participante e segredo recuperados pela API, tanto para enquetes enviadas como recebidas.
+          Original ausente: 404; segredo/autor indisponível: 409.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "pollMessageId": "POLL_ID",
+  "options": [
+    "Pizza"
+  ]
+}`}
+        />
+        <h3 id="send-ptv">Vídeo redondo (PTV)</h3>
+        <p>
+          <code>POST /v1/messages/ptv</code>
+        </p>
+        <p>
+          Mesmo contrato de mídia de vídeo: <code>mediaUrl</code>, <code>mediaBase64</code> ou multipart com arquivo{' '}
+          <code>file</code> e campo <code>to</code>. Não aceita legenda; arquivos temporários são removidos após o envio
+          ou falha.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "5511999999999",
+  "mediaUrl": "https://cdn.example.com/note.mp4",
+  "mimetype": "video/mp4"
+}`}
+        />
+        <h3 id="send-sticker-pack">Pacote de stickers</h3>
+        <p>
+          <code>POST /v1/messages/sticker-pack</code>
+        </p>
+        <p>
+          JSON com 1–30 stickers (limite do gateway; o upstream não declara máximo). Cada <code>media</code>, ícone e
+          capa opcional usa exatamente um de <code>url</code> ou <code>base64</code>. URLs passam pela proteção SSRF
+          existente. Nomes de arquivos devem ser únicos, incluindo o ícone. <code>emojis</code> é opcional.{' '}
+          <code>accessibilityLabel</code> não existe no upstream 1.11 e retorna 400.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "5511999999999",
+  "id": "team-pack",
+  "name": "Team",
+  "publisher": "Example",
+  "stickers": [
+    {
+      "media": {
+        "url": "https://cdn.example.com/hi.webp"
+      },
+      "fileName": "hi.webp",
+      "emojis": [
+        "👋"
+      ]
+    }
+  ],
+  "trayIcon": {
+    "media": {
+      "base64": "BASE64_PNG"
+    },
+    "fileName": "tray.png"
+  },
+  "coverThumbnail": {
+    "url": "https://cdn.example.com/cover.png"
+  }
+}`}
+        />
+        <p>
+          Capas são normalizadas para JPEG 252×252; omita <code>coverThumbnail</code> para gerá-la a partir do ícone.
+          Todos os arquivos de origem mais o JPEG gerado compartilham um único limite{' '}
+          <code>MEDIA_UPLOAD_MAX_BYTES</code>; excedê-lo retorna 400 e remove os arquivos temporários.
+        </p>
+        <h3 id="safe-message-context">Contexto seguro e recebimento</h3>
+        <p>
+          Envios tipados aceitam o objeto opcional <code>contextInfo</code> com apenas <code>expirationSeconds</code> e{' '}
+          <code>ephemeralSettingTimestamp</code> (segundos Unix). Texto, resposta, mídia, enquete, reação, edição e
+          revogação existentes também aceitam esses campos. <code>messageContextInfo</code> contém metadados de
+          protocolo e não é exposto.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{ "to": "5511999999999", "text": "Hello", "contextInfo": { "expirationSeconds": 86400 } }`}
+        />
+        <p>
+          O valor explícito de <code>contextInfo.expirationSeconds</code> prevalece sobre o TTL da conversa. Alvos
+          armazenados aceitam aliases PN/LID explícitos e mapeados. Mensagem própria de conversa direta recuperada do
+          histórico sem prova do autor original retorna 409.
+        </p>
+        <p>
+          Os eventos de mensagem existentes passam a identificar <code>event</code>, <code>event-response</code>,{' '}
+          <code>pin</code>/<code>unpin</code>, <code>keep</code>/<code>unkeep</code>, <code>poll-vote</code>,{' '}
+          <code>ptv</code> e <code>sticker-pack</code>, com resumos legíveis. Respostas/votos criptografados exibem o ID
+          do original; nenhum novo nome de evento SSE/webhook foi adicionado.
+        </p>
+
         <h2 id="to">
           Campo <code>to</code>
         </h2>

@@ -1037,6 +1037,195 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
           </tbody>
         </table>
 
+        <h2 id="extended-message-types">Eventos, acciones y nuevos tipos de media</h2>
+        <p>
+          Todas las rutas siguientes usan POST con clave de instancia y devuelven <code>{`{ id, result }`}</code>.
+        </p>
+        <h3 id="send-event">Crear un evento</h3>
+        <p>
+          <code>POST /v1/messages/event</code>
+        </p>
+        <p>
+          Las fechas ISO 8601 con zona horaria se convierten a segundos Unix. <code>endTime</code> debe ser igual o
+          posterior a <code>startTime</code>; las fechas inválidas devuelven 400. También acepta <code>isCanceled</code>
+          .
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "name": "Team sync",
+  "description": "Weekly",
+  "startTime": "2026-12-01T15:00:00Z",
+  "endTime": "2026-12-01T16:00:00Z",
+  "location": {
+    "latitude": -23.5,
+    "longitude": -46.6,
+    "name": "HQ"
+  },
+  "joinLink": "https://meet.example.com/team",
+  "extraGuestsAllowed": true,
+  "isScheduleCall": false,
+  "hasReminder": true,
+  "reminderOffsetSec": 600
+}`}
+        />
+        <h3 id="send-event-respond">Responder a un evento</h3>
+        <p>
+          <code>POST /v1/messages/event/respond</code>
+        </p>
+        <p>
+          Respuestas: <code>going</code>, <code>not_going</code> o <code>maybe</code>. El original debe estar almacenado
+          en esta instancia y conversación; la API recupera autor, <code>fromMe</code>, participante y secreto de 32
+          bytes. Original ausente: 404; secreto/autor no disponible: 409. Reciba/sincronice primero el original.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "eventMessageId": "EVENT_ID",
+  "response": "going",
+  "extraGuestCount": 1
+}`}
+        />
+        <h3 id="send-pin">Fijar o desfijar</h3>
+        <p>
+          <code>POST /v1/messages/pin</code>
+        </p>
+        <p>
+          Use <code>pinned: false</code> para desfijar. Duración: <code>24h</code> (predeterminado), <code>7d</code> o{' '}
+          <code>30d</code>, convertidas a 86400, 604800 y 2592000 segundos. La API siempre incluye la duración al fijar:
+          los clientes descartan silenciosamente los pins sin duración. Requiere un mensaje almacenado en esta instancia
+          y conversación.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "messageId": "MESSAGE_ID",
+  "pinned": true,
+  "duration": "7d"
+}`}
+        />
+        <h3 id="send-keep">Conservar o dejar de conservar</h3>
+        <p>
+          <code>POST /v1/messages/keep</code>
+        </p>
+        <p>
+          Use <code>kept: false</code> para deshacer. Para mensajes temporales; requiere un mensaje almacenado en esta
+          instancia y conversación.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "messageId": "MESSAGE_ID",
+  "kept": true
+}`}
+        />
+        <h3 id="send-poll-vote">Votar en una encuesta</h3>
+        <p>
+          <code>POST /v1/messages/poll/vote</code>
+        </p>
+        <p>
+          Use los nombres exactos de las opciones; una lista vacía devuelve 400. Requiere la encuesta original
+          almacenada, con autor, <code>fromMe</code>, participante y secreto recuperados por la API, tanto para
+          encuestas enviadas como recibidas. Original ausente: 404; secreto/autor no disponible: 409.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "120363000000000@g.us",
+  "pollMessageId": "POLL_ID",
+  "options": [
+    "Pizza"
+  ]
+}`}
+        />
+        <h3 id="send-ptv">Nota de vídeo circular (PTV)</h3>
+        <p>
+          <code>POST /v1/messages/ptv</code>
+        </p>
+        <p>
+          Mismo contrato de media de vídeo: <code>mediaUrl</code>, <code>mediaBase64</code> o multipart con archivo{' '}
+          <code>file</code> y campo <code>to</code>. No acepta leyenda; los archivos temporales se eliminan tras el
+          envío o fallo.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "5511999999999",
+  "mediaUrl": "https://cdn.example.com/note.mp4",
+  "mimetype": "video/mp4"
+}`}
+        />
+        <h3 id="send-sticker-pack">Paquete de stickers</h3>
+        <p>
+          <code>POST /v1/messages/sticker-pack</code>
+        </p>
+        <p>
+          JSON con 1–30 stickers (límite del gateway; upstream no declara máximo). Cada <code>media</code>, icono y
+          portada opcional usa exactamente uno de <code>url</code> o <code>base64</code>. Las URL usan la protección
+          SSRF existente. Los nombres de archivo deben ser únicos, incluido el icono. <code>emojis</code> es opcional.{' '}
+          <code>accessibilityLabel</code> no existe en upstream 1.11 y devuelve 400.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{
+  "to": "5511999999999",
+  "id": "team-pack",
+  "name": "Team",
+  "publisher": "Example",
+  "stickers": [
+    {
+      "media": {
+        "url": "https://cdn.example.com/hi.webp"
+      },
+      "fileName": "hi.webp",
+      "emojis": [
+        "👋"
+      ]
+    }
+  ],
+  "trayIcon": {
+    "media": {
+      "base64": "BASE64_PNG"
+    },
+    "fileName": "tray.png"
+  },
+  "coverThumbnail": {
+    "url": "https://cdn.example.com/cover.png"
+  }
+}`}
+        />
+        <p>
+          Las portadas se normalizan a JPEG 252×252; omita <code>coverThumbnail</code> para generarla a partir del
+          icono. Todos los archivos de origen más el JPEG generado comparten un único límite{' '}
+          <code>MEDIA_UPLOAD_MAX_BYTES</code>; excederlo devuelve 400 y elimina los archivos temporales.
+        </p>
+        <h3 id="safe-message-context">Contexto seguro y mensajes recibidos</h3>
+        <p>
+          Los envíos tipados aceptan <code>contextInfo</code> opcional con solo <code>expirationSeconds</code> y{' '}
+          <code>ephemeralSettingTimestamp</code> (segundos Unix). Las rutas existentes de texto, respuesta, media,
+          encuesta, reacción, edición y revocación también aceptan estos campos. <code>messageContextInfo</code>{' '}
+          contiene metadatos de protocolo y no se expone.
+        </p>
+        <CodeBlock
+          language="json"
+          code={`{ "to": "5511999999999", "text": "Hello", "contextInfo": { "expirationSeconds": 86400 } }`}
+        />
+        <p>
+          El valor explícito de <code>contextInfo.expirationSeconds</code> prevalece sobre el TTL de la conversación.
+          Los mensajes almacenados aceptan alias PN/LID explícitos y mapeados. Un mensaje propio de conversación directa
+          recuperado del historial sin prueba del autor original devuelve 409.
+        </p>
+        <p>
+          Los eventos de mensaje existentes identifican <code>event</code>, <code>event-response</code>,{' '}
+          <code>pin</code>/<code>unpin</code>, <code>keep</code>/<code>unkeep</code>, <code>poll-vote</code>,{' '}
+          <code>ptv</code> y <code>sticker-pack</code> con resúmenes legibles. Las respuestas/votos cifrados muestran el
+          ID original; no se añadieron nuevos nombres de evento SSE/webhook.
+        </p>
+
         <h2 id="to">
           Campo <code>to</code>
         </h2>

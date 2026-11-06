@@ -1176,4 +1176,11 @@ export class InstanceManager {
       this.runtime = null
     }
   }
+
+  /** Session-scoped originals and secrets for message-targeting routes. */
+  getMessageStores(name: string): Pick<import('zapo-js').WaStoreSession, 'messages' | 'messageSecret'> | null {
+    if (!this.runtime) return null
+    const { messages, messageSecret } = this.runtime.store.session(name)
+    return { messages, messageSecret }
+  }
 }

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Seven typed message routes: calendar events (`POST /v1/messages/event`, ISO dates with end ≥ start), event responses (`.../event/respond`), pin/unpin (`.../pin`, explicit 24h/7d/30d TTL), keep/unkeep (`.../keep`), poll votes (`.../poll/vote`), round video notes (`.../ptv`, URL/base64/multipart without caption), and sticker packs (`.../sticker-pack`, gateway limit 30 stickers). All return `{ id, result }`. Targeted actions recover the original instance/chat identity; votes/responses use the original secret from the session cache or stored payload (`404` absent original, `409` unavailable secret/author).
+- Safe `contextInfo` (`expirationSeconds`, `ephemeralSettingTimestamp`) on typed sends; raw `messageContextInfo` stays internal. Sticker `accessibilityLabel` is rejected because zapo-js 1.11 does not expose it.
+- Inbound type/summary decoding for events, event responses, pin/unpin, keep/unkeep, poll votes and sticker packs; PTV retains its video MIME type.
 - **Group member modes.** Admin-only `PUT /v1/groups/:groupId/settings/member-add-mode`, `.../member-link-mode`, and `.../history-share-mode` accept `{ mode }` with the upstream enums. Metadata reads (single and list) expose `memberAddMode`, `memberLinkMode`, and `historyShareMode` when reported. The last controls who can send `share-history` bundles, independently of receiving via `HISTORY_GROUP_BUNDLES`. Invalid modes return 400 with accepted values; WhatsApp missing-group and admin errors map to 404/403.
 - `group.update` for upstream `member_add_mode` changes now also carries `memberAddMode`, retaining `action` and `mode`. zapo-js 1.11.0 does not decode link/history-share mode notifications; query metadata to observe those changes.
 - **Group join requests.** `GET /v1/groups/:groupId/membership-requests` lists pending requests with ISO timestamps and optional requester metadata. `POST .../membership-requests/approve`, `/reject`, and `/cancel` accept `{ "participants": ["phone-or-jid"] }`; cancel withdraws requests sent by this account. The existing `membership_approval_mode` setting enables approval. Known upstream permission, missing-group and approval-mode errors return 403/404/409 with the upstream message.
@@ -40,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Channel base64/data-URL media without `mimetype` now uses file detection before publishing/editing; unrecognized formats return an actionable `400`, with temporary media cleaned on every path.
 - Missing channel metadata envelopes from upstream JID/invite lookups now return `404`, while unrelated transport failures remain errors.
 - Inline channel pictures are checked as decodable JPEGs (max 256 KiB decoded / 16 megapixels). Admin actions reject group, broadcast and channel targets and require resolved PN/LID user JIDs.
+
+### Changed
+
+- Stored-message targets accept explicit and mapped PN/LID aliases. Group targets recover a valid author from the mailbox sender; group/broadcast/newsletter JIDs cannot be authors. Self-authored direct-message history requires proof of the original author (`409` if unavailable), rather than using the peer.
+- Explicit safe context settings are forwarded as send options so the upstream chat-ephemeral auto-injection cannot override the requested expiration.
+- Sticker-pack covers are always normalized to JPEG 252×252 and derived from the tray icon when omitted. The complete pack (source files plus generated JPEG) shares one `MEDIA_UPLOAD_MAX_BYTES` budget; over-budget downloads abort and all temporary files are removed.
 
 ## [0.10.0] - 2026-11-06
 
