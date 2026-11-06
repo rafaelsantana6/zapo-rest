@@ -1,3 +1,5 @@
+import * as fs from 'node:fs/promises'
+import * as stickerCover from '~/media/sticker-pack-cover'
 import type { InjectOptions } from 'fastify'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { proto, type Proto, type WaSendMessageContent, type WaStoredMessageRecord } from 'zapo-js'
@@ -6,9 +8,15 @@ import { sanitizeRawForStorage } from '~/media/revive-raw'
 import type { AppMessage, MessageStore } from '~/store/messages'
 import { ADMIN_KEY, buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return { ...actual, stat: vi.fn(actual.stat) }
+})
+
 const GROUP = '120363000000000@g.us'
 const AUTHOR = '222222222@lid'
 const SECRET = new Uint8Array(32).fill(7)
+const COVER = new Uint8Array([255, 216, 255, 217])
 const RESULT = { id: 'SENT', attempts: 1, ack: { refreshLid: false }, ackNode: { tag: 'ack', attrs: {} } }
 
 function fakeMessageClient() {
@@ -43,6 +51,13 @@ function fakeMessageStores() {
   }
 }
 
+async function fakeMediaStat() {
+  return { size: 8 } as never
+}
+async function fakeCoverJpeg() {
+  return COVER
+}
+
 function fakeResolvedMedia() {
   let count = 0
   const cleanup = vi.fn(async () => undefined)
@@ -70,6 +85,8 @@ describe('additional message send routes', () => {
     vi.spyOn(ctx.manager, 'tryGetClient').mockReturnValue(null)
     vi.spyOn(ctx.manager, 'getMessageStores').mockReturnValue(stores as never)
     vi.spyOn(mediaFetch, 'resolveMediaToFile').mockImplementation(media.resolve)
+    vi.mocked(fs.stat).mockImplementation(fakeMediaStat)
+    vi.spyOn(stickerCover, 'createStickerPackCover').mockImplementation(fakeCoverJpeg)
   })
   beforeEach(() => {
     vi.clearAllMocks()
@@ -96,6 +113,7 @@ describe('additional message send routes', () => {
     })
 
   it('maps ISO event times and every event option to typed content and projects the send', async () => {
+    const contextInfo = { expirationSeconds: 86400 }
     const fields = {
       name: 'Sync',
       description: 'Weekly',
@@ -106,22 +124,26 @@ describe('additional message send routes', () => {
       isCanceled: false,
       hasReminder: true,
       reminderOffsetSec: 600,
-      contextInfo: { expirationSeconds: 86400 },
     }
     const response = await post('event', {
       to: GROUP,
       ...fields,
+      contextInfo,
       startTime: '2026-12-01T12:00:00-03:00',
       endTime: '2026-12-01T16:00:00Z',
     })
     expect(response.statusCode, response.body).toBe(200)
     expect(response.json()).toEqual({ id: RESULT.id, result: RESULT })
-    expect(client.message.send).toHaveBeenCalledWith(GROUP, {
-      type: 'event',
-      ...fields,
-      startTime: 1796137200,
-      endTime: 1796140800,
-    })
+    expect(client.message.send).toHaveBeenCalledWith(
+      GROUP,
+      {
+        type: 'event',
+        ...fields,
+        startTime: 1796137200,
+        endTime: 1796140800,
+      },
+      { contextInfo },
+    )
     expect(messages.upsert).toHaveBeenCalledWith(expect.objectContaining({ type: 'event', body: 'Sync', fromMe: true }))
   })
 
@@ -287,12 +309,15 @@ describe('additional message send routes', () => {
     async (source) => {
       const response = await post('ptv', { to: GROUP, ...source })
       expect(response.statusCode, response.body).toBe(200)
-      expect(client.message.send).toHaveBeenCalledWith(GROUP, {
-        type: 'ptv',
-        media: expect.any(String),
-        mimetype: 'video/mp4',
-        contextInfo: undefined,
-      })
+      expect(client.message.send).toHaveBeenCalledWith(
+        GROUP,
+        {
+          type: 'ptv',
+          media: expect.any(String),
+          mimetype: 'video/mp4',
+        },
+        { contextInfo: undefined },
+      )
       expect(media.cleanup).toHaveBeenCalledOnce()
     },
   )
@@ -320,12 +345,15 @@ describe('additional message send routes', () => {
       ),
     })
     expect(response.statusCode, response.body).toBe(200)
-    expect(client.message.send).toHaveBeenCalledWith(GROUP, {
-      type: 'ptv',
-      media: expect.any(String),
-      mimetype: 'video/mp4',
-      contextInfo: undefined,
-    })
+    expect(client.message.send).toHaveBeenCalledWith(
+      GROUP,
+      {
+        type: 'ptv',
+        media: expect.any(String),
+        mimetype: 'video/mp4',
+      },
+      { contextInfo: undefined },
+    )
   })
   it('rejects PTV captions and missing media', async () => {
     expect((await post('ptv', { to: GROUP, mediaBase64: 'dmlkZW8=', caption: 'no' })).statusCode).toBe(400)
@@ -373,16 +401,19 @@ describe('additional message send routes', () => {
     const response = await post('sticker-pack', pack())
     expect(response.statusCode, response.body).toBe(200)
     const paths = media.resolve.mock.results.map(() => expect.any(String))
-    expect(client.message.send).toHaveBeenCalledWith(GROUP, {
-      type: 'sticker-pack',
-      stickerPackId: 'team-pack',
-      name: 'Team',
-      publisher: 'Example',
-      stickers: [{ media: paths[0], fileName: 'hi.webp', emojis: ['👋'] }],
-      trayIcon: { media: paths[1], fileName: 'tray.png' },
-      coverThumbnail: paths[2],
-      contextInfo: undefined,
-    })
+    expect(client.message.send).toHaveBeenCalledWith(
+      GROUP,
+      {
+        type: 'sticker-pack',
+        stickerPackId: 'team-pack',
+        name: 'Team',
+        publisher: 'Example',
+        stickers: [{ media: paths[0], fileName: 'hi.webp', emojis: ['👋'] }],
+        trayIcon: { media: paths[1], fileName: 'tray.png' },
+        coverThumbnail: COVER,
+      },
+      { contextInfo: undefined },
+    )
     expect(media.resolve).toHaveBeenNthCalledWith(
       1,
       { mediaUrl: 'https://cdn.example.com/hi.webp', mediaBase64: undefined },
@@ -404,6 +435,7 @@ describe('additional message send routes', () => {
       expect.objectContaining({
         stickers: expect.arrayContaining([{ media: expect.any(String), fileName: '0.webp', emojis: [] }]),
       }),
+      { contextInfo: undefined },
     )
   })
   it('cleans all pack media when send fails', async () => {
@@ -450,7 +482,7 @@ describe('additional message send routes', () => {
   ])('passes safe context on the existing %s typed route', async (path, fields) => {
     const contextInfo = { expirationSeconds: 3600, ephemeralSettingTimestamp: 1796137200 }
     expect((await post(path, { to: GROUP, ...fields, contextInfo })).statusCode).toBe(200)
-    expect(client.message.send.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ contextInfo }))
+    expect(client.message.send.mock.calls[0]?.[2]).toEqual(expect.objectContaining({ contextInfo }))
   })
 
   it.each([
@@ -468,8 +500,8 @@ describe('additional message send routes', () => {
     )
     expect(client.message.send).toHaveBeenCalledWith(
       GROUP,
-      { type: 'text', text: 'Hi', linkPreview: undefined, contextInfo: { expirationSeconds: 86400 } },
-      { mentions: undefined },
+      { type: 'text', text: 'Hi', linkPreview: undefined },
+      { mentions: undefined, contextInfo: { expirationSeconds: 86400 } },
     )
     expect(
       (await post('text', { to: GROUP, text: 'Hi', contextInfo: { raw: { messageSecret: 'no' } } })).statusCode,

@@ -7,6 +7,7 @@ export const MessageContextSchema = z
     ephemeralSettingTimestamp: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
   })
   .meta({
-    description: 'Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.',
+    description:
+      'Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.',
     example: { expirationSeconds: 86400 },
   })

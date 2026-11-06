@@ -1323,7 +1323,9 @@ export const SendStickerPackBodySchema = z
       .min(1)
       .max(MAX_STICKER_PACK_STICKERS),
     trayIcon: z.strictObject({ media: StickerPackMediaSchema, fileName: StickerPackFileNameSchema }),
-    coverThumbnail: StickerPackMediaSchema.optional(),
+    coverThumbnail: StickerPackMediaSchema.optional().meta({
+      description: 'Optional image source, normalized to a 252x252 JPEG. Omit to derive the cover from trayIcon.',
+    }),
     contextInfo: MessageContextSchema.optional(),
   })
   .refine(
@@ -1337,7 +1339,7 @@ export const SendStickerPackBodySchema = z
   )
   .meta({
     description:
-      'Sticker pack; gateway limit: 30 stickers. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11.',
+      'Sticker pack; gateway limit: 30 stickers. Total source bytes plus generated JPEG cover are limited by MEDIA_UPLOAD_MAX_BYTES. A 252x252 JPEG cover is derived from trayIcon when omitted. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11.',
     example: {
       to: '5511999999999',
       id: 'team-pack',

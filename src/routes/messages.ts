@@ -143,9 +143,10 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const content =
         body.linkPreview !== undefined || body.contextInfo !== undefined
-          ? { type: 'text' as const, text: body.text, linkPreview: body.linkPreview, contextInfo: body.contextInfo }
+          ? { type: 'text' as const, text: body.text, linkPreview: body.linkPreview }
           : body.text
       const result = await client.message.send(jid, content, {
+        contextInfo: body.contextInfo,
         mentions: body.mentions,
       })
       await projectOutbound({
@@ -180,9 +181,9 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         {
           type: 'text',
           text: body.text,
-          contextInfo: body.contextInfo,
         },
         {
+          contextInfo: body.contextInfo,
           mentions: body.mentions,
           quote: {
             remoteJid: jid,
@@ -240,12 +241,11 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
           jid,
           {
             type: 'image',
-            contextInfo: body.contextInfo,
             media: media.path,
             mimetype: media.mimetype ?? body.mimetype,
             caption: body.caption,
           },
-          { viewOnce: body.viewOnce },
+          { viewOnce: body.viewOnce, contextInfo: body.contextInfo },
         )
         await projectOutbound({
           instanceName: name,
@@ -283,13 +283,16 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'video',
-          contextInfo: body.contextInfo,
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
-          caption: body.caption,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'video',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
+            caption: body.caption,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -327,13 +330,16 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'audio',
-          contextInfo: body.contextInfo,
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype,
-          ptt: body.ptt,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'audio',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype,
+            ptt: body.ptt,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -370,14 +376,17 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'document',
-          contextInfo: body.contextInfo,
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype,
-          fileName: body.fileName ?? media.fileName,
-          caption: body.caption,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'document',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype,
+            fileName: body.fileName ?? media.fileName,
+            caption: body.caption,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -415,12 +424,15 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'sticker',
-          contextInfo: body.contextInfo,
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype ?? 'image/webp',
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'sticker',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'image/webp',
+          },
+          { contextInfo: body.contextInfo },
+        )
         await projectOutbound({
           instanceName: name,
           messageId: result.id,
@@ -487,13 +499,16 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const body = request.body
       const client = manager.requireRegisteredClient(name)
       const jid = await recipientJid(name, body.to)
-      const result = await client.message.send(jid, {
-        type: 'poll',
-        contextInfo: body.contextInfo,
-        name: body.name,
-        options: body.options,
-        selectableCount: body.selectableCount ?? 1,
-      })
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'poll',
+          name: body.name,
+          options: body.options,
+          selectableCount: body.selectableCount ?? 1,
+        },
+        { contextInfo: body.contextInfo },
+      )
       await projectOutbound({
         instanceName: name,
         messageId: result.id,
@@ -556,8 +571,8 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
       const jid = await recipientJid(name, body.to)
       const result = await client.message.send(
         jid,
-        { type: 'text', text: body.text, contextInfo: body.contextInfo },
-        { editKey: { id: body.messageId } },
+        { type: 'text', text: body.text },
+        { editKey: { id: body.messageId }, contextInfo: body.contextInfo },
       )
       if (messages) {
         await messages.markEdited(name, body.messageId, body.text)

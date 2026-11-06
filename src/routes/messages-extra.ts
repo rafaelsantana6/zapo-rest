@@ -1,3 +1,6 @@
+import { stat } from 'node:fs/promises'
+import { createStickerPackCover } from '~/media/sticker-pack-cover'
+import { badRequest } from '~/lib/errors'
 import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import {
@@ -18,6 +21,7 @@ import { resolveRecipientJid } from '~/lib/phone-resolve'
 import { resolveMediaToFile, type ResolvedMedia } from '~/media/fetch'
 import { mediaPreValidation, requireMediaFromRequest } from '~/media/request-media'
 import type { MessageRoutesDeps } from './messages'
+import type { LidMapStore } from '~/store/lid-map'
 import type { UpsertMessageInput } from '~/store/messages'
 
 const RESPONSE = {
@@ -30,7 +34,10 @@ const RESPONSE = {
 const SECURITY: Record<string, string[]>[] = [{ apiKey: [] }, { bearerAuth: [] }]
 const PIN_DURATION_SECONDS = { '24h': 86400, '7d': 604800, '30d': 2592000 } as const
 
-export const messageExtraRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fastify, deps) => {
+export const messageExtraRoutes: FastifyPluginAsync<MessageRoutesDeps & { lidMap?: LidMapStore }> = async (
+  fastify,
+  deps,
+) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>()
   const { manager, env, messages, cache } = deps
   async function recipient(name: string, to: string) {
@@ -54,14 +61,18 @@ export const messageExtraRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (
     async (request) => {
       const name = resolveInstanceName(request)
       const client = manager.requireRegisteredClient(name)
-      const { to, startTime, endTime, ...fields } = request.body
+      const { to, startTime, endTime, contextInfo, ...fields } = request.body
       const jid = await recipient(name, to)
-      const result = await client.message.send(jid, {
-        type: 'event',
-        ...fields,
-        startTime: Math.floor(Date.parse(startTime) / 1000),
-        endTime: endTime ? Math.floor(Date.parse(endTime) / 1000) : undefined,
-      })
+      const result = await client.message.send(
+        jid,
+        {
+          type: 'event',
+          ...fields,
+          startTime: Math.floor(Date.parse(startTime) / 1000),
+          endTime: endTime ? Math.floor(Date.parse(endTime) / 1000) : undefined,
+        },
+        { contextInfo },
+      )
       await project({
         instanceName: name,
         chatJid: jid,
@@ -206,12 +217,15 @@ export const messageExtraRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (
       const jid = await recipient(name, body.to)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        const result = await client.message.send(jid, {
-          type: 'ptv',
-          media: media.path,
-          mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
-          contextInfo: body.contextInfo,
-        })
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'ptv',
+            media: media.path,
+            mimetype: media.mimetype ?? body.mimetype ?? 'video/mp4',
+          },
+          { contextInfo: body.contextInfo },
+        )
         await project({
           instanceName: name,
           chatJid: jid,
@@ -246,9 +260,19 @@ export const messageExtraRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (
       const body = request.body
       const jid = await recipient(name, body.to)
       const files: ResolvedMedia[] = []
+      let totalBytes = 0
       async function mediaPath(source: { url?: string; base64?: string }) {
-        const file = await resolveMediaToFile({ mediaUrl: source.url, mediaBase64: source.base64 }, env)
+        const remaining = env.MEDIA_UPLOAD_MAX_BYTES - totalBytes
+        if (remaining <= 0) throw badRequest(`sticker pack exceeds total limit ${env.MEDIA_UPLOAD_MAX_BYTES} bytes`)
+        const file = await resolveMediaToFile(
+          { mediaUrl: source.url, mediaBase64: source.base64 },
+          { ...env, MEDIA_UPLOAD_MAX_BYTES: remaining },
+        )
         files.push(file)
+        totalBytes += (await stat(file.path)).size
+        if (totalBytes > env.MEDIA_UPLOAD_MAX_BYTES) {
+          throw badRequest(`sticker pack exceeds total limit ${env.MEDIA_UPLOAD_MAX_BYTES} bytes`)
+        }
         return file.path
       }
       try {
@@ -257,17 +281,24 @@ export const messageExtraRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (
           stickers.push({ fileName: sticker.fileName, emojis: sticker.emojis, media: await mediaPath(sticker.media) })
         }
         const trayIcon = { fileName: body.trayIcon.fileName, media: await mediaPath(body.trayIcon.media) }
-        const coverThumbnail = body.coverThumbnail ? await mediaPath(body.coverThumbnail) : undefined
-        const result = await client.message.send(jid, {
-          type: 'sticker-pack',
-          stickerPackId: body.id,
-          name: body.name,
-          publisher: body.publisher,
-          stickers,
-          trayIcon,
-          coverThumbnail,
-          contextInfo: body.contextInfo,
-        })
+        const coverSource = body.coverThumbnail ? await mediaPath(body.coverThumbnail) : trayIcon.media
+        const coverThumbnail = await createStickerPackCover(coverSource)
+        if (totalBytes + coverThumbnail.byteLength > env.MEDIA_UPLOAD_MAX_BYTES) {
+          throw badRequest(`sticker pack including JPEG cover exceeds total limit ${env.MEDIA_UPLOAD_MAX_BYTES} bytes`)
+        }
+        const result = await client.message.send(
+          jid,
+          {
+            type: 'sticker-pack',
+            stickerPackId: body.id,
+            name: body.name,
+            publisher: body.publisher,
+            stickers,
+            trayIcon,
+            coverThumbnail,
+          },
+          { contextInfo: body.contextInfo },
+        )
         await project({
           instanceName: name,
           chatJid: jid,

@@ -4544,7 +4544,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -4775,7 +4775,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -4875,7 +4875,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -4953,7 +4953,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -5209,7 +5209,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -5287,7 +5287,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -5400,7 +5400,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -5478,7 +5478,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -5734,7 +5734,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -5812,7 +5812,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6068,7 +6068,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6146,7 +6146,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6299,7 +6299,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6379,7 +6379,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6455,7 +6455,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6525,7 +6525,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -6873,7 +6873,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -8481,7 +8481,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -8544,7 +8544,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -8956,6 +8956,7 @@
                     "additionalProperties": false
                   },
                   "coverThumbnail": {
+                    "description": "Optional image source, normalized to a 252x252 JPEG. Omit to derive the cover from trayIcon.",
                     "type": "object",
                     "properties": {
                       "url": {
@@ -8984,7 +8985,7 @@
                       }
                     },
                     "additionalProperties": false,
-                    "description": "Safe content-level contextInfo; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
                     "example": {
                       "expirationSeconds": 86400
                     }
@@ -8999,7 +9000,7 @@
                   "trayIcon"
                 ],
                 "additionalProperties": false,
-                "description": "Sticker pack; gateway limit: 30 stickers. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11.",
+                "description": "Sticker pack; gateway limit: 30 stickers. Total source bytes plus generated JPEG cover are limited by MEDIA_UPLOAD_MAX_BYTES. A 252x252 JPEG cover is derived from trayIcon when omitted. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11.",
                 "example": {
                   "to": "5511999999999",
                   "id": "team-pack",
@@ -9026,7 +9027,7 @@
               }
             }
           },
-          "description": "Sticker pack; gateway limit: 30 stickers. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11."
+          "description": "Sticker pack; gateway limit: 30 stickers. Total source bytes plus generated JPEG cover are limited by MEDIA_UPLOAD_MAX_BYTES. A 252x252 JPEG cover is derived from trayIcon when omitted. All media URLs use SSRF-guarded downloads. accessibilityLabel is not supported by zapo-js 1.11."
         },
         "security": [
           {
