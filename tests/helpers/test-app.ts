@@ -5,6 +5,9 @@ import { type Env, parseEnv, resetEnvCache } from '~/config/env'
 import { InstanceManager } from '~/instances/manager'
 import { WebhookDispatcher } from '~/webhooks/dispatcher'
 import type { CreateWebhookInput, WebhookConfigRecord } from '~/webhooks/types'
+import type { ChatStore } from '~/store/chats'
+import type { MessageStore } from '~/store/messages'
+import type { LidMapStore } from '~/store/lid-map'
 import { MemoryInstanceRepo } from './memory-repo'
 
 export const ADMIN_KEY = 'test-admin-api-key-min-16'
@@ -69,7 +72,12 @@ export type TestApp = {
 }
 
 /** Build a Fastify app with dryRun manager + memory repos (no real WhatsApp / Postgres). */
-export async function buildTestApp(opts?: { withWebhooks?: boolean }): Promise<TestApp> {
+export async function buildTestApp(opts?: {
+  withWebhooks?: boolean
+  chats?: ChatStore
+  messages?: MessageStore
+  lidMap?: LidMapStore
+}): Promise<TestApp> {
   resetEnvCache()
   const env = parseEnv()
   const repo = new MemoryInstanceRepo()
@@ -95,6 +103,9 @@ export async function buildTestApp(opts?: { withWebhooks?: boolean }): Promise<T
     // @ts-expect-error memory repo
     instanceRepo: repo,
     manager,
+    chats: opts?.chats,
+    messages: opts?.messages,
+    lidMap: opts?.lidMap,
     ...(opts?.withWebhooks ? { webhookRepo } : {}),
   })
   await app.ready()

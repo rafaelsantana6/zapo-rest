@@ -1,5 +1,5 @@
 import type { AppCall, CallRecordingStatus } from '~/store/calls'
-import type { AppChat } from '~/store/chats'
+import type { AppChat, UpsertChatInput } from '~/store/chats'
 import type { AppContact } from '~/store/contacts'
 import type { AppMessage, UpsertMessageInput } from '~/store/messages'
 
@@ -24,7 +24,7 @@ function baseMessage(input: UpsertMessageInput): AppMessage {
     hasMedia: input.hasMedia ?? false,
     isDeleted: false,
     isEdited: false,
-    starred: false,
+    starred: input.starred ?? false,
     pushName: input.pushName ?? null,
     source: input.source ?? 'live',
     raw: input.raw ?? null,
@@ -60,6 +60,7 @@ export class MemoryMessageStore {
       mediaFilename: input.mediaFilename !== undefined ? input.mediaFilename : prev.mediaFilename,
       pushName: input.pushName !== undefined ? input.pushName : prev.pushName,
       timestampMs: input.timestampMs !== undefined ? input.timestampMs : prev.timestampMs,
+      starred: input.starred !== undefined ? input.starred : prev.starred,
       raw: input.raw !== undefined ? input.raw : prev.raw,
       updatedAt: new Date(),
     })
@@ -70,12 +71,34 @@ export class MemoryMessageStore {
     return this.byKey.get(this.key(instanceName, messageId)) ?? null
   }
 
+  async clearChat(instanceName: string, chatJids: string[], deleteStarred: boolean, beforeMs?: number): Promise<void> {
+    for (const [key, message] of this.byKey) {
+      if (
+        message.instanceName === instanceName &&
+        chatJids.includes(message.chatJid) &&
+        (deleteStarred || !message.starred) &&
+        (beforeMs === undefined || (message.timestampMs !== null && message.timestampMs <= beforeMs))
+      )
+        this.byKey.delete(key)
+    }
+  }
+
+  async deleteForMe(instanceName: string, chatJid: string, messageId: string): Promise<void> {
+    const message = await this.get(instanceName, messageId)
+    if (message?.chatJid === chatJid) this.byKey.delete(this.key(instanceName, messageId))
+  }
+
   async updateAck(instanceName: string, messageId: string, ack: number): Promise<AppMessage | null> {
     const msg = await this.get(instanceName, messageId)
     if (!msg) return null
     msg.ack = Math.max(msg.ack, ack)
     msg.updatedAt = new Date()
     return msg
+  }
+
+  async setStarred(instanceName: string, messageId: string, starred: boolean): Promise<void> {
+    const message = await this.get(instanceName, messageId)
+    if (message) message.starred = starred
   }
 
   async markDeleted(instanceName: string, messageId: string): Promise<AppMessage | null> {
@@ -150,27 +173,14 @@ export class MemoryMessageStore {
 }
 
 export class MemoryChatStore {
+  constructor(readonly messages?: MemoryMessageStore) {}
   readonly byKey = new Map<string, AppChat>()
 
   private key(instance: string, jid: string) {
     return `${instance}::${jid}`
   }
 
-  async upsert(input: {
-    instanceName: string
-    chatJid: string
-    name?: string | null
-    isGroup?: boolean
-    lastMessageId?: string | null
-    lastMessagePreview?: string | null
-    lastMessageTs?: number | null
-    unreadCount?: number
-    archived?: boolean
-    pinned?: number
-    muteEndMs?: number | null
-    markedAsUnread?: boolean
-    raw?: unknown
-  }): Promise<AppChat> {
+  async upsert(input: UpsertChatInput): Promise<AppChat> {
     const k = this.key(input.instanceName, input.chatJid)
     const prev = this.byKey.get(k)
     const now = new Date()
@@ -183,6 +193,7 @@ export class MemoryChatStore {
         unreadCount: input.unreadCount ?? 0,
         archived: input.archived ?? false,
         pinned: input.pinned ?? 0,
+        locked: input.locked ?? false,
         muteEndMs: input.muteEndMs ?? null,
         markedAsUnread: input.markedAsUnread ?? false,
         lastMessageId: input.lastMessageId ?? null,
@@ -194,6 +205,9 @@ export class MemoryChatStore {
       } as AppChat
       this.byKey.set(k, chat)
       return chat
+    }
+    for (const field of ['archived', 'pinned', 'locked', 'muteEndMs', 'unreadCount', 'markedAsUnread'] as const) {
+      if (input[field] !== undefined) Object.assign(prev, { [field]: input[field] })
     }
     Object.assign(prev, {
       name: input.name !== undefined ? input.name : prev.name,
@@ -236,6 +250,19 @@ export class MemoryChatStore {
     return this.byKey.get(this.key(instanceName, chatJid)) ?? null
   }
 
+  async delete(instanceName: string, chatJid: string): Promise<boolean> {
+    return this.byKey.delete(this.key(instanceName, chatJid))
+  }
+
+  async refreshLastMessage(instanceName: string, chatJid: string, chatJids: string[]): Promise<void> {
+    const chat = await this.get(instanceName, chatJid)
+    if (!chat) return
+    const message = (await this.messages?.listByChat(instanceName, chatJid, { chatJids, limit: 1 }))?.[0]
+    chat.lastMessageId = message?.messageId ?? null
+    chat.lastMessagePreview = message ? (message.body ?? message.caption ?? message.type) : null
+    chat.lastMessageTs = message?.timestampMs ?? null
+  }
+
   async markRead(instanceName: string, chatJid: string): Promise<AppChat | null> {
     const chat = await this.get(instanceName, chatJid)
     if (!chat) return null
@@ -249,6 +276,7 @@ export class MemoryChatStore {
     const chat = await this.get(instanceName, chatJid)
     if (!chat) return null
     chat.archived = archived
+    if (archived) chat.pinned = 0
     chat.updatedAt = new Date()
     return chat
   }
