@@ -247,7 +247,8 @@ export async function buildApp(deps: BuildAppDeps) {
       wildcard: true,
       decorateReply: false,
     })
-    app.get('/guide', async (_request, reply) => reply.redirect('/guide/'))
+    // Hidden: the route only exists when the guide is built, so it must not drift openapi.json.
+    app.get('/guide', { schema: { hide: true } }, async (_request, reply) => reply.redirect('/guide/'))
   }
 
   // Dashboard SPA (if built)

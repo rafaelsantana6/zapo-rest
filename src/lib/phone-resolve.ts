@@ -1,4 +1,4 @@
-import type { WaClient } from 'zapo-js'
+import type { SignalLidSyncStatus, WaClient } from 'zapo-js'
 import { badRequest } from '~/lib/errors'
 import type { CacheClient } from '~/redis/client'
 import { cacheKey } from '~/redis/client'
@@ -6,6 +6,15 @@ import type { LidMapStore } from '~/store/lid-map'
 import { bareUserJid, isLidJid } from './jid-canon'
 import { createJid, digitsOnly, ensureDefaultCountryCode, phoneCheckVariants, toRecipientJid } from './phone'
 import { isUsernameRecipient } from './username'
+
+/**
+ * zapo usync verdict (`in` / `out` / `invalid`), a missing one (`error` /
+ * `unanswered`: the server did not say), or `local` when no lookup ran
+ * (group, LID, broadcast input).
+ */
+export type LookupStatus = SignalLidSyncStatus | 'local'
+
+export type LookupError = { code?: string; text?: string; backoffSeconds?: number }
 
 export type ResolvedNumber = {
   /** Original input as provided by the client */
@@ -26,10 +35,16 @@ export type ResolvedNumber = {
   variantsChecked: string[]
   /** Hit Redis/memory cache */
   cached: boolean
+  /** Why `exists` is what it is. `error` / `unanswered` = no verdict, not "no WhatsApp". */
+  status: LookupStatus
+  /** Server error behind `error` / `unanswered`, when reported. */
+  lookupError: LookupError | null
 }
 
 type CachePayload = {
   exists: boolean
+  /** Absent on entries cached before zapo-js 1.11. */
+  status?: LookupStatus
   jid: string
   lid: string | null
   matchedNumber: string | null
@@ -90,6 +105,8 @@ export async function resolveWhatsAppNumbers(
         localJid: p.localJid,
         variantsChecked: p.variants,
         cached: false,
+        status: 'local',
+        lookupError: null,
       })
       continue
     }
@@ -119,6 +136,8 @@ export async function resolveWhatsAppNumbers(
           localJid: p.localJid,
           variantsChecked: p.variants,
           cached: true,
+          status: cachedHit.status ?? (cachedHit.exists ? 'in' : 'out'),
+          lookupError: null,
         })
         continue
       }
@@ -153,16 +172,10 @@ export async function resolveWhatsAppNumbers(
         break
       }
     }
-    // fallback: any non-exists row for reporting
-    if (!match) {
-      for (const v of p.variants) {
-        const row = byDigits.get(v)
-        if (row) {
-          match = row
-          break
-        }
-      }
-    }
+    // No variant exists: report a missing verdict over a definite `out`,
+    // since one unanswered variant means we cannot say the number is absent.
+    if (!match) match = pickNonExistingRow(p.variants.map((v) => byDigits.get(v)))
+    const status: LookupStatus = match ? (match.status ?? (match.exists ? 'in' : 'out')) : 'unanswered'
 
     const exists = Boolean(match?.exists)
     const jid = exists && match ? bareUserJid(match.phoneJid) : p.localJid
@@ -184,15 +197,19 @@ export async function resolveWhatsAppNumbers(
       localJid: p.localJid,
       variantsChecked: p.variants,
       cached: false,
+      status,
+      lookupError: match?.error ?? null,
     }
     results.push(resolved)
 
-    if (cache) {
+    // A missing verdict is transient: caching it would report "no WhatsApp" for 24h.
+    if (cache && hasVerdict(status)) {
       const payload: CachePayload = {
         exists,
         jid,
         lid,
         matchedNumber,
+        status,
       }
       await cache.set(cacheKey('onwa', p.query), JSON.stringify(payload), CACHE_TTL_SEC)
       // also cache under matched form so reverse lookups hit
@@ -224,8 +241,23 @@ function orderLike(inputs: string[], results: ResolvedNumber[]): ResolvedNumber[
       localJid,
       variantsChecked: phoneCheckVariants(input),
       cached: false,
+      status: 'unanswered' as const,
+      lookupError: null,
     }
   })
+}
+
+/** `in` / `out` / `invalid` are answers; `error` / `unanswered` are not. */
+export function hasVerdict(status: LookupStatus): boolean {
+  return status !== 'error' && status !== 'unanswered'
+}
+
+type UsyncRow = { status: SignalLidSyncStatus; error?: LookupError }
+
+/** First row without a verdict, else the first row at all. */
+export function pickNonExistingRow<T extends UsyncRow>(rows: readonly (T | undefined)[]): T | undefined {
+  const present = rows.filter((r): r is T => r != null)
+  return present.find((r) => !hasVerdict(r.status)) ?? present[0]
 }
 
 /**

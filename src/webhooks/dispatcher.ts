@@ -14,6 +14,7 @@ export type WebhookEvent =
   | 'instance.qr'
   | 'instance.connection'
   | 'instance.paired'
+  | 'instance.pairing_required'
   | 'instance.logged_out'
   | 'message.inbound'
   | 'message'

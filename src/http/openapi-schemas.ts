@@ -434,6 +434,22 @@ export const CheckContactsBodySchema = z
     example: EXAMPLES.checkPhones,
   })
 
+const LookupStatusSchema = z
+  .enum(['in', 'out', 'invalid', 'error', 'unanswered', 'local'])
+  .optional()
+  .meta({
+    description:
+      '`in` on WhatsApp · `out` no account · `invalid` malformed number · `error` / `unanswered` the server gave ' +
+      'no verdict (retry; `exists: false` does **not** mean "no WhatsApp", and it is not cached) · ' +
+      '`local` no lookup ran (group / LID / broadcast input)',
+  })
+
+const LookupErrorSchema = z
+  .object({ code: z.string().optional(), text: z.string().optional(), backoffSeconds: z.number().optional() })
+  .nullable()
+  .optional()
+  .meta({ description: 'Server error behind `error` / `unanswered`, when reported' })
+
 export const CheckContactsResponseSchema = z
   .object({
     results: z.array(
@@ -445,6 +461,8 @@ export const CheckContactsResponseSchema = z
         matchedNumber: z.string().nullable().optional().meta({ description: 'Digits form that matched on WA' }),
         numberExists: z.boolean().optional().meta({ description: 'alias of exists' }),
         chatId: z.string().nullable().optional().meta({ description: 'multi-config chat id when exists' }),
+        status: LookupStatusSchema,
+        lookupError: LookupErrorSchema,
       }),
     ),
   })
@@ -580,10 +598,15 @@ export const CallInfoSchema = z
       .meta({ description: 'Device JIDs of remote participants with a raised hand' }),
     // Live calls often have null duration/endReason until hangup — must allow null (not just optional)
     durationSecs: z.number().nullable().optional(),
-    endReason: z.string().nullable().optional().meta({
-      description:
-        'Set on hangup, e.g. `timeout`, `rejected`, `accepted_elsewhere`, `rejected_elsewhere`, `relay_lost`',
-    }),
+    endReason: z
+      .string()
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          'Set on hangup, e.g. `timeout`, `rejected`, `accepted_elsewhere`, `rejected_elsewhere`, `relay_lost`, ' +
+          '`setup_failed` (server refused the offer), `invisible` (removed from a group call that goes on)',
+      }),
   })
   .meta({
     description: 'In-memory VoIP call snapshot',
@@ -839,7 +862,7 @@ export const OPENAPI_TAGS = [
       ' "data": { }\n' +
       '}\n' +
       '```\n\n' +
-      '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.logged_out`, ' +
+      '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, ' +
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
