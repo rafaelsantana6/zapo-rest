@@ -34917,6 +34917,26 @@
                     "contentMediaType": "application/octet-stream",
                     "description": "Channel media file. Required form field: type (image/video/audio/document). Optional caption, ptt, fileName."
                   },
+                  "contextInfo": {
+                    "type": "object",
+                    "properties": {
+                      "expirationSeconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                      },
+                      "ephemeralSettingTimestamp": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "example": {
+                      "expirationSeconds": 86400
+                    }
+                  },
                   "mediaUrl": {
                     "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
                     "example": "https://picsum.photos/800",
@@ -34994,6 +35014,26 @@
                   {
                     "type": "object",
                     "properties": {
+                      "contextInfo": {
+                        "type": "object",
+                        "properties": {
+                          "expirationSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 2147483647
+                          },
+                          "ephemeralSettingTimestamp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
+                        "example": {
+                          "expirationSeconds": 86400
+                        }
+                      },
                       "mediaUrl": {
                         "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
                         "example": "https://picsum.photos/800",
@@ -40991,6 +41031,26 @@
                     "contentMediaType": "application/octet-stream",
                     "description": "Channel media file. Required form field: type (image/video/audio/document). Optional caption, ptt, fileName."
                   },
+                  "contextInfo": {
+                    "type": "object",
+                    "properties": {
+                      "expirationSeconds": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                      },
+                      "ephemeralSettingTimestamp": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
+                    "example": {
+                      "expirationSeconds": 86400
+                    }
+                  },
                   "mediaUrl": {
                     "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
                     "example": "https://picsum.photos/800",
@@ -41068,6 +41128,26 @@
                   {
                     "type": "object",
                     "properties": {
+                      "contextInfo": {
+                        "type": "object",
+                        "properties": {
+                          "expirationSeconds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 2147483647
+                          },
+                          "ephemeralSettingTimestamp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "additionalProperties": false,
+                        "description": "Safe contextInfo, forwarded as send options so explicit TTL overrides chat settings; expiration in seconds and ephemeral setting time in Unix seconds.",
+                        "example": {
+                          "expirationSeconds": 86400
+                        }
+                      },
                       "mediaUrl": {
                         "description": "Public HTTPS URL of the file (JSON body). Mutually exclusive with mediaBase64 / multipart file.",
                         "example": "https://picsum.photos/800",
