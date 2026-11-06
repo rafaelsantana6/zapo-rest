@@ -29,6 +29,7 @@ export const EXAMPLES = {
     lastQr: null,
     lastQrAt: null,
     callRecordingEnabled: false,
+    mediaMode: 'local',
     createdAt: '2026-07-11T12:00:00.000Z',
     updatedAt: '2026-07-11T12:05:00.000Z',
   },
@@ -263,6 +264,9 @@ const instanceBaseShape = z.object({
     .nullable()
     .meta({ description: 'Raw QR payload from last `auth_qr` event — render as QR image on clients', example: null }),
   lastQrAt: z.string().nullable().meta({ description: 'ISO-8601 time when lastQr was updated', example: null }),
+  mediaMode: z
+    .enum(['local', 'remote'])
+    .meta({ description: 'Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE).' }),
   callRecordingEnabled: z.boolean().optional().meta({
     description: 'Whether call PCM recording is enabled for this instance',
     example: false,
@@ -599,6 +603,7 @@ export const CallParticipantSchema = z.object({
 
 export const CallInfoSchema = z
   .object({
+    mediaMode: z.enum(['local', 'remote']),
     callId: z.string().meta({ description: 'Id for control routes and PCM stream', example: EXAMPLES.callInfo.callId }),
     peerJid: z.string().nullable().optional().meta({ example: EXAMPLES.callInfo.peerJid }),
     peerJidRaw: z.string().nullable().optional(),

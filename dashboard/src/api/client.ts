@@ -4,6 +4,7 @@ const HINT_STORAGE = 'zapo_rest_instance_hint'
 const ADMIN_BACKUP_STORAGE = 'zapo_rest_admin_key_backup'
 
 export type Instance = {
+  mediaMode: 'local' | 'remote'
   name: string
   /** Plaintext instance API key — always present on list/get/create/rotate. */
   apiKey: string
@@ -846,6 +847,7 @@ export async function apiProbe(
 
 // ── Softphone / calls extended ──────────────────────────────────────────────
 export type LiveCall = {
+  mediaMode?: 'local' | 'remote'
   callId: string
   /** Best display JID — phone when known (server prefers PN over @lid). */
   peerJid?: string | null

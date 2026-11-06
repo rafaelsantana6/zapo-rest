@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install dashboard deps
+        run: pnpm --dir dashboard install --frozen-lockfile
+
       - name: Format check
         run: pnpm format
 

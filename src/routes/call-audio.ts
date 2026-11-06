@@ -1,3 +1,4 @@
+import { requireLocalMedia } from '~/voip/media-mode'
 import type { FastifyPluginAsync } from 'fastify'
 import type { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
@@ -26,7 +27,7 @@ export const callAudioRoutes: FastifyPluginAsync<{ manager: InstanceManager; env
         summary: 'Play an audio file into a live call',
         description:
           'Accepts mediaUrl / mediaBase64 or multipart file (same inputs as message media). ' +
-          'Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode after loading; ' +
+          'Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode before decoding (also on decode failure); ' +
           'stop the softphone microphone stream first. Opening /stream again switches back to external audio. ' +
           'Returns once decoded and queued, not when playback ends (call.audio_finished). ' +
           'Temporary files are removed after decoding or on error. Remote media mode returns 409.',
@@ -46,13 +47,15 @@ export const callAudioRoutes: FastifyPluginAsync<{ manager: InstanceManager; env
     },
     async (request) => {
       const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      requireLocalMedia(client, 'loadAudio')
       const call = resolveLiveCall(client, request.params.callId)
       if (!call) throw notFound(`call ${request.params.callId} not found`)
       if (call.isEnded || call.stateData?.state === 'ended') throw conflict(`call ${call.callId} has ended`)
       const { media } = await requireMediaFromRequest(request, env)
       try {
-        await client.voip.loadAudio(call.callId, media.path)
+        // Upstream clears the live ring on this transition, so switch BEFORE loading.
         client.voip.setExternalAudioMode(call.callId, false)
+        await client.voip.loadAudio(call.callId, media.path)
         return { ok: true as const }
       } catch (err) {
         const message = err instanceof Error ? err.message : ''

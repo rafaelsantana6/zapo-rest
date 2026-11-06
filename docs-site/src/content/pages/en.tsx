@@ -215,6 +215,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               'Separate channel surface: new channel messages and mailbox channel threads are excluded from app_messages/chats and chat media downloads. Existing stored rows are retained. There is no local channel history/search: use the dedicated WhatsApp reads and renew temporary live subscriptions.'
             }
           </li>
+          <li>
+            <strong>Browser-owned call media</strong> — Remote mode removes the server media hop and codec/native peer
+            requirement for those calls; private plans stay on the instance control WS.
+          </li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -326,6 +330,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Channel traffic avoids hidden chat projections and chat media storage; history is read from WhatsApp
                 directly.
+              </td>
+            </tr>
+            <tr>
+              <td>Browser-owned call media</td>
+              <td>
+                Remote mode removes the server media hop and codec/native peer requirement for those calls; private
+                plans stay on the instance control WS.
               </td>
             </tr>
           </tbody>
@@ -1664,6 +1675,62 @@ const dec = new TextDecoder
     description: 'JSON signaling, 16 kHz PCM, recording, audio blast and STT.',
     body: (
       <>
+        <h2 id="browser-media">Media in the browser</h2>
+        <p>
+          <code>VOIP_MEDIA_MODE=local|remote</code> defaults to local. It is fixed per instance client, not per call.
+          Change the environment and restart the server to recreate/reconnect all instances; finish live calls first.
+          This release has no persisted per-instance override (there is no generic instance update route). Instance
+          reads and live call snapshots expose <code>mediaMode</code>.
+        </p>
+        <p>
+          In remote mode the dashboard opens the microphone and speaker inside the dial/answer click with{' '}
+          <code>WaWebCallAudio</code>, then runs <code>WaCallMediaReceiver</code> with <code>webMediaHost</code>. The
+          listener is attached before the first await. The browser connects directly to WhatsApp relays: no audio/video
+          traverses this server, and those calls need neither server media peer (<code>@roamhq/wrtc</code> or{' '}
+          <code>libmlow-wasm-fork</code>). Local mode keeps its PCM/H.264 paths. Use HTTPS (localhost for development)
+          and WSS in production.
+        </p>
+        <p>
+          Private control WS server → host:{' '}
+          <code>{'{ op: "call:media", callId, message: "encoded upstream string" }'}</code>. Host → server:{' '}
+          <code>{'{ op: "call:media_event", id, callId, event: "encoded upstream string" }'}</code>. Encode/decode with{' '}
+          <code>encodeCallMediaMessage</code>/<code>decodeCallMediaMessage</code> and <code>encodeCallMediaEvent</code>/
+          <code>decodeCallMediaEvent</code>; bytes and bigint are tagged by upstream. The server sends{' '}
+          <code>media.snapshot(callId)</code> on late attach and resync. Only sockets authenticated with that instance
+          key receive its plans. Plans contain SRTP keys/relay credentials: never log, persist, or send them through
+          SSE/webhooks. The server does not log host payloads or decoder exceptions.
+        </p>
+        <p>
+          The receiver forwards <code>host</code>, <code>active</code>, <code>relay_answered</code>,{' '}
+          <code>relay_lost</code>, reactions and <code>sender_media</code> to signaling. Upstream decides how relay loss
+          ends the call. Video uses <code>WaWebCallVideoReceiver</code>/<code>WaWebCallVideoSender</code>; close every
+          decoded <code>VideoFrame</code>. Reusable PCM/H.264 buffers must be copied before retaining them. On hangup,{' '}
+          <code>receiver.stop()</code> returns <code>WaCallMediaStats</code>; the softphone logs only these stats and
+          shows a small summary. The remote path uses browser echo cancellation/AGC; local processing preferences do not
+          apply.
+        </p>
+        <h3>Remote limits</h3>
+        <ul>
+          <li>
+            Server <code>loadAudio</code>, audio blast, call recording and transcription return 409 naming remote mode.
+            PCM <code>/stream</code> and H.264 <code>/video</code> close with 4409. Capture and playback belong on the
+            media host; server reactions are unavailable (use <code>receiver.plane.sendReaction</code>).
+          </li>
+          <li>
+            A browser cannot host group calls: upstream requires <code>group/1</code> and <code>raw-udp</code>. Its{' '}
+            <code>voip_call_error</code> reaches webhook/SSE <code>call.error</code> and WS <code>call:error</code> with
+            code <code>REMOTE_GROUP_UNSUPPORTED</code>. No UDP relay fallback is invented here.
+          </li>
+          <li>
+            <code>VOIP_MLOW_RED=false</code> is applied to the browser receiver in remote mode (local plugin otherwise).
+            RED disables DTX and increases bandwidth for better loss recovery. <code>VOIP_PARTICIPANT_AUDIO=false</code>{' '}
+            remains local only.
+          </li>
+          <li>
+            <code>setVideoSubscriptions</code> is unsupported: upstream does not send it to the relay yet. There is no
+            start-call audioFile/audioUrl convenience variant and no separate participant recordings.
+          </li>
+        </ul>
         <h2 id="participant-audio">Per-participant audio</h2>
         <p>
           Enable <code>VOIP_PARTICIPANT_AUDIO=true</code> (default false, local media only; copies every frame). Connect
@@ -1686,6 +1753,10 @@ const dec = new TextDecoder
           missing). The file is deleted after decoding or on error. It switches external audio off for that call; stop
           the PCM microphone stream first. Reopening the stream switches back to live audio. The response means queued;{' '}
           <code>call.audio_finished</code> means playback finished.
+        </p>
+        <p>
+          External mode is disabled before decoding because upstream clears the buffer on that transition; on failure,
+          reopen the PCM stream to resume it.
         </p>
         <h2 id="call-errors">Call failures and playback completion</h2>
         <p>

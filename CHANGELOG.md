@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Browser-owned VoIP media behind `VOIP_MEDIA_MODE=remote` (default local): private upstream-encoded `call:media` / `call:media_event` over the authenticated instance control WS, late-join/resync snapshots and `mediaMode` on instance/call reads. The softphone runs MLow, SRTP, audio and H.264 directly in the browser, with gesture-bound audio, RED, and stop statistics. Secret plans never enter logs, SSE, webhooks or persistence.
+- Remote media limits return clear 409 / WS 4409. Browser group calls surface `REMOTE_GROUP_UNSUPPORTED` (upstream needs group/1 + raw-udp). Finish calls and restart after changing media mode; persisted per-instance overrides are deferred.
+
 - Local per-participant audio: `VOIP_PARTICIPANT_AUDIO=false` by default; opt in on the PCM WebSocket with `participants=1` for stream announcements and framed f32le PCM per participant (mix id 0). Existing clients keep the original raw PCM protocol. No PCM on SSE/webhooks.
 
 - Opt-in `VOIP_MLOW_RED=false` passes MLow RED to local call media: low-rate previous-frame redundancy, DTX disabled, higher bandwidth. Call harness: `CALL_HARNESS_MLOW_RED=true`.
@@ -56,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Stored-message targets accept explicit and mapped PN/LID aliases. Group targets recover a valid author from the mailbox sender; group/broadcast/newsletter JIDs cannot be authors. Self-authored direct-message history requires proof of the original author (`409` if unavailable), rather than using the peer.
 - Explicit safe context settings are forwarded as send options so the upstream chat-ephemeral auto-injection cannot override the requested expiration.
 - Sticker-pack covers are always normalized to JPEG 252×252 and derived from the tray icon when omitted. The complete pack (source files plus generated JPEG) shares one `MEDIA_UPLOAD_MAX_BYTES` budget; over-budget downloads abort and all temporary files are removed.
+
+### Fixed
+
+- File playback switches external audio off **before** decoding: upstream clears its buffer when leaving external mode, so switching after `loadAudio` would discard the loaded file. Decode failure leaves external mode off; reopen the PCM stream to resume live audio.
 
 ## [0.10.0] - 2026-11-06
 

@@ -30,6 +30,9 @@ export type VoipHandlers = {
   onCallEnded?: (call: LiveCall) => void
   /** Peer camera / upgrade request (`upgradeRequested`), group upgrade, screen share. */
   onVideoEvent?: (event: VideoEvent) => void
+  onReady?: (mode: 'local' | 'remote') => void
+  onMediaMessage?: (callId: string, message: string) => void
+  onAudioFinished?: (call: LiveCall) => void
   onError?: (message: string) => void
 }
 
@@ -45,6 +48,8 @@ function nextId() {
 }
 
 export class VoipControlSocket {
+  mediaMode: 'local' | 'remote' = 'local'
+  mlowRed = false
   private ws: WebSocket | null = null
   private instance: string | null = null
   private pending = new Map<string, Pending>()
@@ -332,6 +337,9 @@ export class VoipControlSocket {
     }
     if (op === 'pong') return
     if (op === 'ready') {
+      this.mediaMode = msg.mediaMode === 'remote' ? 'remote' : 'local'
+      this.mlowRed = msg.mlowRed === true
+      this.emit('onReady', this.mediaMode)
       // Server auto-attach ready — treat as connected confirmation
       if (this.conn !== 'connected') this.setConn('connected')
       this.resolveOpenWaiters()
@@ -356,10 +364,20 @@ export class VoipControlSocket {
       return
     }
 
+    if (op === 'call:media') {
+      if (typeof msg.callId === 'string' && typeof msg.message === 'string')
+        this.emit('onMediaMessage', msg.callId, msg.message)
+      return
+    }
+    if (op === 'call:error') {
+      this.emit('onError', String((msg.error as { message?: string })?.message ?? 'Falha na chamada'))
+      return
+    }
     const call = msg.call as LiveCall | undefined
     if (!call?.callId) return
 
-    if (op === 'call:offer') this.emit('onCallOffer', call)
+    if (op === 'call:audio_finished') this.emit('onAudioFinished', call)
+    else if (op === 'call:offer') this.emit('onCallOffer', call)
     else if (op === 'call:ringing') this.emit('onCallRinging', call)
     else if (op === 'call:accepted') this.emit('onCallAccepted', call)
     else if (op === 'call:state') this.emit('onCallState', call)
@@ -422,6 +440,10 @@ export class VoipControlSocket {
       p.resolve({ ok: false, code: 'DISCONNECTED', message: reason })
       this.pending.delete(id)
     }
+  }
+
+  sendMediaEvent(callId: string, event: string) {
+    this.sendRaw('call:media_event', { callId, event })
   }
 
   async startCall(phone: string, opts: { video?: boolean } = {}) {

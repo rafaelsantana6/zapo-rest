@@ -13,6 +13,7 @@ describe('parseEnv', () => {
       DATABASE_URL: 'postgresql://zapo:zapo@localhost:5432/zapo',
       AUTO_CONNECT_ON_BOOT: 'false',
     })
+    expect(env.VOIP_MEDIA_MODE).toBe('local')
     expect(env.VOIP_PARTICIPANT_AUDIO).toBe(false)
     expect(env.VOIP_MLOW_RED).toBe(false)
     expect(env.PORT).toBe(3000)
@@ -77,5 +78,11 @@ describe('parseEnv', () => {
         VOIP_MLOW_RED: 'true',
       }).VOIP_MLOW_RED,
     ).toBe(true)
+  })
+  it('accepts remote media and rejects unsupported modes', () => {
+    const base = { ADMIN_API_KEY: 'test-admin-api-key-min-16', DATABASE_URL: 'postgresql://test@localhost/db' }
+    expect(parseEnv({ ...base, VOIP_MEDIA_MODE: 'remote' }).VOIP_MEDIA_MODE).toBe('remote')
+    resetEnvCache()
+    expect(() => parseEnv({ ...base, VOIP_MEDIA_MODE: 'elsewhere' })).toThrow(/Invalid environment/)
   })
 })

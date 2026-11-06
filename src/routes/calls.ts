@@ -1,3 +1,4 @@
+import { clientMediaMode } from '~/voip/media-mode'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import type { WebSocket } from 'ws'
 import { z } from 'zod'
@@ -21,7 +22,7 @@ import {
 import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
 import { asVoipClient } from '~/instances/wa-client'
-import { badRequest, notFound } from '~/lib/errors'
+import { conflict, badRequest, notFound } from '~/lib/errors'
 import { toRecipientJid } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { MediaStorage } from '~/media/storage'
@@ -65,7 +66,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           '`call.participants_changed`.\n\n' +
           'Returns `callId` immediately after the offer is sent. Progress continues via webhooks ' +
           '`call.state` / `call.ended` and the live PCM WebSocket.\n\n' +
-          '**No file / audioUrl playback** — open the stream and send live mic PCM.\n\n' +
+          'Local media: use `/stream` for PCM or `POST /calls/:callId/audio` for a file. Remote media: use the browser host over `/v1/voip`.\n\n' +
           '**Example body**\n' +
           '```json\n' +
           `${JSON.stringify(EXAMPLES.startCall, null, 2)}\n` +
@@ -116,7 +117,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         })
       }
       try {
-        client.voip.setExternalAudioMode(callId, true)
+        if (clientMediaMode(client) === 'local') client.voip.setExternalAudioMode(callId, true)
       } catch {
         /* */
       }
@@ -191,14 +192,17 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         tags: ['Calls'],
         summary: 'Enable/disable call recording',
         description:
-          'Requires media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote) stored in object storage.',
+          'Requires local media mode (remote mode returns 409) and media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote leg) stored in object storage.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: z.object({ enabled: z.boolean() }),
+        response: { 409: ErrorBodySchema },
       },
     },
     async (request) => {
       const name = resolveInstanceName(request)
       const body = request.body
+      if (env.VOIP_MEDIA_MODE === 'remote')
+        throw conflict('Call recording is unavailable in remote media mode; media runs on the host')
       if (!callRecording) throw badRequest('call recording not available')
       try {
         return await callRecording.setRecordingEnabled(name, body.enabled)
@@ -229,7 +233,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       const name = resolveInstanceName(request)
       const client = asVoipClient(manager.requireRegisteredClient(name))
       const live = client.voip.getCalls()
-      return { calls: live.map((c) => serializeCallInfo(c)) }
+      return { calls: live.map((c) => serializeCallInfo(c, { mediaMode: clientMediaMode(client) })) }
     },
   )
 
@@ -259,7 +263,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       if (!call) {
         return { call: null }
       }
-      return { call: serializeCallInfo(call) }
+      return { call: serializeCallInfo(call, { mediaMode: clientMediaMode(client) }) }
     },
   )
 
@@ -292,7 +296,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         log.warn({ callId: params.callId }, 'accept — call not found')
         throw notFound(`call ${params.callId} not found (not ringing anymore?)`)
       }
-      const snap = serializeCallInfo(resolved)
+      const snap = serializeCallInfo(resolved, { mediaMode: clientMediaMode(client) })
       // canAccept is only true for state === incoming_ringing (not outbound "ringing")
       if (!snap.canAccept) {
         log.warn({ callId: resolved.callId, state: snap.state, direction: snap.direction }, 'accept — not acceptable')
@@ -312,7 +316,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         )
       }
       try {
-        client.voip.setExternalAudioMode(resolved.callId, true)
+        if (clientMediaMode(client) === 'local') client.voip.setExternalAudioMode(resolved.callId, true)
       } catch (err) {
         log.warn({ err, callId: resolved.callId }, 'setExternalAudioMode failed')
       }

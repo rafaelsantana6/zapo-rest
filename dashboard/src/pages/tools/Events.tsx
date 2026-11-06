@@ -102,7 +102,8 @@ export function EventsPage({ onLogout }: Props) {
       <ErrorBox error={error} />
       <div className="panel stack">
         <p className="muted tiny" style={{ margin: 0 }}>
-          Canal unidirecional (SSE). VoIP continua em WebSocket (<code>/v1/voip</code> + stream PCM).
+          Canal unidirecional (SSE), incluindo <code>call.error</code> e <code>call.audio_finished</code>. VoIP usa{' '}
+          <code>/v1/voip</code>; planos privados e PCM nunca aparecem aqui.
         </p>
         <p className="muted tiny">
           Canais: <code>newsletter.update</code> e <code>newsletter.message_update</code> também chegam neste fluxo. Use{' '}

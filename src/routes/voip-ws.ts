@@ -1,3 +1,5 @@
+import { attachRemoteMedia } from '~/voip/remote-media'
+import { clientMediaMode } from '~/voip/media-mode'
 /**
  * VoIP control WebSocket — signaling plane (softphone style).
  *
@@ -88,6 +90,7 @@ type ClientMsg = {
   enabled?: boolean
   sharing?: boolean
   video?: boolean
+  event?: string
   contactName?: string
 }
 
@@ -139,7 +142,9 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
         description:
           'Control plane for softphone (softphone style). Auth via `?apiKey=`. ' +
           'Attach an instance, then receive `call:offer` / `call:state` / `call:ended` push events. ' +
-          'PCM audio remains on `.../calls/:callId/stream`.',
+          'Local PCM audio stays on `.../calls/:callId/stream`. Remote mode carries private `call:media` plans ' +
+          '(message = encodeCallMediaMessage string) and `call:media_event` host reports (event = encodeCallMediaEvent string). ' +
+          'Late attach/resync sends a snapshot; plans never enter SSE, webhooks or logs. Ready includes mediaMode and mlowRed.',
       },
     },
     // MUST be sync so on('message') is registered before any await (fastify/websocket docs).
@@ -159,6 +164,8 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
       let attached: string | null = null
       let unsub: (() => void) | null = null
       let closed = false
+      let privateMedia: ReturnType<typeof attachRemoteMedia> | null = null
+      let privateClient: object | null = null
 
       const send = (payload: unknown) => {
         if (socket.readyState === socket.OPEN) {
@@ -182,7 +189,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
       const snapshotCalls = (instanceName: string): SerializedCall[] => {
         try {
           const client = asVoipClient(manager.getClient(instanceName))
-          return client.voip.getCalls().map((c) => serializeCallInfo(c))
+          return client.voip.getCalls().map((c) => serializeCallInfo(c, { mediaMode: clientMediaMode(client) }))
         } catch {
           return []
         }
@@ -196,6 +203,23 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           return { status: 'unknown', meJid: null as string | null }
         }
       }
+
+      const bindPrivateMedia = (instanceName: string) => {
+        if (closed) return deps.env.VOIP_MEDIA_MODE
+        try {
+          const client = asVoipClient(manager.getClient(instanceName))
+          if (client !== privateClient) {
+            privateMedia?.close()
+            privateMedia = clientMediaMode(client) === 'remote' ? attachRemoteMedia(client, socket) : null
+            privateClient = client
+          }
+          return clientMediaMode(client)
+        } catch {
+          return deps.env.VOIP_MEDIA_MODE
+        }
+      }
+
+      const snapshotPrivateMedia = () => privateMedia?.snapshotAll()
 
       const bindBus = (instanceName: string) => {
         unsub?.()
@@ -226,6 +250,8 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
             return
           }
           if (payload.event === 'instance.connection' || payload.event === 'instance.paired') {
+            bindPrivateMedia(instanceName)
+            snapshotPrivateMedia()
             // biome-ignore lint/suspicious/noExplicitAny: connection payload
             const d = payload.data as any
             send({
@@ -248,13 +274,20 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           throw new Error('FORBIDDEN')
         }
         await manager.get(instanceName)
+        if (closed) return
+        privateMedia?.close()
+        privateMedia = null
+        privateClient = null
         attached = instanceName
         bindBus(instanceName)
         const calls = snapshotCalls(instanceName)
         const device = await deviceStatus(instanceName)
-        send({ op: 'ready', instance: instanceName, role })
+        if (closed) return
+        const mode = bindPrivateMedia(instanceName)
+        send({ op: 'ready', instance: instanceName, role, mediaMode: mode, mlowRed: deps.env.VOIP_MLOW_RED })
         send({ op: 'device:status', ...device })
         send({ op: 'calls:snapshot', calls })
+        snapshotPrivateMedia()
       }
 
       // Auth + optional auto-attach. Message handlers await this so early frames are not dropped.
@@ -302,7 +335,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
           const op = msg.op
           const id = msg.id
 
-          log.info({ op, id, attached }, 'voip-ws ← client')
+          if (op !== 'call:media_event') log.info({ op, id, attached }, 'voip-ws ← client')
 
           try {
             await boot
@@ -329,6 +362,20 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               return
             }
 
+            if (op === 'call:media_event') {
+              // Never let private host frames or decode exceptions reach command logging.
+              try {
+                bindPrivateMedia(attached)
+                if (!privateMedia || typeof msg.callId !== 'string' || typeof msg.event !== 'string')
+                  throw new Error('Invalid host event')
+                privateMedia.receive(msg.callId, msg.event)
+                ackOk(id)
+              } catch {
+                ackErr(id, 'INVALID_MEDIA_EVENT', 'Invalid remote media event for this instance and live call')
+              }
+              return
+            }
+
             if (op === 'calls:list') {
               ackOk(id, { calls: snapshotCalls(attached) })
               return
@@ -342,6 +389,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               }
               log.info({ phone, instance: attached, id }, 'call:start — received')
               const client = asVoipClient(manager.requireRegisteredClient(attached))
+              bindPrivateMedia(attached)
 
               // Live calls fill the single concurrent slot — surface clearly instead of hanging.
               const live = snapshotCalls(attached).filter((c) => !c.isEnded)
@@ -380,7 +428,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               }
 
               try {
-                client.voip.setExternalAudioMode(callId, true)
+                if (clientMediaMode(client) === 'local') client.voip.setExternalAudioMode(callId, true)
               } catch (err) {
                 log.warn({ err, callId }, 'setExternalAudioMode after start failed')
               }
@@ -395,9 +443,10 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               }
               const call = client.voip.getCall(callId)
               const serialized = call
-                ? serializeCallInfo(call, { mappedPn: peerJid })
+                ? serializeCallInfo(call, { mappedPn: peerJid, mediaMode: clientMediaMode(client) })
                 : {
                     callId,
+                    mediaMode: clientMediaMode(client),
                     peerJid,
                     peerJidRaw: peerJid,
                     peerLid: null,
@@ -436,6 +485,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 return
               }
               const client = asVoipClient(manager.requireRegisteredClient(attached))
+              bindPrivateMedia(attached)
               const resolved = resolveLiveCall(client, callId)
               if (!resolved) {
                 const live = snapshotCalls(attached)
@@ -446,7 +496,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 ackErr(id, 'CALL_NOT_FOUND', 'call not found')
                 return
               }
-              const snap = serializeCallInfo(resolved)
+              const snap = serializeCallInfo(resolved, { mediaMode: clientMediaMode(client) })
               if (!resolved.canAccept) {
                 log.warn(
                   {
@@ -475,7 +525,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 return
               }
               try {
-                client.voip.setExternalAudioMode(resolved.callId, true)
+                if (clientMediaMode(client) === 'local') client.voip.setExternalAudioMode(resolved.callId, true)
               } catch (err) {
                 log.warn({ err, callId: resolved.callId }, 'setExternalAudioMode failed')
               }
@@ -492,7 +542,11 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                     .then(() => {
                       log.info({ callId: acceptCallId }, 'acceptCall finished (relays connected)')
                       const after = client.voip.getCall(acceptCallId)
-                      if (after) send({ op: 'call:state', call: serializeCallInfo(after) })
+                      if (after)
+                        send({
+                          op: 'call:state',
+                          call: serializeCallInfo(after, { mediaMode: clientMediaMode(client) }),
+                        })
                     })
                     .catch((err: unknown) => {
                       log.error({ err, callId: acceptCallId }, 'acceptCall background failed')
@@ -520,7 +574,11 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               ackOk(id, { callId: resolved.callId })
               send({
                 op: 'call:ended',
-                call: { ...serializeCallInfo(resolved), state: 'ended', isEnded: true },
+                call: {
+                  ...serializeCallInfo(resolved, { mediaMode: clientMediaMode(client) }),
+                  state: 'ended',
+                  isEnded: true,
+                },
               })
               return
             }
@@ -668,6 +726,8 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
       })
 
       socket.on('close', () => {
+        privateMedia?.close()
+        privateMedia = null
         closed = true
         unsub?.()
       })

@@ -88,6 +88,7 @@ const envSchema = z
     RECONNECT_MAX_ATTEMPTS: z.coerce.number().int().positive().default(10),
     WEBHOOK_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
     VOIP_MAX_CONCURRENT_CALLS: z.coerce.number().int().positive().default(10),
+    VOIP_MEDIA_MODE: z.enum(['local', 'remote']).default('local'),
     VOIP_PARTICIPANT_AUDIO: boolFromString.default(false),
     VOIP_MLOW_RED: boolFromString.default(false),
     VOIP_END_CALL_ON_WS_CLOSE: boolFromString.default(false),

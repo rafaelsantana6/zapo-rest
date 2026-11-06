@@ -120,6 +120,7 @@ describe('OpenAPI Zod contracts — output shapes (integration safety)', () => {
     expect(
       CallInfoSchema.parse({
         callId: 'c1',
+        mediaMode: 'local',
         direction: 'outgoing',
         state: 'ringing',
         isActive: false,

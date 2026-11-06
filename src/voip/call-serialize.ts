@@ -2,6 +2,7 @@
 
 import { bareUserJid, isLidJid, isPnJid, toPnJid } from '~/lib/jid-canon'
 import { WA_VIDEO_STATE } from '@zapo-js/voip'
+import { callMediaMode } from '~/voip/media-mode'
 import { screenShareStateName, videoStateName } from '~/voip/call-video-controls'
 import { serializeParticipant } from '~/voip/group-call'
 
@@ -54,7 +55,7 @@ export function effectiveMediaType(call: any): string | null {
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: CallInfo from @zapo-js/voip
-export function serializeCallInfo(call: any, extras?: { mappedPn?: string | null }) {
+export function serializeCallInfo(call: any, extras?: { mappedPn?: string | null; mediaMode?: 'local' | 'remote' }) {
   const peerJidRaw = (call.peerJid ?? null) as string | null
   const callerPnRaw = call.callerPn != null && String(call.callerPn).trim() ? String(call.callerPn).trim() : null
   const displayPeerJid = pickDisplayPeerJid({
@@ -66,6 +67,7 @@ export function serializeCallInfo(call: any, extras?: { mappedPn?: string | null
 
   return {
     callId: call.callId as string,
+    mediaMode: extras?.mediaMode ?? callMediaMode(call),
     /**
      * Best JID for UI / history: phone (`@s.whatsapp.net`) when known.
      * Softphone and dashboards should show this.

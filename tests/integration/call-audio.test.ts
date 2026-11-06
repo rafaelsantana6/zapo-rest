@@ -4,14 +4,24 @@ import { buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 
 /** Named fake: eagerly reads the file, like upstream's ffmpeg decoder. */
 function fakeAudioVoip() {
+  let loaded: Buffer | null = null
+  let external = true
   const call = { callId: 'AUDIO1', stateData: { state: 'active' } }
   return {
     getCall: vi.fn((id: string) => (id === call.callId ? call : null)),
     getCalls: vi.fn(() => [call]),
     loadAudio: vi.fn(async (_id: string, path: string) => {
-      await readFile(path)
+      loaded = await readFile(path)
     }),
-    setExternalAudioMode: vi.fn(),
+    setExternalAudioMode: vi.fn((_id: string, enabled: boolean) => {
+      if (!enabled && external) loaded = null
+      external = enabled
+    }),
+    loadedAudio: () => loaded,
+    resetAudio: () => {
+      loaded = null
+      external = true
+    },
   }
 }
 
@@ -24,7 +34,10 @@ describe('load call audio', () => {
     apiKey = (await createInstance(ctx.app, 'audio-playback')).apiKey
     vi.spyOn(ctx.manager, 'requireRegisteredClient').mockReturnValue({ voip } as never)
   })
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    voip.resetAudio()
+  })
   afterAll(async () => {
     await ctx.app.close()
   })
@@ -41,6 +54,7 @@ describe('load call audio', () => {
     expect(res.statusCode).toBe(200)
     expect(voip.loadAudio.mock.calls[0]?.[0]).toBe('AUDIO1')
     expect(voip.setExternalAudioMode).toHaveBeenCalledWith('AUDIO1', false)
+    expect(voip.loadedAudio()?.toString()).toBe('fake audio')
     await expect(access(voip.loadAudio.mock.calls[0]?.[1] ?? '')).rejects.toThrow()
   })
   it('accepts multipart using the shared media helpers', async () => {
@@ -62,7 +76,7 @@ describe('load call audio', () => {
     const res = await post({ mediaBase64: 'YXVkaW8=' })
     expect(res.statusCode).toBe(503)
     expect(res.json().error.message).toContain('ffmpeg')
-    expect(voip.setExternalAudioMode).not.toHaveBeenCalled()
+    expect(voip.setExternalAudioMode).toHaveBeenCalledWith('AUDIO1', false)
     await expect(access(voip.loadAudio.mock.calls[0]?.[1] ?? '')).rejects.toThrow()
   })
   it('returns 400 for undecodable audio and removes the file', async () => {
@@ -82,5 +96,15 @@ describe('load call audio', () => {
   })
   it('requires authentication', async () => {
     expect((await ctx.app.inject({ method: 'POST', url: '/v1/calls/AUDIO1/audio', payload: {} })).statusCode).toBe(401)
+  })
+  it('enforces MEDIA_UPLOAD_MAX_BYTES before loading base64', async () => {
+    const original = ctx.env.MEDIA_UPLOAD_MAX_BYTES
+    ctx.env.MEDIA_UPLOAD_MAX_BYTES = 4
+    try {
+      expect((await post({ mediaBase64: Buffer.alloc(32).toString('base64') })).statusCode).toBe(400)
+      expect(voip.loadAudio).not.toHaveBeenCalled()
+    } finally {
+      ctx.env.MEDIA_UPLOAD_MAX_BYTES = original
+    }
   })
 })

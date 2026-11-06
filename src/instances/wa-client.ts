@@ -1,7 +1,9 @@
+import type { WaVoipMediaApi } from '@zapo-js/voip'
 import type { WaClient } from 'zapo-js'
 
 /** Minimal voip surface used by the API (plugin-installed). */
 export type VoipSurface = {
+  media: WaVoipMediaApi
   /** `isVideo` negotiates H.264 alongside audio (feed with `feedLiveVideo`). */
   startCall: (
     opts:

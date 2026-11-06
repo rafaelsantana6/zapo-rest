@@ -184,4 +184,12 @@ describe('VoIP failures and playback completion', () => {
     expect(webhooks.emit.mock.calls[0]?.[1]).toBe('call.audio_finished')
     expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ call: { callId: 'C1' } })
   })
+  it('explains the unsupported remote browser group host without exposing private errors', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_error', new Error('the media host lacks group/1, raw-udp, which a group call needs'))
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({
+      error: { code: 'REMOTE_GROUP_UNSUPPORTED', message: expect.stringContaining('group/1 and raw-udp') },
+    })
+  })
 })
