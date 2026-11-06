@@ -22,6 +22,14 @@ import {
   saveAudioPrefs,
 } from '../voip/audio-settings'
 import { type CallAudioHandles, startCallAudio } from '../voip/call-audio'
+import {
+  type CallVideoHandles,
+  describeMediaError,
+  isVideoCallSupported,
+  type OutboundVideoStats,
+  startCallVideo,
+  startCameraTest,
+} from '../voip/call-video'
 import { type VoipConnectionState, voipSocket } from '../voip/voip-socket'
 
 /** Softphone mounts outside <Route>, so useParams() is empty — parse path. */
@@ -70,6 +78,8 @@ function mergeCallSnapshot(prev: LiveCall | null, next: LiveCall): LiveCall {
     callerPn: next.callerPn ?? prev?.callerPn ?? null,
     peerJidRaw: next.peerJidRaw ?? next.peerJid ?? prev?.peerJidRaw ?? null,
     peerLid: next.peerLid ?? prev?.peerLid ?? null,
+    // A call never goes back from video to audio; a snapshot sent before the upgrade settled must not undo it
+    mediaType: sameId(prev?.callId ?? '', next.callId) && prev?.mediaType === 'video' ? 'video' : next.mediaType,
   }
 }
 
@@ -109,10 +119,23 @@ export function Softphone() {
   const [audioPrefs, setAudioPrefs] = useState<SoftphoneAudioPrefs>(() => loadAudioPrefs())
   const [mics, setMics] = useState<MediaDeviceOption[]>([])
   const [speakers, setSpeakers] = useState<MediaDeviceOption[]>([])
+  const [cameras, setCameras] = useState<MediaDeviceOption[]>([])
+  /** Camera test in settings: running stats, or the error that stopped it. */
+  const [cameraTest, setCameraTest] = useState<{ running: boolean; info: string | null; error: string | null }>({
+    running: false,
+    info: null,
+    error: null,
+  })
+  const [outboundStats, setOutboundStats] = useState<OutboundVideoStats | null>(null)
   const [micLevel, setMicLevel] = useState(0)
   const [devicesLoading, setDevicesLoading] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const [voipConn, setVoipConn] = useState<VoipConnectionState>(voipSocket.connection)
+  const [cameraOn, setCameraOn] = useState(true)
+  const [remoteVideoFrames, setRemoteVideoFrames] = useState(0)
+  const [screenSharing, setScreenSharing] = useState(false)
+  /** Peer asked to turn this audio call into video; answer within ~5 s. */
+  const [upgradeAsked, setUpgradeAsked] = useState(false)
 
   const wsRef = useRef<WebSocket | null>(null)
   const audioRef = useRef<CallAudioHandles | null>(null)
@@ -122,20 +145,38 @@ export function Softphone() {
   const phaseRef = useRef<Phase>('idle')
   const streamingRef = useRef(false)
   const audioPrefsRef = useRef(audioPrefs)
+  const videoWsRef = useRef<WebSocket | null>(null)
+  const videoRef = useRef<CallVideoHandles | null>(null)
+  const localVideoElRef = useRef<HTMLVideoElement | null>(null)
+  const remoteVideoRef = useRef<HTMLDivElement | null>(null)
+  const cameraOnRef = useRef(true)
+  const cameraTestRef = useRef<Awaited<ReturnType<typeof startCameraTest>> | null>(null)
+  /** Bumped on every start/stop: a test that resolves after being cancelled stops itself. */
+  const cameraTestGenRef = useRef(0)
+  const [screenPicking, setScreenPicking] = useState(false)
+  const cameraTestVideoRef = useRef<HTMLVideoElement | null>(null)
 
+  cameraOnRef.current = cameraOn
   mutedRef.current = muted
   phaseRef.current = phase
   audioPrefsRef.current = audioPrefs
 
+  const activeCallId = activeCall?.callId ?? null
+  const isVideoCall = activeCall?.mediaType === 'video'
+  const peerVideoOff = activeCall?.videoOff === true
+  // Canvas / <video> live in the call panel — the window stays mounted (hidden) while minimized
+  const videoPanelShown =
+    open && isVideoCall && (phase === 'dialing' || phase === 'ringing' || phase === 'connecting' || phase === 'active')
+
   const statusLabel = useMemo(() => {
-    if (phase === 'incoming') return 'Chamada recebida'
+    if (phase === 'incoming') return isVideoCall ? 'Chamada de vídeo recebida' : 'Chamada recebida'
     if (phase === 'dialing') return 'Discando…'
     if (phase === 'ringing') return 'Chamando…'
     if (phase === 'connecting') return 'Conectando mídia…'
     if (phase === 'active') return formatDuration(elapsed)
     if (phase === 'ended') return 'Encerrada'
     return instanceName ? `Linha · ${instanceName}` : 'Sem instância'
-  }, [phase, elapsed, instanceName])
+  }, [phase, elapsed, instanceName, isVideoCall])
 
   const loadSettings = useCallback(async () => {
     if (!instanceName) return
@@ -162,9 +203,10 @@ export function Softphone() {
     setDevicesLoading(true)
     try {
       await ensureMicPermission()
-      const { mics: m, speakers: s } = await listAudioDevices()
+      const { mics: m, speakers: s, cameras: c } = await listAudioDevices()
       setMics(m)
       setSpeakers(s)
+      setCameras(c)
     } catch {
       /* */
     } finally {
@@ -229,7 +271,113 @@ export function Softphone() {
       wsRef.current = null
     }
     setMicLevel(0)
+    setUpgradeAsked(false)
   }, [])
+
+  const cleanupVideo = useCallback(() => {
+    try {
+      videoRef.current?.stop()
+    } catch {
+      /* */
+    }
+    videoRef.current = null
+    if (videoWsRef.current) {
+      try {
+        videoWsRef.current.close()
+      } catch {
+        /* */
+      }
+      videoWsRef.current = null
+    }
+    setRemoteVideoFrames(0)
+    setOutboundStats(null)
+    setScreenSharing(false)
+  }, [])
+
+  /**
+   * Video rides its own WS (.../calls/:id/video) next to the PCM stream. Opens once audio
+   * streaming started and the call is a video call; torn down with the audio stream.
+   */
+  useEffect(() => {
+    if (!streaming || !activeCallId || !videoPanelShown) return
+    const key = getStoredKey()
+    const localVideo = localVideoElRef.current
+    const remoteContainer = remoteVideoRef.current
+    if (!key || !localVideo || !remoteContainer) return
+    if (!isVideoCallSupported()) {
+      setError('Navegador sem WebCodecs — chamada segue só com áudio')
+      return
+    }
+
+    let disposed = false
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const ws = new WebSocket(
+      `${proto}://${window.location.host}/v1/calls/${encodeURIComponent(activeCallId)}/video?apiKey=${encodeURIComponent(key)}`,
+    )
+    ws.binaryType = 'arraybuffer'
+    videoWsRef.current = ws
+
+    ws.onmessage = (ev) => {
+      if (typeof ev.data !== 'string') return
+      let msg: { op?: string; videoOff?: boolean; mediaType?: string | null }
+      try {
+        msg = JSON.parse(ev.data)
+      } catch {
+        return
+      }
+      if (msg.op === 'ready') {
+        void startCallVideo({
+          ws,
+          localVideo,
+          remoteContainer,
+          cameraId: audioPrefsRef.current.cameraId,
+          onError: (err) => setError(err.message),
+          // Browser's own "Stop sharing" bar: tell the peer too
+          onScreenShareEnded: () => {
+            setScreenSharing(false)
+            void voipSocket.setScreenShare(activeCallId, false)
+          },
+        })
+          .then((handles) => {
+            if (disposed) {
+              handles.stop()
+              return
+            }
+            handles.setCameraEnabled(cameraOnRef.current)
+            videoRef.current = handles
+            // Camera labels (and "Trocar câmera") need the grant this call just got
+            void refreshDevices()
+          })
+          .catch((err) => setError(err instanceof Error ? err.message : 'Falha ao abrir câmera'))
+      }
+      if (msg.op === 'ready' || msg.op === 'state') {
+        setActiveCall((prev) =>
+          prev && sameId(prev.callId, activeCallId)
+            ? {
+                ...prev,
+                videoOff: msg.videoOff ?? prev.videoOff,
+                mediaType: prev.mediaType === 'video' ? 'video' : (msg.mediaType ?? prev.mediaType),
+              }
+            : prev,
+        )
+      }
+    }
+    ws.onclose = (ev) => {
+      if (!disposed && ev.code !== 1000) {
+        setError(`canal de vídeo fechou (code=${ev.code}${ev.reason ? ` ${ev.reason}` : ''})`)
+      }
+    }
+
+    const poll = setInterval(() => {
+      setRemoteVideoFrames(videoRef.current?.getRemoteFrames() ?? 0)
+      setOutboundStats(videoRef.current?.getOutboundStats() ?? null)
+    }, 500)
+    return () => {
+      disposed = true
+      clearInterval(poll)
+      cleanupVideo()
+    }
+  }, [streaming, activeCallId, videoPanelShown, cleanupVideo, refreshDevices])
 
   const updatePrefs = useCallback((patch: Partial<SoftphoneAudioPrefs>) => {
     setAudioPrefs((prev) => {
@@ -404,57 +552,63 @@ export function Softphone() {
     void loadHistory()
   }, [activeCall, cleanupAudio, loadHistory])
 
-  const placeCall = useCallback(async () => {
-    if (!instanceName || !phone.trim()) return
-    setBusy(true)
-    setError(null)
-    setPhase('dialing')
-    phaseRef.current = 'dialing'
-    activeSinceRef.current = null
-    setElapsed(0)
-    try {
-      // Wait for control WS (auto-reconnect) before startCall
-      await voipSocket.ensureConnected()
-      const res = await voipSocket.startCall(phone.trim())
-      if (!res.ok) throw new Error(res.message)
-      const data = (res.data ?? {}) as { callId?: string; peerJid?: string; call?: LiveCall }
-      const callId = data.callId ?? data.call?.callId
-      if (!callId) throw new Error('callId missing from voip ack')
-      // Keep dialed number for display even if WA immediately reports peer as @lid
-      const dialedPn = phone.trim().includes('@') ? phone.trim() : `${phone.trim().replace(/\D/g, '')}@s.whatsapp.net`
-      const peerJid = data.peerJid ?? data.call?.peerJid ?? dialedPn
-      callIdRef.current = callId
-      const base: LiveCall = data.call ?? {
-        callId,
-        peerJid,
-        direction: 'outgoing',
-        state: 'ringing',
-        isActive: false,
-        isRinging: true,
-        isEnded: false,
-        canAccept: false,
+  const placeCall = useCallback(
+    async (video: boolean) => {
+      if (!instanceName || !phone.trim()) return
+      setBusy(true)
+      setError(null)
+      setPhase('dialing')
+      phaseRef.current = 'dialing'
+      setCameraOn(true)
+      activeSinceRef.current = null
+      setElapsed(0)
+      try {
+        // Wait for control WS (auto-reconnect) before startCall
+        await voipSocket.ensureConnected()
+        const res = await voipSocket.startCall(phone.trim(), { video })
+        if (!res.ok) throw new Error(res.message)
+        const data = (res.data ?? {}) as { callId?: string; peerJid?: string; call?: LiveCall }
+        const callId = data.callId ?? data.call?.callId
+        if (!callId) throw new Error('callId missing from voip ack')
+        // Keep dialed number for display even if WA immediately reports peer as @lid
+        const dialedPn = phone.trim().includes('@') ? phone.trim() : `${phone.trim().replace(/\D/g, '')}@s.whatsapp.net`
+        const peerJid = data.peerJid ?? data.call?.peerJid ?? dialedPn
+        callIdRef.current = callId
+        const base: LiveCall = data.call ?? {
+          callId,
+          peerJid,
+          direction: 'outgoing',
+          state: 'ringing',
+          isActive: false,
+          isRinging: true,
+          isEnded: false,
+          canAccept: false,
+          mediaType: video ? 'video' : 'audio',
+          videoOff: !video,
+        }
+        setActiveCall(
+          mergeCallSnapshot(null, {
+            ...base,
+            peerJid: callDisplayJid(base)?.includes('@lid') ? dialedPn : (callDisplayJid(base) ?? dialedPn),
+            callerPn: base.callerPn ?? dialedPn,
+          }),
+        )
+        setPhase('ringing')
+        phaseRef.current = 'ringing'
+        setOpen(true)
+        await openStream(callId)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Falha ao ligar')
+        setPhase('idle')
+        phaseRef.current = 'idle'
+        cleanupAudio()
+        callIdRef.current = null
+      } finally {
+        setBusy(false)
       }
-      setActiveCall(
-        mergeCallSnapshot(null, {
-          ...base,
-          peerJid: callDisplayJid(base)?.includes('@lid') ? dialedPn : (callDisplayJid(base) ?? dialedPn),
-          callerPn: base.callerPn ?? dialedPn,
-        }),
-      )
-      setPhase('ringing')
-      phaseRef.current = 'ringing'
-      setOpen(true)
-      await openStream(callId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Falha ao ligar')
-      setPhase('idle')
-      phaseRef.current = 'idle'
-      cleanupAudio()
-      callIdRef.current = null
-    } finally {
-      setBusy(false)
-    }
-  }, [instanceName, phone, openStream, cleanupAudio])
+    },
+    [instanceName, phone, openStream, cleanupAudio],
+  )
 
   const onAccept = useCallback(async () => {
     if (!instanceName) {
@@ -481,6 +635,7 @@ export function Softphone() {
     setBusy(true)
     setError(null)
     setIncomingFlash(false)
+    setCameraOn(true)
     setPhase('connecting')
     phaseRef.current = 'connecting'
     callIdRef.current = wanted
@@ -571,6 +726,140 @@ export function Softphone() {
     setIncomingFlash(false)
   }, [instanceName, activeCall, cleanupAudio])
 
+  const toggleCamera = useCallback(() => {
+    const next = !cameraOnRef.current
+    setCameraOn(next)
+    videoRef.current?.setCameraEnabled(next)
+    // A group call also announces the camera to the others
+    if (activeCall?.isGroup) void voipSocket.setGroupVideo(activeCall.callId, next)
+  }, [activeCall])
+
+  const stopCameraTest = useCallback(() => {
+    cameraTestGenRef.current += 1
+    cameraTestRef.current?.stop()
+    cameraTestRef.current = null
+    setCameraTest((t) => ({ ...t, running: false }))
+  }, [])
+
+  /** Same capture + H.264 encoder as a call, without one: proves the camera before dialing. */
+  const runCameraTest = useCallback(async () => {
+    stopCameraTest()
+    const video = cameraTestVideoRef.current
+    if (!video) return
+    const gen = cameraTestGenRef.current
+    setCameraTest({ running: true, info: 'Abrindo câmera…', error: null })
+    try {
+      const handle = await startCameraTest(video, audioPrefsRef.current.cameraId || undefined)
+      // Cancelled (tab switched, window closed, clicked again) while the permission prompt was open
+      if (gen !== cameraTestGenRef.current) {
+        handle.stop()
+        return
+      }
+      cameraTestRef.current = handle
+      // Labels only show once the camera is allowed
+      void refreshDevices()
+    } catch (err) {
+      if (gen !== cameraTestGenRef.current) return
+      setCameraTest({ running: false, info: null, error: err instanceof Error ? err.message : String(err) })
+    }
+  }, [stopCameraTest, refreshDevices])
+
+  // Live readout while the test runs; stops when leaving the settings tab or closing the window
+  useEffect(() => {
+    if (!cameraTest.running) return
+    const t = setInterval(() => {
+      const st = cameraTestRef.current?.stats()
+      if (!st) return
+      setCameraTest((prev) => ({
+        ...prev,
+        info: `${st.cameraLabel ?? 'câmera'} · ${st.width}×${st.height} · ${st.framesEncoded} frames H.264 codificados`,
+        error: st.lastError,
+      }))
+    }, 500)
+    return () => clearInterval(t)
+  }, [cameraTest.running])
+
+  useEffect(() => {
+    if (!open || tab !== 'settings' || phase !== 'idle') stopCameraTest()
+  }, [open, tab, phase, stopCameraTest])
+
+  useEffect(() => () => cameraTestRef.current?.stop(), [])
+
+  /** Next camera in the list, mid-call. The old one stays on if the new one fails to open. */
+  const switchCamera = useCallback(async () => {
+    if (!videoRef.current || cameras.length < 2) return
+    // The pref may be '' (browser default): ask the track which camera that really is
+    const current = videoRef.current.currentCameraId() ?? audioPrefsRef.current.cameraId
+    const idx = cameras.findIndex((c) => c.deviceId === current)
+    const next = cameras[(idx + 1) % cameras.length]
+    if (!next) return
+    try {
+      await videoRef.current.setCamera(next.deviceId)
+      updatePrefs({ cameraId: next.deviceId })
+    } catch (err) {
+      setError(describeMediaError(err, 'câmera'))
+    }
+  }, [cameras, updatePrefs])
+
+  /** Audio call → video: 1:1 is a handshake with the peer; a group asks the server. */
+  const upgradeToVideo = useCallback(async () => {
+    if (!activeCall) return
+    setBusy(true)
+    try {
+      const res = await voipSocket.requestVideoUpgrade(activeCall.callId).catch((err: unknown) => ({
+        ok: false as const,
+        code: 'FAILED',
+        message: err instanceof Error ? err.message : String(err),
+      }))
+      if (!res.ok) {
+        setError(res.message)
+        return
+      }
+      const result = (res.data as { result?: string } | undefined)?.result
+      if (result !== 'accepted') {
+        setError(`Vídeo não iniciado: ${result ?? 'sem resposta'}`)
+        return
+      }
+      // On a group call `accepted` already means our camera is on
+      setCameraOn(true)
+      setActiveCall((prev) => (prev ? { ...prev, mediaType: 'video' } : prev))
+    } finally {
+      setBusy(false)
+    }
+  }, [activeCall])
+
+  const answerUpgrade = useCallback(
+    async (accept: boolean) => {
+      setUpgradeAsked(false)
+      if (!activeCall) return
+      const res = await voipSocket.answerVideoUpgrade(activeCall.callId, accept ? 'accept' : 'reject')
+      if (!res.ok) setError(res.message)
+      else if (accept) {
+        setCameraOn(true)
+        setActiveCall((prev) => (prev ? { ...prev, mediaType: 'video' } : prev))
+      }
+    },
+    [activeCall],
+  )
+
+  const toggleScreenShare = useCallback(async () => {
+    if (!activeCall || !videoRef.current || screenPicking) return
+    const next = !screenSharing
+    // Picker first: announcing a share the user then cancels would show the peer nothing
+    setScreenPicking(next)
+    const picked = await videoRef.current.setScreenShare(next).finally(() => setScreenPicking(false))
+    if (!picked) return
+    const res = await voipSocket.setScreenShare(activeCall.callId, next)
+    if (!res.ok) {
+      // Starting failed: drop the screen we just picked. Stopping failed: the camera is back anyway.
+      if (next) await videoRef.current?.setScreenShare(false)
+      setScreenSharing(false)
+      setError(res.message)
+      return
+    }
+    setScreenSharing(next)
+  }, [activeCall, screenSharing, screenPicking])
+
   const toggleMute = useCallback(() => {
     setMuted((m) => {
       const next = !m
@@ -623,6 +912,17 @@ export function Softphone() {
           if (cur) applyCallSnapshot(cur)
         }
       },
+      onVideoEvent: (event) => {
+        if (!callIdRef.current || !sameId(callIdRef.current, event.call.callId)) return
+        if (event.op === 'call:video_state') {
+          setUpgradeAsked(event.upgradeRequested && !event.call.isGroup)
+          // Answered (or withdrawn) elsewhere: the peer's next state clears the prompt
+        } else if (event.op === 'call:video_upgraded') {
+          setActiveCall((prev) => (prev ? { ...prev, mediaType: 'video' } : prev))
+        } else if (event.op === 'call:screen_share_changed') {
+          setActiveCall((prev) => (prev ? { ...prev, peerScreenSharing: event.sharing } : prev))
+        }
+      },
       onError: (message) => setError(message),
     })
 
@@ -662,8 +962,13 @@ export function Softphone() {
         {incomingFlash && <span className="softphone-fab-badge">1</span>}
       </button>
 
-      {open && !minimized && (
-        <div className="softphone-window" role="dialog" aria-label="Softphone">
+      {open && (
+        <div
+          className={`softphone-window ${isVideoCall && phase !== 'idle' ? 'video' : ''}`}
+          role="dialog"
+          aria-label="Softphone"
+          hidden={minimized}
+        >
           <div className="softphone-titlebar">
             <div>
               <strong>Softphone</strong>
@@ -724,7 +1029,7 @@ export function Softphone() {
                 Histórico
               </button>
               <button type="button" className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>
-                Áudio
+                Áudio/vídeo
               </button>
             </div>
           )}
@@ -733,10 +1038,10 @@ export function Softphone() {
 
           {phase === 'incoming' && activeCall && (
             <div className="softphone-call-panel incoming">
-              <div className="softphone-avatar">☎</div>
+              <div className="softphone-avatar">{isVideoCall ? '🎥' : '☎'}</div>
               <div className="softphone-peer">{shortPhone(callDisplayJid(activeCall))}</div>
               <p className="muted">
-                Chamada recebida
+                {isVideoCall ? 'Chamada de vídeo recebida' : 'Chamada recebida'}
                 {activeCall.state ? ` · ${activeCall.state}` : ''}
                 {activeCall.canAccept === false ? ' · bloqueada' : ''}
               </p>
@@ -759,7 +1064,25 @@ export function Softphone() {
           {(phase === 'dialing' || phase === 'ringing' || phase === 'connecting' || phase === 'active') &&
             activeCall && (
               <div className="softphone-call-panel">
-                <div className={`softphone-avatar ${phase === 'active' ? 'active' : ''}`}>☎</div>
+                {isVideoCall ? (
+                  <div className="softphone-video">
+                    <div ref={remoteVideoRef} className="softphone-video-grid" />
+                    {(remoteVideoFrames === 0 || peerVideoOff) && (
+                      <div className="softphone-video-placeholder">
+                        {peerVideoOff && !activeCall.isGroup ? 'Câmera do contato desligada' : 'Aguardando vídeo…'}
+                      </div>
+                    )}
+                    <video
+                      ref={localVideoElRef}
+                      className={`softphone-video-local ${cameraOn ? '' : 'off'}`}
+                      muted
+                      playsInline
+                      autoPlay
+                    />
+                  </div>
+                ) : (
+                  <div className={`softphone-avatar ${phase === 'active' ? 'active' : ''}`}>☎</div>
+                )}
                 <div className="softphone-peer">{shortPhone(callDisplayJid(activeCall))}</div>
                 <p className="muted">{statusLabel}</p>
                 {activeCall.state && (
@@ -773,14 +1096,73 @@ export function Softphone() {
                     <div className="softphone-mic-fill" style={{ width: `${levelPct}%` }} />
                   </div>
                 </div>
+                {upgradeAsked && (
+                  <div className="softphone-upgrade-prompt">
+                    <span>O contato quer ligar o vídeo</span>
+                    <button type="button" className="btn primary" onClick={() => void answerUpgrade(true)}>
+                      Aceitar
+                    </button>
+                    <button type="button" className="btn ghost" onClick={() => void answerUpgrade(false)}>
+                      Recusar
+                    </button>
+                  </div>
+                )}
                 <div className="softphone-call-actions">
                   <button type="button" className={`btn ghost round ${muted ? 'muted-on' : ''}`} onClick={toggleMute}>
                     {muted ? 'Unmute' : 'Mute'}
                   </button>
+                  {isVideoCall && (
+                    <button
+                      type="button"
+                      className={`btn ghost round ${cameraOn ? '' : 'muted-on'}`}
+                      onClick={toggleCamera}
+                    >
+                      {cameraOn ? 'Câmera off' : 'Câmera on'}
+                    </button>
+                  )}
+                  {isVideoCall && cameras.length > 1 && !screenSharing && (
+                    <button
+                      type="button"
+                      className="btn ghost round"
+                      title="Usar a próxima câmera"
+                      onClick={() => void switchCamera()}
+                    >
+                      Trocar câmera
+                    </button>
+                  )}
+                  {isVideoCall && phase === 'active' && 'getDisplayMedia' in (navigator.mediaDevices ?? {}) && (
+                    <button
+                      type="button"
+                      className={`btn ghost round ${screenSharing ? 'muted-on' : ''}`}
+                      disabled={screenPicking}
+                      onClick={() => void toggleScreenShare()}
+                    >
+                      {screenSharing ? 'Parar tela' : 'Tela'}
+                    </button>
+                  )}
+                  {!isVideoCall && phase === 'active' && isVideoCallSupported() && (
+                    <button
+                      type="button"
+                      className="btn ghost round"
+                      disabled={busy}
+                      onClick={() => void upgradeToVideo()}
+                    >
+                      Vídeo
+                    </button>
+                  )}
                   <button type="button" className="btn danger round" onClick={() => void hangup()}>
                     Desligar
                   </button>
                 </div>
+                {isVideoCall && outboundStats && (
+                  <p className={`softphone-video-status ${outboundStats.lastError ? 'error' : ''}`}>
+                    {outboundStats.lastError
+                      ? `Vídeo de saída: ${outboundStats.lastError}`
+                      : outboundStats.source === 'none'
+                        ? 'Vídeo de saída: sem câmera'
+                        : `Enviando ${outboundStats.source === 'screen' ? 'tela' : (outboundStats.cameraLabel ?? 'câmera')} · ${outboundStats.framesSent} frames`}
+                  </p>
+                )}
               </div>
             )}
 
@@ -814,9 +1196,18 @@ export function Softphone() {
                   type="button"
                   className="btn primary call-btn"
                   disabled={busy || phone.length < 8}
-                  onClick={() => void placeCall()}
+                  onClick={() => void placeCall(false)}
                 >
                   Ligar
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost call-btn"
+                  disabled={busy || phone.length < 8 || !isVideoCallSupported()}
+                  title={isVideoCallSupported() ? 'Chamada de vídeo (H.264)' : 'Navegador sem WebCodecs'}
+                  onClick={() => void placeCall(true)}
+                >
+                  Vídeo
                 </button>
               </div>
             </div>
@@ -907,6 +1298,46 @@ export function Softphone() {
                   ))}
                 </select>
               </label>
+
+              <div className="softphone-field">
+                <span>Câmera (chamadas de vídeo)</span>
+                <select
+                  value={audioPrefs.cameraId}
+                  onChange={(e) => {
+                    updatePrefs({ cameraId: e.target.value })
+                    if (cameraTest.running) stopCameraTest()
+                  }}
+                >
+                  <option value="">Padrão do navegador</option>
+                  {cameras.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="softphone-camera-test">
+                  <video
+                    ref={cameraTestVideoRef}
+                    muted
+                    playsInline
+                    autoPlay
+                    className={cameraTest.running ? '' : 'idle'}
+                  />
+                  <button
+                    type="button"
+                    className="btn ghost small"
+                    disabled={cameraTest.running && cameraTest.info === 'Abrindo câmera…'}
+                    onClick={() => (cameraTest.running ? stopCameraTest() : void runCameraTest())}
+                  >
+                    {cameraTest.running ? 'Parar teste' : 'Testar câmera'}
+                  </button>
+                </div>
+                {cameraTest.info && <span className="softphone-hint">{cameraTest.info}</span>}
+                {cameraTest.error && <span className="softphone-hint error">{cameraTest.error}</span>}
+                {!isVideoCallSupported() && (
+                  <span className="softphone-hint error">Sem WebCodecs neste navegador — use Chrome ou Edge.</span>
+                )}
+              </div>
 
               <label className="softphone-field">
                 <span>Alto-falante / fone</span>

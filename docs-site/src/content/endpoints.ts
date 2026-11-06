@@ -100,6 +100,7 @@ const NOTES: Record<string, string[]> = {
   'POST /v1/instances/{name}/calls': [
     'Áudio live via WebSocket PCM — não há autoplay de arquivo.',
     'Após start, abra .../calls/{callId}/stream e/ou controle via /v1/voip.',
+    '`isVideo: true` negocia vídeo H.264 também; abra .../calls/{callId}/video (a resposta traz mediaType: "video").',
   ],
   'POST /v1/instances/{name}/calls/{callId}/accept': [
     'Só aceita incoming ringing (canAccept: true).',
@@ -171,7 +172,8 @@ export function buildCurl(ep: EndpointDoc, base = '$BASE'): string {
   if (isSse) {
     return `curl -N -s "$BASE${path}?instance=sales-1" \\\n  -H "X-Api-Key: $KEY" \\\n  -H "Accept: text/event-stream"`
   }
-  const isWs = ep.path === '/v1/voip' || ep.path.endsWith('/stream')
+  const isWs =
+    ep.path === '/v1/voip' || ep.path.endsWith('/stream') || (ep.path.includes('/calls/') && ep.path.endsWith('/video'))
   if (isWs) {
     return `# WebSocket\nwscat -c "ws://localhost:3000${path}?apiKey=$KEY"`
   }

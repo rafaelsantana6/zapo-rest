@@ -7,7 +7,7 @@
  *
  * Client → server:
  * { op: "instance:attach", id, instance }
- * { op: "call:start", id, phone, contactName? }
+ * { op: "call:start", id, phone, video?, contactName? }
  * { op: "call:accept", id, callId }
  * { op: "call:reject", id, callId }
  * { op: "call:end", id, callId }
@@ -16,6 +16,10 @@
  * { op: "call:reaction", id, callId, reaction }
  * { op: "call:leave" | "call:join", id, callId }           (group calls)
  * { op: "call:mute_participant", id, callId, participant }  (group calls)
+ * { op: "call:video_upgrade", id, callId }                   → ack data.result
+ * { op: "call:video_upgrade_accept" | "call:video_upgrade_reject" | "call:video_upgrade_cancel", id, callId }
+ * { op: "call:video", id, callId, enabled }                  (group camera)
+ * { op: "call:screen_share", id, callId, sharing }
  * { op: "ping", id }
  *
  * Server → client:
@@ -26,10 +30,12 @@
  * { op: "call:peer_mute", call, muted } | { op: "call:hand_raise", call, participantJid, raised }
  * { op: "call:reaction", call, reaction }
  * { op: "call:participants_changed" | "call:mute_requested" | "call:participant_media", call, ... }
+ * { op: "call:video_state" | "call:video_upgraded" | "call:screen_share_changed", call, ... }
  * { op: "device:status", status, meJid? }
  * { op: "pong", id, ts }
  *
- * Audio PCM stays on GET /v1/calls/:callId/stream (separate channel; instance key only).
+ * Audio PCM stays on GET /v1/calls/:callId/stream; H.264 video on GET /v1/calls/:callId/video
+ * (separate binary channels; instance key only).
  *
  * IMPORTANT (@fastify/websocket): attach `socket.on('message')` **synchronously** in the
  * route handler. Any `await` before that silently drops client frames.
@@ -49,9 +55,17 @@ import { toRecipientJid } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { CacheClient } from '~/redis/client'
 import { sendCallReaction, setCallHand } from '~/voip/call-interactions'
+import {
+  answerVideoUpgrade,
+  requestVideoUpgrade,
+  setGroupVideo,
+  setScreenShare,
+  type UpgradeAnswer,
+} from '~/voip/call-video-controls'
 import { joinGroupCall, leaveGroupCall, requestParticipantMute } from '~/voip/group-call'
 import { resolveLiveCall, type SerializedCall, serializeCallInfo } from '~/voip/call-serialize'
 import type { CallRecordingManager } from '~/voip/recording-manager'
+import { isNotOnWhatsAppError } from '~/voip/start-call-error'
 
 export type VoipWsDeps = {
   env: Env
@@ -71,6 +85,9 @@ type ClientMsg = {
   raised?: boolean
   reaction?: string
   participant?: string
+  enabled?: boolean
+  sharing?: boolean
+  video?: boolean
   contactName?: string
 }
 
@@ -82,6 +99,17 @@ const INTERACTION_EVENTS: Record<string, string> = {
   'call.participants_changed': 'call:participants_changed',
   'call.mute_requested': 'call:mute_requested',
   'call.participant_media': 'call:participant_media',
+  'call.video_state': 'call:video_state',
+  'call.video_upgraded': 'call:video_upgraded',
+  // Not `call:screen_share`: that is the client's command
+  'call.screen_share': 'call:screen_share_changed',
+}
+
+/** `call:video_upgrade_accept` → `accept`, … */
+const UPGRADE_ANSWER_OPS: Record<string, UpgradeAnswer> = {
+  'call:video_upgrade_accept': 'accept',
+  'call:video_upgrade_reject': 'reject',
+  'call:video_upgrade_cancel': 'cancel',
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -334,7 +362,20 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               }
 
               log.info({ phone, peerJid, instance: attached }, 'call:start — placing offer')
-              const callId = await withTimeout(client.voip.startCall({ peerJid }), 15_000, 'startCall')
+              const isVideo = msg.video === true
+              const mediaType = isVideo ? 'video' : 'audio'
+              let callId: string
+              try {
+                callId = await withTimeout(client.voip.startCall({ peerJid, isVideo }), 15_000, 'startCall')
+              } catch (err) {
+                if (!isNotOnWhatsAppError(err)) throw err
+                ackErr(
+                  id,
+                  'NOT_ON_WHATSAPP',
+                  `${phone} não tem WhatsApp (nenhum dispositivo encontrado) — confira o número`,
+                )
+                return
+              }
 
               try {
                 client.voip.setExternalAudioMode(callId, true)
@@ -346,7 +387,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                   callId,
                   peerJid,
                   direction: 'outbound',
-                  mediaType: 'audio',
+                  mediaType,
                   state: 'calling',
                 })
               }
@@ -366,12 +407,13 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                     isEnded: false,
                     canAccept: false,
                     acceptBlocked: false,
-                    mediaType: 'audio',
+                    mediaType,
                     createdAt: null,
                     audioMuted: undefined,
                     peerAudioMuted: null,
                     handRaised: false,
                     raisedHands: [],
+                    videoOff: !isVideo,
                     isGroup: false,
                     groupJid: null,
                     participants: [],
@@ -554,6 +596,48 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               const callId = await leaveGroupCall(client, msg.callId)
               if (!callId) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
               else ackOk(id, { callId })
+              return
+            }
+
+            if (op === 'call:video_upgrade') {
+              if (!msg.callId) {
+                ackErr(id, 'INVALID_PAYLOAD', 'callId required')
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              const res = await requestVideoUpgrade(client, msg.callId)
+              if (!res) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else ackOk(id, res)
+              return
+            }
+
+            const upgradeAnswer = op ? UPGRADE_ANSWER_OPS[op] : undefined
+            if (upgradeAnswer) {
+              if (!msg.callId) {
+                ackErr(id, 'INVALID_PAYLOAD', 'callId required')
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              const callId = await answerVideoUpgrade(client, msg.callId, upgradeAnswer)
+              if (!callId) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else ackOk(id, { callId })
+              return
+            }
+
+            if (op === 'call:video' || op === 'call:screen_share') {
+              const field = op === 'call:video' ? 'enabled' : 'sharing'
+              const flag = msg[field]
+              if (!msg.callId || typeof flag !== 'boolean') {
+                ackErr(id, 'INVALID_PAYLOAD', `callId + ${field} required`)
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              const callId =
+                op === 'call:video'
+                  ? await setGroupVideo(client, msg.callId, flag)
+                  : await setScreenShare(client, msg.callId, flag)
+              if (!callId) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else ackOk(id, { callId, [field]: flag })
               return
             }
 

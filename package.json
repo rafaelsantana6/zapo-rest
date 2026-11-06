@@ -50,6 +50,7 @@
     "test:unit": "vitest run tests/unit src --reporter=verbose",
     "test:integration": "vitest run tests/integration --reporter=verbose",
     "test:e2e": "vitest run --config vitest.config.e2e.ts --reporter=verbose",
+    "test:call-quality": "vitest run --config vitest.config.e2e.ts tests/e2e/video-call-quality.test.ts --reporter=verbose",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:unit:critical": "vitest run tests/unit/event-processor.test.ts tests/unit/webhook-outbox.test.ts tests/unit/webhook-dispatcher.test.ts tests/unit/media-storage-local.test.ts tests/unit/openapi-schemas.test.ts tests/unit/realtime-bus.test.ts tests/integration/sse-auth.test.ts",

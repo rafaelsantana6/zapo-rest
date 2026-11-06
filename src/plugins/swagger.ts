@@ -95,7 +95,7 @@ ${JSON.stringify(EXAMPLES.webhookMessage, null, 2)}
 Após \`POST.../calls\`, abra o WebSocket:
 
 \`\`\`
-ws(s)://<host>/v1/instances/{name}/calls/{callId}/stream?apiKey=<key>
+ws(s)://<host>/v1/calls/{callId}/stream?apiKey=<key>
 \`\`\`
 
 - Server → JSON \`{ "op": "ready", "sampleRate": 16000, "format": "f32le" }\`
@@ -238,23 +238,27 @@ const plugin: FastifyPluginAsync = async (app) => {
 
 export const swaggerPlugin = fp(plugin, { name: 'swagger' })
 
-/** @fastify/websocket routes are often omitted from OAS — inject VoIP stream docs. */
+/** @fastify/websocket routes are often omitted from OAS — inject VoIP media socket docs. */
 function injectWebsocketStreamPath(document: Record<string, unknown>) {
   const paths = { ...((document.paths ?? {}) as Record<string, unknown>) }
-  const pathKey = '/v1/instances/{name}/calls/{callId}/stream'
-  paths[pathKey] = {
-    get: {
-      tags: ['Calls'],
+  // Merge, never replace: `.../calls/:callId/video` also has a POST (group camera on/off)
+  const addGet = (path: string, item: ReturnType<typeof websocketPathItem>) => {
+    paths[path] = { ...((paths[path] ?? {}) as Record<string, unknown>), ...item }
+  }
+  addGet(
+    '/v1/calls/{callId}/stream',
+    websocketPathItem({
+      operationId: 'streamCallAudio',
       summary: 'WebSocket live PCM audio stream',
       description: [
         '**WebSocket upgrade** for bidirectional live VoIP audio (not a plain HTTP JSON response).',
         '',
         '### URL',
         '```',
-        'ws(s)://<host>/v1/instances/{name}/calls/{callId}/stream?apiKey=<key>',
+        'ws(s)://<host>/v1/calls/{callId}/stream?apiKey=<key>',
         '```',
         '',
-        'Auth: query `apiKey` (browsers) and/or header `X-Api-Key`.',
+        'Auth: **instance** key (the instance comes from the key) — query `apiKey` (browsers) and/or header `X-Api-Key`.',
         '',
         '### Protocol',
         '1. Server → JSON text: `{ "op": "ready", "sampleRate": 16000, "channels": 1, "format": "f32le", "callId": "..." }`',
@@ -264,18 +268,53 @@ function injectWebsocketStreamPath(document: Record<string, unknown>) {
         '5. End: `{ "op": "ended", "callId": "..." }` then socket close',
         '',
         'Uses `setExternalAudioMode` — **no file autoplay**. Multi-call supported up to `VOIP_MAX_CONCURRENT_CALLS`.',
-      ].join('\n'),
-      operationId: 'streamCallAudio',
+      ],
+    }),
+  )
+  addGet(
+    '/v1/calls/{callId}/video',
+    websocketPathItem({
+      operationId: 'streamCallVideo',
+      summary: 'WebSocket live H.264 video stream',
+      description: [
+        '**WebSocket upgrade** for bidirectional H.264 video on calls with `mediaType: "video"` (start with `isVideo: true`).',
+        'Audio stays on `.../stream` — open both sockets.',
+        '',
+        '### URL',
+        '```',
+        'ws(s)://<host>/v1/calls/{callId}/video?apiKey=<key>',
+        '```',
+        '',
+        '### Protocol',
+        '1. Server → JSON text: `{ "op": "ready", "callId": "...", "codec": "h264", "format": "annexb", "headerBytes": 12, "mediaType": "video", "videoOff": false }`. Opens on audio calls too (they can upgrade).',
+        '2. **Binary, both directions**: 12-byte header + one H.264 Annex-B access unit.',
+        '   Header: `u8 version=1` · `u8 flags` (bit0 = key frame) · `u16 BE stream id` · `u64 BE timestamp µs`.',
+        '   Stream id = one remote sender (several on a group call), announced by `{ "op": "stream", "streamId", "ssrc", "participantJid" }` and retired by `{ "op": "stream_end", "streamId" }` (left the call, switched device); the client sends `0`.',
+        '3. Client → server: camera frames (Constrained Baseline recommended); send an IDR at least every 1 s (~350 kbps; see `pnpm test:call-quality`).',
+        '4. Server → client: peer frames (timestamps start at 0); lagging sockets skip to the next key frame.',
+        '5. State JSON: `{ "op": "state", "state": "active", "isActive": true, "videoOff": false }` (`videoOff` = peer camera off)',
+        '6. End: `{ "op": "ended", "callId": "..." }` then close. Closing this socket does **not** end the call.',
+      ],
+    }),
+  )
+  document.paths = paths
+  return document
+}
+
+function websocketPathItem(opts: {
+  operationId: string
+  summary: string
+  description: string[]
+  extraResponses?: Record<string, { description: string }>
+}) {
+  return {
+    get: {
+      tags: ['Calls'],
+      summary: opts.summary,
+      description: opts.description.join('\n'),
+      operationId: opts.operationId,
       security: [{ apiKey: [] }, { bearerAuth: [] }],
       parameters: [
-        {
-          name: 'name',
-          in: 'path',
-          required: true,
-          schema: { type: 'string' },
-          description: 'Instance name',
-          example: 'sales-1',
-        },
         {
           name: 'callId',
           in: 'path',
@@ -298,9 +337,8 @@ function injectWebsocketStreamPath(document: Record<string, unknown>) {
         '401': { description: 'Missing/invalid API key (socket close 4401)' },
         '403': { description: 'Forbidden for this instance (socket close 4403)' },
         '404': { description: 'Instance or call not found (socket close 4404)' },
+        ...opts.extraResponses,
       },
     },
   }
-  document.paths = paths
-  return document
 }

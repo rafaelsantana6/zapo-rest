@@ -49,6 +49,8 @@ import type { LidMapStore } from '~/store/lid-map'
 import type { LidStore } from '~/store/lids'
 import type { MessageStore } from '~/store/messages'
 import type { CallRecordingManager } from '~/voip/recording-manager'
+import { VIDEO_MAX_FRAME_BYTES } from '~/voip/call-video-stream'
+import { VIDEO_FRAME_HEADER_BYTES } from '~/voip/video-frame'
 import type { WebhookConfigRepo } from '~/webhooks/repo'
 
 export type BuildAppDeps = {
@@ -131,7 +133,8 @@ export async function buildApp(deps: BuildAppDeps) {
     })
   }
 
-  await app.register(websocket)
+  // ws defaults to 100 MiB per message; cap at the largest legit frame (one H.264 IDR)
+  await app.register(websocket, { options: { maxPayload: VIDEO_MAX_FRAME_BYTES + VIDEO_FRAME_HEADER_BYTES } })
   await app.register(swaggerPlugin)
 
   await app.register(authPlugin, {

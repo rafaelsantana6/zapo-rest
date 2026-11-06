@@ -10,7 +10,8 @@ const plugin: FastifyPluginAsync = async (app) => {
     reply.header('X-Content-Type-Options', 'nosniff')
     reply.header('X-Frame-Options', 'SAMEORIGIN')
     reply.header('Referrer-Policy', 'no-referrer')
-    reply.header('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()')
+    // Same-origin only: the softphone needs the mic, the camera and screen capture for video calls
+    reply.header('Permissions-Policy', 'camera=(self), microphone=(self), display-capture=(self), geolocation=()')
     // Allow self + inline for Scalar/docs SPA; tighten at the reverse proxy if needed.
     if (!reply.getHeader('Content-Security-Policy')) {
       reply.header(

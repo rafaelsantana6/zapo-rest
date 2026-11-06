@@ -73,10 +73,11 @@ export const EXAMPLES = {
     id: '3EB0ABC123DEF456',
     result: { status: 1 },
   },
-  startCall: { to: '5511888888888' },
+  startCall: { to: '5511888888888', isVideo: false },
   startCallResponse: {
     callId: 'ABCDEF0123456789',
     peerJid: '5511888888888@s.whatsapp.net',
+    mediaType: 'audio',
   },
   blast: {
     to: '5511888888888',
@@ -107,6 +108,7 @@ export const EXAMPLES = {
     peerJid: '5511888888888@s.whatsapp.net',
     direction: 'outgoing',
     mediaType: 'audio',
+    videoOff: true,
     state: 'active',
     isActive: true,
     isRinging: false,
@@ -557,7 +559,12 @@ export const ChatstateParamsSchema = z.object({
 export const StartCallBodySchema = z
   .object({
     to: RecipientToSchema.optional().meta({
-      description: 'Peer to call — digits, JID, or @handle. Audio-only live VoIP. Omit for a group call',
+      description: 'Peer to call — digits, JID, or @handle. Omit for a group call',
+    }),
+    isVideo: z.boolean().optional().default(false).meta({
+      description:
+        'Place a video call (H.264), 1:1 or group. Audio still flows on `.../stream`; video frames on `.../calls/:callId/video`',
+      example: false,
     }),
     groupId: z.string().trim().min(1).optional().meta({
       description: 'Group call: the group (`...@g.us` or its id). Requires `participants`',
@@ -577,7 +584,7 @@ export const StartCallBodySchema = z
     message: 'send either `to` (1:1) or `groupId` + `participants` (group call)',
   })
   .meta({
-    description: 'Start outbound voice call (stream PCM over WebSocket; no file autoplay)',
+    description: 'Start outbound call (live PCM over WebSocket, plus H.264 when `isVideo`; no file autoplay)',
     example: EXAMPLES.startCall,
   })
 
@@ -595,7 +602,11 @@ export const CallInfoSchema = z
     peerLid: z.string().nullable().optional(),
     callerPn: z.string().nullable().optional(),
     direction: z.string().nullable().optional().meta({ description: 'outgoing | incoming', example: 'outgoing' }),
-    mediaType: z.string().nullable().optional().meta({ description: 'audio', example: 'audio' }),
+    mediaType: z
+      .string()
+      .nullable()
+      .optional()
+      .meta({ description: '`audio` | `video` (video → open `.../calls/:callId/video`)', example: 'audio' }),
     createdAt: JsonAny.optional().nullable(),
     state: z
       .string()
@@ -618,6 +629,28 @@ export const CallInfoSchema = z
       .array(z.string())
       .optional()
       .meta({ description: 'Device JIDs of remote participants with a raised hand' }),
+    videoOff: z
+      .boolean()
+      .optional()
+      .nullable()
+      .meta({ description: 'Peer camera off. Always true on audio calls', example: true }),
+    screenSharing: z.boolean().optional().meta({ description: 'Local screen share in progress' }),
+    peerVideoState: z.string().nullable().optional().meta({
+      description: 'Last video state the 1:1 peer announced (`enabled`, `disabled`, `upgrade_request_v2`, …)',
+    }),
+    peerScreenSharing: z.boolean().optional().meta({ description: '1:1 peer is sharing its screen' }),
+    participantMedia: z
+      .array(
+        z.object({
+          deviceJid: z.string(),
+          audioMuted: z.boolean().nullable(),
+          videoState: z.string().nullable(),
+          screenSharing: z.boolean(),
+          receiving: z.boolean().nullable(),
+        }),
+      )
+      .optional()
+      .meta({ description: 'Per remote device (1:1 and group): mic, camera, screen share, media arriving' }),
     // Live calls often have null duration/endReason until hangup — must allow null (not just optional)
     isGroup: z.boolean().optional().meta({ description: 'Group call' }),
     groupJid: z.string().nullable().optional().meta({ description: 'Group the call belongs to' }),
@@ -648,6 +681,7 @@ export const StartCallResponseSchema = z
       description: 'Peer called; the group JID on a group call',
       example: EXAMPLES.startCallResponse.peerJid,
     }),
+    mediaType: z.enum(['audio', 'video']).meta({ example: EXAMPLES.startCallResponse.mediaType }),
     groupJid: z.string().nullable().optional().meta({ description: 'Set on a group call' }),
     participants: z.array(z.string()).optional().meta({ description: 'LIDs rung on a group call' }),
   })
@@ -687,6 +721,25 @@ export const CallReactionBodySchema = z
       .meta({ description: 'Emoji glyph sent as an in-call reaction', example: '👍' }),
   })
   .meta({ example: { reaction: '👍' } })
+
+export const VideoEnabledBodySchema = z
+  .object({ enabled: z.boolean().meta({ description: 'true = camera on', example: true }) })
+  .meta({ example: { enabled: true } })
+
+export const ScreenShareBodySchema = z
+  .object({ sharing: z.boolean().meta({ description: 'true = start sharing, false = stop', example: true }) })
+  .meta({ example: { sharing: true } })
+
+export const VideoUpgradeResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    result: z.string().meta({
+      description:
+        '`accepted` (send video now), `rejected`, `rejected_by_timeout`, `error`, `timeout` (no answer), `cancelled`',
+      example: 'accepted',
+    }),
+  })
+  .meta({ example: { ok: true, result: 'accepted' } })
 
 export const ParticipantMuteBodySchema = z
   .object({
@@ -880,7 +933,7 @@ export const OPENAPI_TAGS = [
     description:
       '**Live VoIP audio only** (WhatsApp voice calls via `@zapo-js/voip`).\n\n' +
       '1. `POST.../calls` with `{ "to": "5511…" }` → `{ callId }`\n' +
-      '2. Open WebSocket: `GET /v1/instances/{name}/calls/{callId}/stream?apiKey=...`\n' +
+      '2. Open WebSocket: `GET /v1/calls/{callId}/stream?apiKey=...`\n' +
       '3. Exchange binary frames: **Float32 LE mono PCM @ 16 kHz**\n' +
       '4. Control: accept / reject / end / mute\n\n' +
       'No file autoplay when the peer answers — real phone-style streaming.\n' +
@@ -909,7 +962,7 @@ export const OPENAPI_TAGS = [
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
       '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
-      '`call.participants_changed`, `call.mute_requested`, `call.participant_media`.\n\n' +
+      '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
   },
 ] as const

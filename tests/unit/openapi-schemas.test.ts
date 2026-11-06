@@ -112,7 +112,11 @@ describe('OpenAPI Zod contracts — output shapes (integration safety)', () => {
     expect(HealthResponseSchema.parse({ status: 'ok' }).status).toBe('ok')
     expect(ReadyResponseSchema.parse({ status: 'ready' }).status).toBe('ready')
     expect(ReadyResponseSchema.parse({ status: 'not_ready' }).status).toBe('not_ready')
-    expect(StartCallResponseSchema.parse({ callId: 'c1', peerJid: 'x@s.whatsapp.net' }).callId).toBe('c1')
+    expect(
+      StartCallResponseSchema.parse({ callId: 'c1', peerJid: 'x@s.whatsapp.net', mediaType: 'video' }).mediaType,
+    ).toBe('video')
+    expect(StartCallBodySchema.parse({ to: '5511888888888' }).isVideo).toBe(false)
+    expect(StartCallBodySchema.parse({ to: '5511888888888', isVideo: true }).isVideo).toBe(true)
     expect(
       CallInfoSchema.parse({
         callId: 'c1',

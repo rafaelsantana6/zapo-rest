@@ -17,7 +17,7 @@ export const EXTRA_ENDPOINTS: EndpointDoc[] = [
       '- Admin pode filtrar com `instance=` ou receber de todas.\n' +
       '- Primeiro frame: `{ "event": "connected", "role", "instance", "timestamp" }`.\n' +
       '- Keepalive: comentário SSE `: ping <ts>` a cada 15s.\n' +
-      '- VoIP bidirecional continua em **WebSocket** (`/v1/voip` + PCM stream).',
+      '- VoIP bidirecional continua em **WebSocket** (`/v1/voip` + PCM stream + vídeo H.264 quando `isVideo`).',
     tags: ['Realtime'],
     security: true,
     responseExample: {
@@ -42,7 +42,7 @@ export const EXTRA_ENDPOINTS: EndpointDoc[] = [
       '**URL:** `ws(s)://<host>/v1/voip?apiKey=<key>&instance=<opcional>`\n\n' +
       '**Client → server:** `instance:attach`, `call:start`, `call:accept`, `call:reject`, `call:end`, `call:mute`, `ping`.\n\n' +
       '**Server → client:** `ready`, `ack`, `calls:snapshot`, `call:offer`, `call:ringing`, `call:accepted`, `call:state`, `call:ended`, `device:status`, `pong`.\n\n' +
-      'Áudio PCM permanece em `GET.../calls/{callId}/stream` (canal separado).',
+      'Áudio PCM permanece em `GET.../calls/{callId}/stream` (canal separado). Chamadas com `isVideo: true` abrem também `GET.../calls/{callId}/video` (H.264 Annex-B, binário separado).',
     tags: ['Calls'],
     security: true,
     bodyExample: {

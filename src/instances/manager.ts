@@ -19,6 +19,7 @@ import type { CacheClient } from '~/redis/client'
 import { AvatarStore } from '~/store/avatars'
 import type { ContactStore } from '~/store/contacts'
 import { asPhoneJid, serializeCallInfo } from '~/voip/call-serialize'
+import { serializeScreenShare, serializeVideoState } from '~/voip/call-video-controls'
 import { serializeCompositionDiff } from '~/voip/group-call'
 import type { WebhookDispatcher } from '~/webhooks/dispatcher'
 import { createSharedRuntime, createWaClient, type SharedZapoRuntime, type TestClientHooks } from './client-factory'
@@ -664,6 +665,33 @@ export class InstanceManager {
         this.onVoipInteraction(name, 'call.participant_media', payload.call, {
           participantJid: payload.participantJid,
           receiving: Boolean(payload.receiving),
+        }),
+      )
+    })
+
+    // Video (voip 1.4): peer camera / upgrade handshake, group upgrade, screen share
+    onVoip('voip_call_peer_video_state', (payload) => {
+      runSafe('voip_call_peer_video_state', () =>
+        this.onVoipInteraction(name, 'call.video_state', payload.call, {
+          participantJid: payload.participantJid ?? null,
+          ...serializeVideoState(payload.change),
+        }),
+      )
+    })
+
+    onVoip('voip_call_video_upgraded', (payload) => {
+      runSafe('voip_call_video_upgraded', () =>
+        this.onVoipInteraction(name, 'call.video_upgraded', payload.call, {
+          participantJid: payload.participantJid ?? null,
+        }),
+      )
+    })
+
+    onVoip('voip_call_screen_share', (payload) => {
+      runSafe('voip_call_screen_share', () =>
+        this.onVoipInteraction(name, 'call.screen_share', payload.call, {
+          participantJid: payload.participantJid ?? null,
+          ...serializeScreenShare(payload.share),
         }),
       )
     })

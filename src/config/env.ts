@@ -95,6 +95,12 @@ const envSchema = z
      * headless footprint. Does not affect messaging, media, or VoIP APIs.
      */
     WAM_ENABLED: boolFromString.default(true),
+    /**
+     * Companion identity advertised to WhatsApp (e.g. `Chrome` / `Windows`). Unset keeps the
+     * zapo-js default (Firefox + host OS). Stored at pairing — re-pair to change a linked device.
+     */
+    WA_DEVICE_BROWSER: z.string().trim().min(1).optional(),
+    WA_DEVICE_OS: z.string().trim().min(1).optional(),
     MEDIA_TMP_DIR: z.string().default('/tmp/zapo-rest-media'),
 
     // History sync on first pair / reconnect

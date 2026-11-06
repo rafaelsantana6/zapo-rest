@@ -1,22 +1,8 @@
-import type { WebSocket } from 'ws'
-import { type AuthDeps, resolveActor } from '~/auth/plugin'
-import { canAccessInstance } from '~/auth/types'
-import type { Env } from '~/config/env'
 import { getEnv } from '~/config/env'
-import type { InstanceManager } from '~/instances/manager'
-import type { InstanceRepo } from '~/instances/repo'
-import { asVoipClient } from '~/instances/wa-client'
 import { getLogger } from '~/lib/logger'
+import { binaryMessage, type CallSocketOpts, openCallSocket } from '~/voip/call-socket'
 
-export type AttachCallStreamOpts = {
-  socket: WebSocket
-  manager: InstanceManager
-  env: Env
-  instanceName: string
-  callId: string
-  apiKey: string
-  /** Required for instance-key auth (lookup by plaintext api_key). */
-  instanceRepo: InstanceRepo
+export type AttachCallStreamOpts = CallSocketOpts & {
   callRecording?: import('~/voip/recording-manager').CallRecordingManager
 }
 
@@ -30,40 +16,11 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
     instance: opts.instanceName,
     callId: opts.callId,
   })
-  const { socket, manager, env, instanceName, callId, apiKey, instanceRepo, callRecording } = opts
+  const { socket, instanceName, callRecording } = opts
 
-  // Authorize like the rest of /v1 — admin env key or instance key via hash lookup.
-  // NEVER compare the query key to instance.apiKey from GET (that field is masked "***").
-  const authDeps: AuthDeps = { env, instanceRepo }
-  const actor = await resolveActor(authDeps, apiKey)
-  if (!actor || !canAccessInstance(actor, instanceName)) {
-    socket.close(4403, 'forbidden')
-    return
-  }
-
-  let client: ReturnType<typeof asVoipClient>
-  try {
-    client = asVoipClient(manager.getClient(instanceName))
-  } catch {
-    socket.close(4503, 'instance not connected')
-    return
-  }
-
-  // Resolve callId (case-insensitive) — UI may uppercase hex ids
-  let resolvedId = callId
-  let call = client.voip.getCall(callId)
-  if (!call) {
-    const all = client.voip.getCalls() as { callId?: string }[]
-    const hit = all.find((c) => c.callId?.toLowerCase() === callId.toLowerCase())
-    if (hit?.callId) {
-      resolvedId = hit.callId
-      call = client.voip.getCall(resolvedId)
-    }
-  }
-  if (!call) {
-    socket.close(4404, 'call not found')
-    return
-  }
+  const opened = await openCallSocket(opts)
+  if (!opened) return
+  const { client, callId: resolvedId, call } = opened
 
   client.voip.setExternalAudioMode(resolvedId, true)
 
@@ -129,22 +86,8 @@ export async function attachCallStream(opts: AttachCallStreamOpts): Promise<void
 
   socket.on('message', (data, isBinary) => {
     // Text control frames (JSON) — ignore for now
-    if (typeof data === 'string') return
-    // Be defensive: some stacks omit isBinary or deliver Buffer for binary
-    const looksBinary =
-      isBinary === true || Buffer.isBuffer(data) || data instanceof ArrayBuffer || ArrayBuffer.isView(data)
-    if (!looksBinary) return
-
-    let buf: Buffer
-    if (Buffer.isBuffer(data)) {
-      buf = data
-    } else if (data instanceof ArrayBuffer) {
-      buf = Buffer.from(data)
-    } else if (ArrayBuffer.isView(data)) {
-      buf = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
-    } else {
-      return
-    }
+    const buf = binaryMessage(data, isBinary)
+    if (!buf) return
 
     // Align to float32 frame size
     const usable = buf.byteLength - (buf.byteLength % 4)

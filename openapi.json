@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "zapo-rest API",
-    "description": "# zapo-rest\n\nREST API multi-session para WhatsApp baseada em [zapo-js](https://zapo.to).\n\n## Autenticação\n\n| Tipo | Origem | Escopo |\n|------|--------|--------|\n| **Admin** | env `ADMIN_API_KEY` | Todas as instâncias + create/delete/rotate |\n| **Instance** | campo `apiKey` da instância (plaintext) | Somente a instância dona da key |\n\nEnvie em **todas** as rotas `/v1/*`:\n\n```http\nX-Api-Key: <sua-chave>\n```\n\nou\n\n```http\nAuthorization: Bearer <sua-chave>\n```\n\n`GET /health` e `GET /ready` são públicos.\n\n## Escopo da instância (dual path)\n\n| Quem | Path |\n|------|------|\n| **Admin** | **Sempre** com nome: `/v1/instances/:name/...` (omitir o nome → 400) |\n| **Instance key** | Nomeado **ou** forma curta sem nome |\n\nForma curta (só com instance key — a instância é inferida da API key):\n\n- Recursos: `/v1/messages/text`, `/v1/chats`, `/v1/contacts`, … (equivale a `/v1/instances/:name/...`)\n- Ciclo de vida: `/v1/instance`, `/v1/instance/connect`, `/v1/instance/qr`, … (singular `instance`, não colide com `/v1/instances`)\n\n## Fluxo rápido (instância)\n\n```bash\n# 1) Criar (admin)\ncurl -s -X POST \"$BASE/v1/instances\" \\\n  -H \"X-Api-Key: $ADMIN_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"name\":\"sales-1\",\"webhookUrl\":\"https://example.com/webhooks/zapo\",\"webhookEvents\":[\"instance.qr\",\"instance.connection\",\"message.inbound\",\"call.incoming\"]}'\n\n# 2) Conectar\ncurl -s -X POST \"$BASE/v1/instances/sales-1/connect\" -H \"X-Api-Key: $ADMIN_API_KEY\"\n\n# 3) QR\ncurl -s \"$BASE/v1/instances/sales-1/qr\" -H \"X-Api-Key: $ADMIN_API_KEY\"\n\n# 4) Enviar texto (admin: path com nome)\ncurl -s -X POST \"$BASE/v1/instances/sales-1/messages/text\" \\\n  -H \"X-Api-Key: $ADMIN_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"text\":\"Olá! Mensagem enviada via zapo-rest 👋\",\"linkPreview\":true}'\n\n# 4b) Enviar texto (instance key: forma curta sem nome)\ncurl -s -X POST \"$BASE/v1/messages/text\" \\\n  -H \"X-Api-Key: $INSTANCE_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"text\":\"Olá! Mensagem enviada via zapo-rest 👋\",\"linkPreview\":true}'\n```\n\n## Webhooks\n\nPayload envelope:\n\n```json\n{\n  \"event\": \"message.inbound\",\n  \"instance\": \"sales-1\",\n  \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n  \"data\": {\n    \"key\": {\n      \"remoteJid\": \"5511888888888@s.whatsapp.net\",\n      \"fromMe\": false,\n      \"id\": \"ABC123\"\n    },\n    \"message\": {\n      \"conversation\": \"Oi\"\n    },\n    \"pushName\": \"Cliente\"\n  }\n}\n```\n\n## VoIP (áudio live)\n\nApós `POST.../calls`, abra o WebSocket:\n\n```\nws(s)://<host>/v1/instances/{name}/calls/{callId}/stream?apiKey=<key>\n```\n\n- Server → JSON `{ \"op\": \"ready\", \"sampleRate\": 16000, \"format\": \"f32le\" }`\n- Client ↔ server: frames **binários** Float32 LE mono @ 16 kHz\n- Backpressure: JSON `{ \"op\": \"backpressure\", \"pause\": true | false }`\n\n## Erros\n\nTodas as falhas usam:\n\n```json\n{ \"error\": { \"code\": \"UNAUTHORIZED\", \"message\": \"…\", \"details\": {} } }\n```\n\nCódigos comuns: `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `VALIDATION_ERROR`, `SERVICE_UNAVAILABLE`, `BAD_REQUEST`.\n\n## Mídia (URL · base64 · upload)\n\nRotas de envio de mídia e avatar aceitam **uma** das fontes:\n\n| Content-Type | Campos |\n|--------------|--------|\n| `application/json` | `mediaUrl` e/ou `mediaBase64` (+ metadados) |\n| `multipart/form-data` | arquivo `file` (aliases: `media`, `audio`, `image`, `document`, `video`, `sticker`) + campos de texto |\n\nLimite: env `MEDIA_UPLOAD_MAX_BYTES` (padrão **100 MiB**).\n\n```bash\n# Avatar por upload\ncurl -s -X PUT \"$BASE/v1/profile/image\" -H \"X-Api-Key: $INSTANCE_API_KEY\" \\\n  -F file=@./avatar.jpg\n\n# Imagem de mensagem por multipart\ncurl -s -X POST \"$BASE/v1/messages/image\" -H \"X-Api-Key: $INSTANCE_API_KEY\" \\\n  -F to=5511999999999 -F file=@./foto.jpg -F caption=\"oi\"\n```\n\nEndpoints: `PUT /v1/profile/image|picture`, `PUT /v1/groups/:id/picture`,\n`POST /v1/messages/{image,video,audio,document,sticker}`, `POST /v1/status/send`,\n`POST /v1/calls/blast` (WAV).\n\n## OpenAPI\n\n- **UI (Scalar):** [`/docs`](/docs) — escolha *multipart/form-data* no request body para o seletor de arquivo\n- **JSON:** [`/docs/json`](/docs/json) — gerado a partir dos schemas Zod + multipart injetado\n\n## Guia rico\n\nDocumentação narrativa (arquitetura, fluxos, exemplos): **[/guide](/guide/)**.",
+    "description": "# zapo-rest\n\nREST API multi-session para WhatsApp baseada em [zapo-js](https://zapo.to).\n\n## Autenticação\n\n| Tipo | Origem | Escopo |\n|------|--------|--------|\n| **Admin** | env `ADMIN_API_KEY` | Todas as instâncias + create/delete/rotate |\n| **Instance** | campo `apiKey` da instância (plaintext) | Somente a instância dona da key |\n\nEnvie em **todas** as rotas `/v1/*`:\n\n```http\nX-Api-Key: <sua-chave>\n```\n\nou\n\n```http\nAuthorization: Bearer <sua-chave>\n```\n\n`GET /health` e `GET /ready` são públicos.\n\n## Escopo da instância (dual path)\n\n| Quem | Path |\n|------|------|\n| **Admin** | **Sempre** com nome: `/v1/instances/:name/...` (omitir o nome → 400) |\n| **Instance key** | Nomeado **ou** forma curta sem nome |\n\nForma curta (só com instance key — a instância é inferida da API key):\n\n- Recursos: `/v1/messages/text`, `/v1/chats`, `/v1/contacts`, … (equivale a `/v1/instances/:name/...`)\n- Ciclo de vida: `/v1/instance`, `/v1/instance/connect`, `/v1/instance/qr`, … (singular `instance`, não colide com `/v1/instances`)\n\n## Fluxo rápido (instância)\n\n```bash\n# 1) Criar (admin)\ncurl -s -X POST \"$BASE/v1/instances\" \\\n  -H \"X-Api-Key: $ADMIN_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"name\":\"sales-1\",\"webhookUrl\":\"https://example.com/webhooks/zapo\",\"webhookEvents\":[\"instance.qr\",\"instance.connection\",\"message.inbound\",\"call.incoming\"]}'\n\n# 2) Conectar\ncurl -s -X POST \"$BASE/v1/instances/sales-1/connect\" -H \"X-Api-Key: $ADMIN_API_KEY\"\n\n# 3) QR\ncurl -s \"$BASE/v1/instances/sales-1/qr\" -H \"X-Api-Key: $ADMIN_API_KEY\"\n\n# 4) Enviar texto (admin: path com nome)\ncurl -s -X POST \"$BASE/v1/instances/sales-1/messages/text\" \\\n  -H \"X-Api-Key: $ADMIN_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"text\":\"Olá! Mensagem enviada via zapo-rest 👋\",\"linkPreview\":true}'\n\n# 4b) Enviar texto (instance key: forma curta sem nome)\ncurl -s -X POST \"$BASE/v1/messages/text\" \\\n  -H \"X-Api-Key: $INSTANCE_API_KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511999999999\",\"text\":\"Olá! Mensagem enviada via zapo-rest 👋\",\"linkPreview\":true}'\n```\n\n## Webhooks\n\nPayload envelope:\n\n```json\n{\n  \"event\": \"message.inbound\",\n  \"instance\": \"sales-1\",\n  \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n  \"data\": {\n    \"key\": {\n      \"remoteJid\": \"5511888888888@s.whatsapp.net\",\n      \"fromMe\": false,\n      \"id\": \"ABC123\"\n    },\n    \"message\": {\n      \"conversation\": \"Oi\"\n    },\n    \"pushName\": \"Cliente\"\n  }\n}\n```\n\n## VoIP (áudio live)\n\nApós `POST.../calls`, abra o WebSocket:\n\n```\nws(s)://<host>/v1/calls/{callId}/stream?apiKey=<key>\n```\n\n- Server → JSON `{ \"op\": \"ready\", \"sampleRate\": 16000, \"format\": \"f32le\" }`\n- Client ↔ server: frames **binários** Float32 LE mono @ 16 kHz\n- Backpressure: JSON `{ \"op\": \"backpressure\", \"pause\": true | false }`\n\n## Erros\n\nTodas as falhas usam:\n\n```json\n{ \"error\": { \"code\": \"UNAUTHORIZED\", \"message\": \"…\", \"details\": {} } }\n```\n\nCódigos comuns: `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `VALIDATION_ERROR`, `SERVICE_UNAVAILABLE`, `BAD_REQUEST`.\n\n## Mídia (URL · base64 · upload)\n\nRotas de envio de mídia e avatar aceitam **uma** das fontes:\n\n| Content-Type | Campos |\n|--------------|--------|\n| `application/json` | `mediaUrl` e/ou `mediaBase64` (+ metadados) |\n| `multipart/form-data` | arquivo `file` (aliases: `media`, `audio`, `image`, `document`, `video`, `sticker`) + campos de texto |\n\nLimite: env `MEDIA_UPLOAD_MAX_BYTES` (padrão **100 MiB**).\n\n```bash\n# Avatar por upload\ncurl -s -X PUT \"$BASE/v1/profile/image\" -H \"X-Api-Key: $INSTANCE_API_KEY\" \\\n  -F file=@./avatar.jpg\n\n# Imagem de mensagem por multipart\ncurl -s -X POST \"$BASE/v1/messages/image\" -H \"X-Api-Key: $INSTANCE_API_KEY\" \\\n  -F to=5511999999999 -F file=@./foto.jpg -F caption=\"oi\"\n```\n\nEndpoints: `PUT /v1/profile/image|picture`, `PUT /v1/groups/:id/picture`,\n`POST /v1/messages/{image,video,audio,document,sticker}`, `POST /v1/status/send`,\n`POST /v1/calls/blast` (WAV).\n\n## OpenAPI\n\n- **UI (Scalar):** [`/docs`](/docs) — escolha *multipart/form-data* no request body para o seletor de arquivo\n- **JSON:** [`/docs/json`](/docs/json) — gerado a partir dos schemas Zod + multipart injetado\n\n## Guia rico\n\nDocumentação narrativa (arquitetura, fluxos, exemplos): **[/guide](/guide/)**.",
     "version": "0.9.0",
     "contact": {
       "name": "zapo-rest"
@@ -8281,11 +8281,11 @@
     },
     "/v1/calls": {
       "post": {
-        "summary": "Start outbound voice call",
+        "summary": "Start outbound voice or video call",
         "tags": [
           "Calls"
         ],
-        "description": "Places an **audio-only** WhatsApp voice call (`client.voip.startCall`).\n\n**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as `call.participants_changed`.\n\nReturns `callId` immediately after the offer is sent. Progress continues via webhooks `call.state` / `call.ended` and the live PCM WebSocket.\n\n**No file / audioUrl playback** — open the stream and send live mic PCM.\n\n**Example body**\n```json\n{\n  \"to\": \"5511888888888\"\n}\n```\n\n```bash\ncurl -s -X POST \"$BASE/v1/instances/sales-1/calls\" \\\n  -H \"X-Api-Key: $KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511888888888\"}'\n```",
+        "description": "Places a WhatsApp call (`client.voip.startCall`). Audio by default; `isVideo: true` negotiates H.264 video too (frames over `.../calls/:callId/video`).\n\n**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as `call.participants_changed`.\n\nReturns `callId` immediately after the offer is sent. Progress continues via webhooks `call.state` / `call.ended` and the live PCM WebSocket.\n\n**No file / audioUrl playback** — open the stream and send live mic PCM.\n\n**Example body**\n```json\n{\n  \"to\": \"5511888888888\",\n  \"isVideo\": false\n}\n```\n\n```bash\ncurl -s -X POST \"$BASE/v1/calls\" \\\n  -H \"X-Api-Key: $KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511888888888\",\"isVideo\":false}'\n```",
         "requestBody": {
           "required": true,
           "content": {
@@ -8294,10 +8294,16 @@
                 "type": "object",
                 "properties": {
                   "to": {
-                    "description": "Peer to call — digits, JID, or @handle. Audio-only live VoIP. Omit for a group call",
+                    "description": "Peer to call — digits, JID, or @handle. Omit for a group call",
                     "type": "string",
                     "minLength": 1,
                     "example": "5511999999999"
+                  },
+                  "isVideo": {
+                    "default": false,
+                    "description": "Place a video call (H.264), 1:1 or group. Audio still flows on `.../stream`; video frames on `.../calls/:callId/video`",
+                    "example": false,
+                    "type": "boolean"
                   },
                   "groupId": {
                     "description": "Group call: the group (`...@g.us` or its id). Requires `participants`",
@@ -8320,14 +8326,15 @@
                     }
                   }
                 },
-                "description": "Start outbound voice call (stream PCM over WebSocket; no file autoplay)",
+                "description": "Start outbound call (live PCM over WebSocket, plus H.264 when `isVideo`; no file autoplay)",
                 "example": {
-                  "to": "5511888888888"
+                  "to": "5511888888888",
+                  "isVideo": false
                 }
               }
             }
           },
-          "description": "Start outbound voice call (stream PCM over WebSocket; no file autoplay)"
+          "description": "Start outbound call (live PCM over WebSocket, plus H.264 when `isVideo`; no file autoplay)"
         },
         "security": [
           {
@@ -8354,6 +8361,14 @@
                       "description": "Peer called; the group JID on a group call",
                       "example": "5511888888888@s.whatsapp.net"
                     },
+                    "mediaType": {
+                      "type": "string",
+                      "enum": [
+                        "audio",
+                        "video"
+                      ],
+                      "example": "audio"
+                    },
                     "groupJid": {
                       "description": "Set on a group call",
                       "type": [
@@ -8371,12 +8386,14 @@
                   },
                   "required": [
                     "callId",
-                    "peerJid"
+                    "peerJid",
+                    "mediaType"
                   ],
                   "additionalProperties": false,
                   "example": {
                     "callId": "ABCDEF0123456789",
-                    "peerJid": "5511888888888@s.whatsapp.net"
+                    "peerJid": "5511888888888@s.whatsapp.net",
+                    "mediaType": "audio"
                   }
                 }
               }
@@ -8725,7 +8742,7 @@
                             ]
                           },
                           "mediaType": {
-                            "description": "audio",
+                            "description": "`audio` | `video` (video → open `.../calls/:callId/video`)",
                             "example": "audio",
                             "type": [
                               "string",
@@ -8788,6 +8805,70 @@
                             "type": "array",
                             "items": {
                               "type": "string"
+                            }
+                          },
+                          "videoOff": {
+                            "description": "Peer camera off. Always true on audio calls",
+                            "example": true,
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          },
+                          "screenSharing": {
+                            "description": "Local screen share in progress",
+                            "type": "boolean"
+                          },
+                          "peerVideoState": {
+                            "description": "Last video state the 1:1 peer announced (`enabled`, `disabled`, `upgrade_request_v2`, …)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "peerScreenSharing": {
+                            "description": "1:1 peer is sharing its screen",
+                            "type": "boolean"
+                          },
+                          "participantMedia": {
+                            "description": "Per remote device (1:1 and group): mic, camera, screen share, media arriving",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "deviceJid": {
+                                  "type": "string"
+                                },
+                                "audioMuted": {
+                                  "type": [
+                                    "boolean",
+                                    "null"
+                                  ]
+                                },
+                                "videoState": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "screenSharing": {
+                                  "type": "boolean"
+                                },
+                                "receiving": {
+                                  "type": [
+                                    "boolean",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "deviceJid",
+                                "audioMuted",
+                                "videoState",
+                                "screenSharing",
+                                "receiving"
+                              ],
+                              "additionalProperties": false
                             }
                           },
                           "isGroup": {
@@ -8858,6 +8939,7 @@
                           "peerJid": "5511888888888@s.whatsapp.net",
                           "direction": "outgoing",
                           "mediaType": "audio",
+                          "videoOff": true,
                           "state": "active",
                           "isActive": true,
                           "isRinging": false,
@@ -8883,6 +8965,7 @@
                         "peerJid": "5511888888888@s.whatsapp.net",
                         "direction": "outgoing",
                         "mediaType": "audio",
+                        "videoOff": true,
                         "state": "active",
                         "isActive": true,
                         "isRinging": false,
@@ -9327,7 +9410,7 @@
                               ]
                             },
                             "mediaType": {
-                              "description": "audio",
+                              "description": "`audio` | `video` (video → open `.../calls/:callId/video`)",
                               "example": "audio",
                               "type": [
                                 "string",
@@ -9390,6 +9473,70 @@
                               "type": "array",
                               "items": {
                                 "type": "string"
+                              }
+                            },
+                            "videoOff": {
+                              "description": "Peer camera off. Always true on audio calls",
+                              "example": true,
+                              "type": [
+                                "boolean",
+                                "null"
+                              ]
+                            },
+                            "screenSharing": {
+                              "description": "Local screen share in progress",
+                              "type": "boolean"
+                            },
+                            "peerVideoState": {
+                              "description": "Last video state the 1:1 peer announced (`enabled`, `disabled`, `upgrade_request_v2`, …)",
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "peerScreenSharing": {
+                              "description": "1:1 peer is sharing its screen",
+                              "type": "boolean"
+                            },
+                            "participantMedia": {
+                              "description": "Per remote device (1:1 and group): mic, camera, screen share, media arriving",
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "deviceJid": {
+                                    "type": "string"
+                                  },
+                                  "audioMuted": {
+                                    "type": [
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  },
+                                  "videoState": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "screenSharing": {
+                                    "type": "boolean"
+                                  },
+                                  "receiving": {
+                                    "type": [
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "deviceJid",
+                                  "audioMuted",
+                                  "videoState",
+                                  "screenSharing",
+                                  "receiving"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "isGroup": {
@@ -9460,6 +9607,7 @@
                             "peerJid": "5511888888888@s.whatsapp.net",
                             "direction": "outgoing",
                             "mediaType": "audio",
+                            "videoOff": true,
                             "state": "active",
                             "isActive": true,
                             "isRinging": false,
@@ -9488,6 +9636,7 @@
                       "peerJid": "5511888888888@s.whatsapp.net",
                       "direction": "outgoing",
                       "mediaType": "audio",
+                      "videoOff": true,
                       "state": "active",
                       "isActive": true,
                       "isRinging": false,
@@ -12623,6 +12772,2441 @@
                 ],
                 "example": {
                   "participant": "123456789012345@lid"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/video/upgrade": {
+      "post": {
+        "summary": "Upgrade audio call to video",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Turns an audio call into video. **1:1:** a handshake — waits for the peer (about 5 s) and returns its `result`; send frames on `.../video` only after `accepted`. **Group:** asks the server to make the whole call video; everyone gets `call.video_upgraded` and each turns its own camera on. `409` when the call cannot be upgraded.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "result": {
+                      "type": "string",
+                      "description": "`accepted` (send video now), `rejected`, `rejected_by_timeout`, `error`, `timeout` (no answer), `cancelled`",
+                      "example": "accepted"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "result"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true,
+                    "result": "accepted"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/video/upgrade/accept": {
+      "post": {
+        "summary": "Accept a video upgrade",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Accepts the peer's request to turn the call into video (`call.video_state` with `upgradeRequested: true`). Answer within about 5 s, then send camera frames on `.../video`.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/video/upgrade/reject": {
+      "post": {
+        "summary": "Reject a video upgrade",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Rejects the peer's request to turn the call into video. Answer within about 5 s.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/video/upgrade/cancel": {
+      "post": {
+        "summary": "Cancel our video upgrade",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Withdraws an upgrade request this side sent before the peer answers; the pending request resolves `cancelled`.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/video": {
+      "post": {
+        "summary": "Turn the camera on / off (group call)",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Group calls only: turns our camera on or off. On a 1:1 call video starts with `video/upgrade` (`409` here).\n\n```json\n{ \"enabled\": true }\n```",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean",
+                    "description": "true = camera on",
+                    "example": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "example": {
+                  "enabled": true
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Calls"
+        ],
+        "summary": "WebSocket live H.264 video stream",
+        "description": "**WebSocket upgrade** for bidirectional H.264 video on calls with `mediaType: \"video\"` (start with `isVideo: true`).\nAudio stays on `.../stream` — open both sockets.\n\n### URL\n```\nws(s)://<host>/v1/calls/{callId}/video?apiKey=<key>\n```\n\n### Protocol\n1. Server → JSON text: `{ \"op\": \"ready\", \"callId\": \"...\", \"codec\": \"h264\", \"format\": \"annexb\", \"headerBytes\": 12, \"mediaType\": \"video\", \"videoOff\": false }`. Opens on audio calls too (they can upgrade).\n2. **Binary, both directions**: 12-byte header + one H.264 Annex-B access unit.\n   Header: `u8 version=1` · `u8 flags` (bit0 = key frame) · `u16 BE stream id` · `u64 BE timestamp µs`.\n   Stream id = one remote sender (several on a group call), announced by `{ \"op\": \"stream\", \"streamId\", \"ssrc\", \"participantJid\" }` and retired by `{ \"op\": \"stream_end\", \"streamId\" }` (left the call, switched device); the client sends `0`.\n3. Client → server: camera frames (Constrained Baseline recommended); send an IDR at least every 1 s (~350 kbps; see `pnpm test:call-quality`).\n4. Server → client: peer frames (timestamps start at 0); lagging sockets skip to the next key frame.\n5. State JSON: `{ \"op\": \"state\", \"state\": \"active\", \"isActive\": true, \"videoOff\": false }` (`videoOff` = peer camera off)\n6. End: `{ \"op\": \"ended\", \"callId\": \"...\" }` then close. Closing this socket does **not** end the call.",
+        "operationId": "streamCallVideo",
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "callId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Call id from POST.../calls or webhook call.incoming"
+          },
+          {
+            "name": "apiKey",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "API key for browser WebSocket clients"
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols — WebSocket connection established"
+          },
+          "401": {
+            "description": "Missing/invalid API key (socket close 4401)"
+          },
+          "403": {
+            "description": "Forbidden for this instance (socket close 4403)"
+          },
+          "404": {
+            "description": "Instance or call not found (socket close 4404)"
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/screen-share": {
+      "post": {
+        "summary": "Start / stop screen share",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Announces a screen share. The screen replaces the camera on the same video stream: stop sending camera frames on `.../video`, send the screen frames, and resume the camera after stopping. `409` on a call with no video yet (upgrade it, or turn the group camera on, first).\n\n```json\n{ \"sharing\": true }\n```",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sharing": {
+                    "type": "boolean",
+                    "description": "true = start sharing, false = stop",
+                    "example": true
+                  }
+                },
+                "required": [
+                  "sharing"
+                ],
+                "example": {
+                  "sharing": true
                 }
               }
             }
@@ -20953,13 +23537,13 @@
         }
       }
     },
-    "/v1/instances/{name}/calls/{callId}/stream": {
+    "/v1/calls/{callId}/stream": {
       "get": {
         "tags": [
           "Calls"
         ],
         "summary": "WebSocket live PCM audio stream",
-        "description": "**WebSocket upgrade** for bidirectional live VoIP audio (not a plain HTTP JSON response).\n\n### URL\n```\nws(s)://<host>/v1/instances/{name}/calls/{callId}/stream?apiKey=<key>\n```\n\nAuth: query `apiKey` (browsers) and/or header `X-Api-Key`.\n\n### Protocol\n1. Server → JSON text: `{ \"op\": \"ready\", \"sampleRate\": 16000, \"channels\": 1, \"format\": \"f32le\", \"callId\": \"...\" }`\n2. Client → server **binary**: Float32 LE mono PCM @ 16 kHz (microphone)\n3. Server → client **binary**: same format (peer audio)\n4. Backpressure JSON: `{ \"op\": \"backpressure\", \"pause\": true | false, \"bufferedMs\": N }`\n5. End: `{ \"op\": \"ended\", \"callId\": \"...\" }` then socket close\n\nUses `setExternalAudioMode` — **no file autoplay**. Multi-call supported up to `VOIP_MAX_CONCURRENT_CALLS`.",
+        "description": "**WebSocket upgrade** for bidirectional live VoIP audio (not a plain HTTP JSON response).\n\n### URL\n```\nws(s)://<host>/v1/calls/{callId}/stream?apiKey=<key>\n```\n\nAuth: **instance** key (the instance comes from the key) — query `apiKey` (browsers) and/or header `X-Api-Key`.\n\n### Protocol\n1. Server → JSON text: `{ \"op\": \"ready\", \"sampleRate\": 16000, \"channels\": 1, \"format\": \"f32le\", \"callId\": \"...\" }`\n2. Client → server **binary**: Float32 LE mono PCM @ 16 kHz (microphone)\n3. Server → client **binary**: same format (peer audio)\n4. Backpressure JSON: `{ \"op\": \"backpressure\", \"pause\": true | false, \"bufferedMs\": N }`\n5. End: `{ \"op\": \"ended\", \"callId\": \"...\" }` then socket close\n\nUses `setExternalAudioMode` — **no file autoplay**. Multi-call supported up to `VOIP_MAX_CONCURRENT_CALLS`.",
         "operationId": "streamCallAudio",
         "security": [
           {
@@ -20970,16 +23554,6 @@
           }
         ],
         "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Instance name",
-            "example": "sales-1"
-          },
           {
             "name": "callId",
             "in": "path",
@@ -21065,7 +23639,7 @@
     },
     {
       "name": "Calls",
-      "description": "**Live VoIP audio only** (WhatsApp voice calls via `@zapo-js/voip`).\n\n1. `POST.../calls` with `{ \"to\": \"5511…\" }` → `{ callId }`\n2. Open WebSocket: `GET /v1/instances/{name}/calls/{callId}/stream?apiKey=...`\n3. Exchange binary frames: **Float32 LE mono PCM @ 16 kHz**\n4. Control: accept / reject / end / mute\n\nNo file autoplay when the peer answers — real phone-style streaming.\nMultiple concurrent calls per instance up to `VOIP_MAX_CONCURRENT_CALLS`."
+      "description": "**Live VoIP audio only** (WhatsApp voice calls via `@zapo-js/voip`).\n\n1. `POST.../calls` with `{ \"to\": \"5511…\" }` → `{ callId }`\n2. Open WebSocket: `GET /v1/calls/{callId}/stream?apiKey=...`\n3. Exchange binary frames: **Float32 LE mono PCM @ 16 kHz**\n4. Control: accept / reject / end / mute\n\nNo file autoplay when the peer answers — real phone-style streaming.\nMultiple concurrent calls per instance up to `VOIP_MAX_CONCURRENT_CALLS`."
     },
     {
       "name": "Metrics",
@@ -21073,7 +23647,7 @@
     },
     {
       "name": "Webhooks",
-      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n \"data\": { }\n}\n```\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, `call.participants_changed`, `call.mute_requested`, `call.participant_media`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`."
+      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": \"2026-07-11T12:10:00.000Z\",\n \"data\": { }\n}\n```\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, `call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`."
     }
   ],
   "externalDocs": {

@@ -165,6 +165,7 @@ Stack conventions (not generic framework advice):
 | DB | `pnpm test:db` |
 | Critical subset | `pnpm test:unit:critical` |
 | E2E (fake-server) | `pnpm test:e2e` |
+| Call quality (fps / latency / A-V sync, both directions) | `pnpm test:call-quality` — see `tests/call-harness/README.md` |
 | Coverage | `pnpm test:coverage` |
 
 Rules:
