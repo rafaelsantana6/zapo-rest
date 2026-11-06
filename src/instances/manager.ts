@@ -9,6 +9,7 @@ import {
   resolveAvatarsByPolicy,
 } from '~/lib/avatar-resolve'
 import { badRequest, conflict, notFound, serviceUnavailable } from '~/lib/errors'
+import { serializeMembershipGroupEvent } from '~/lib/group-membership'
 import { toRecipientJid } from '~/lib/jid'
 import { bareUserJid, isLidJid } from '~/lib/jid-canon'
 import { getLogger } from '~/lib/logger'
@@ -591,6 +592,7 @@ export class InstanceManager {
     })
 
     client.on('group', (event) => {
+      event = serializeMembershipGroupEvent(event)
       runSafe('group', () => this.onGroup(name, event))
     })
 

@@ -963,7 +963,12 @@ export const OPENAPI_TAGS = [
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
       '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
-      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
+      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
+      '`group.update` membership notifications preserve upstream `action` and add `data.type`: ' +
+      '`membership_approval_request` has `data.requesterJid` from the upstream author; ' +
+      '`created_membership_requests` / `revoked_membership_requests` have `data.requests[].jid` ' +
+      '(optional `phoneJid` / `username`). Identities are omitted when upstream does not supply them. ' +
+      'Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests.',
   },
 ] as const
 
@@ -991,3 +996,31 @@ export const GroupMetadataSchema = z
   .meta({
     description: 'Upstream group metadata plus normalized member modes, omitted when not reported or unrecognized.',
   })
+export const GroupMembershipParamsSchema = z.object({
+  groupId: z.string().min(1).meta({ description: 'Group ID or full group JID', example: '120363000000000000@g.us' }),
+})
+
+export const GroupMembershipParticipantsSchema = z.object({
+  participants: z
+    .array(z.string().trim().min(1))
+    .min(1)
+    .meta({
+      description: 'Requester phones or JIDs; cancel is limited to requests sent by this account',
+      example: ['5511999999999@s.whatsapp.net'],
+    }),
+})
+
+export const GroupMembershipRequestSchema = z.object({
+  jid: z.string().meta({ description: 'Pending requester JID', example: '123456789@lid' }),
+  phoneNumber: z.string().optional().meta({ description: 'Upstream requestorPhone (PN JID when available)' }),
+  requestedAt: z.iso.datetime().meta({
+    description: 'Upstream requestTime in seconds converted to ISO 8601',
+    example: '2026-11-06T12:00:00.000Z',
+  }),
+  method: z.string().optional().meta({ description: 'Upstream requestMethod, e.g. invite_link' }),
+  requestor: z.string().optional().meta({ description: 'Upstream requestor identity' }),
+  requestorUsername: z.string().optional().meta({ description: 'Upstream requester username' }),
+  parentGroupJid: z.string().optional().meta({ description: 'Parent community JID when supplied upstream' }),
+})
+
+export const GroupMembershipRequestsSchema = z.object({ requests: z.array(GroupMembershipRequestSchema) })
