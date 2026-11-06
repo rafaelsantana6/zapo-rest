@@ -963,6 +963,19 @@ export const OPENAPI_TAGS = [
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
       '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
-      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
+      'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.' +
+      ' Message payloads additionally expose readable interactive/business types and optional `interactive` selection IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and quoted flowToken. Existing event names are unchanged.',
   },
 ] as const
+
+// Interactive sends keep their contract together while typed upstream builders are pending.
+export {
+  SendButtonsBodySchema,
+  SendInteractiveBodySchema,
+  SendListBodySchema,
+  SendCarouselBodySchema,
+  SendNativeFormBodySchema,
+  SendPixBodySchema,
+  SendChargeBodySchema,
+  SendProductBodySchema,
+} from './interactive-schemas'
