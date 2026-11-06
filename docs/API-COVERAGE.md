@@ -123,12 +123,12 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 
 | Capability | Status |
 |------------|--------|
-| Followed list, metadata, invite lookup, directory search + cursor, recommendations | ✅ `GET /v1/newsletters`, `/:jid`, `/by-invite/:code`, `/search`, `/recommended` |
-| Message pages and update ranges | 🟡 `/:jid/messages`, `/:jid/updates`: JSON transport envelope with base64 bytes; upstream 1.11 has no public decoded page API |
+| Followed list, metadata, invite lookup, directory search + cursor, recommendations | ✅ `GET /v1/newsletters`, `/:jid`, `/by-invite/:code`, `/search`, `/recommended`; absent lookup metadata → 404 |
+| Message pages and update ranges | 🟡 `/:jid/messages`, `/:jid/updates`: JSON transport envelope with base64 bytes; upstream 1.11 has no public decoded page API. Updates require exactly one `before`/`after`; messages permit at most one |
 | Follow/unfollow, mute, temporary live subscription | ✅ `POST /:jid/follow`, `/unfollow`, `/mute`, `/live-updates`; caller renews `durationSeconds` |
 | Reactions, poll votes, view receipts | ✅ `/:jid/messages/:messageId/react`, `/vote`, `/view`; numeric server IDs and base64 poll hashes |
-| Channel create/update/delete, admin info + capabilities, followers | ✅ `POST /v1/newsletters`, `PATCH/DELETE /:jid`, `GET /:jid/admin`, `/followers` (count only) |
-| Admin invite/accept/revoke/demote, ownership, pending invites | ✅ `/:jid/admins/invite`, `/invite/accept`, `/invite/revoke`, `/demote`, `/:jid/owner`, `/:jid/pending-invites` |
-| Text/image/video/audio/document publishing, edit, revoke | ✅ `POST /:jid/messages`, `PATCH/DELETE /:jid/messages/:messageId`; URL/base64/multipart |
+| Channel create/update/delete, admin info + capabilities, followers | ✅ `POST /v1/newsletters`, `PATCH/DELETE /:jid`, `GET /:jid/admin`, `/followers` (count only); picture is a decodable JPEG ≤256 KiB / 16 MP |
+| Admin invite/accept/revoke/demote, ownership, pending invites | ✅ `/:jid/admins/invite`, `/invite/accept`, `/invite/revoke`, `/demote`, `/:jid/owner`, `/:jid/pending-invites`; admin targets are resolved PN/LID users only |
+| Text/image/video/audio/document publishing, edit, revoke | ✅ `POST /:jid/messages`, `PATCH/DELETE /:jid/messages/:messageId`; URL/base64/multipart; detect absent MIME or return 400 for unknown formats |
 | Channel events | ✅ `newsletter.update`, `newsletter.message_update` via webhook/SSE; no raw protobuf |
 | Local channel projections / stored channel media | N/A — deliberately excluded; read from WhatsApp directly |

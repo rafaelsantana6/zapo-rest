@@ -1975,7 +1975,7 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           {
-            'GET /:jid/messages?count=50&before=42 and /:jid/updates?count=50&since=1700000000 read WhatsApp directly (count 1–100; before/after supported). Upstream zapo-js 1.11 returns BinaryNode pages without a public decoder. Responses are transport envelopes { name, attributes, children?, text?, bytesBase64? }, not decoded message projections. Metadata, directory and followers have stable public JSON fields.'
+            'GET /:jid/messages?count=50&before=42 and /:jid/updates?count=50&after=42&since=1700000000 read WhatsApp directly (count 1–100; before and after are mutually exclusive). Update reads require exactly one cursor, even with since. Missing channel metadata by JID or invite returns 404. Upstream zapo-js 1.11 returns BinaryNode pages without a public decoder. Responses are transport envelopes { name, attributes, children?, text?, bytesBase64? }, not decoded message projections. Metadata, directory and followers have stable public JSON fields.'
           }
         </p>
         <p>
@@ -1985,17 +1985,17 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           {
-            'Administration: POST the collection with { name, description?, picture? } creates a channel (picture is a small base64 JPEG). PATCH /:jid accepts name, description, picture (null removes it), and reactionCodesSetting. DELETE /:jid permanently deletes it. GET /:jid/admin returns admin info and capabilities; /followers?count=50 returns followers (no upstream cursor); /pending-invites returns user JIDs.'
+            'Administration: POST the collection with { name, description?, picture? } creates a channel (picture is a decodable base64 JPEG of at most 256 KiB decoded and 16 megapixels). PATCH /:jid accepts name, description, picture (null removes it), and reactionCodesSetting. DELETE /:jid permanently deletes it. GET /:jid/admin returns admin info and capabilities; /followers?count=50 returns followers (no upstream cursor); /pending-invites returns user JIDs.'
           }
         </p>
         <p>
           {
-            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote and /:jid/owner take { "user": "111@lid" }; phone numbers and @handles are resolved by the existing recipient helper. POST /:jid/admins/invite/accept accepts for the current account. Ownership transfer requires a previously invited admin. Upstream automatically accepts the creation/admin-invitation terms on create/accept.'
+            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote and /:jid/owner take { "user": "111@lid" }; phone numbers and @handles are resolved by the existing recipient helper. All targets must resolve to PN/LID user JIDs; groups, broadcasts and channels return 400. POST /:jid/admins/invite/accept accepts for the current account. Ownership transfer requires a previously invited admin. Upstream automatically accepts the creation/admin-invitation terms on create/accept.'
           }
         </p>
         <p>
           {
-            'Publishing: POST /:jid/messages calls client.newsletter.send. Use { "type": "text", "text": "News" } or type image/video/audio/document with mediaUrl, mediaBase64 or multipart file, plus caption/mimetype/fileName/ptt as applicable. PATCH /:jid/messages/:messageId edits with the same text/media body; DELETE revokes. These IDs are publishing stanza IDs returned as id, unlike numeric server IDs used for react/vote/view. Temporary media is cleaned after success or failure.'
+            'Publishing: POST /:jid/messages calls client.newsletter.send. Use { "type": "text", "text": "News" } or type image/video/audio/document with mediaUrl, mediaBase64 or multipart file, plus caption/mimetype/fileName/ptt as applicable. PATCH /:jid/messages/:messageId edits with the same text/media body; DELETE revokes. These IDs are publishing stanza IDs returned as id, unlike numeric server IDs used for react/vote/view. MIME is detected from the file when absent; unrecognized formats need an explicit mimetype (400 otherwise). Temporary media is cleaned after success or failure, including failed MIME detection.'
           }
         </p>
         <p>

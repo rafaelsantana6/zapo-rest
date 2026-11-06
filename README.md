@@ -266,7 +266,7 @@ GET    /v1/newsletters/recommended
 GET    /v1/newsletters/by-invite/:code
 GET    /v1/newsletters/:jid
 GET    /v1/newsletters/:jid/messages?count=50&before=42
-GET    /v1/newsletters/:jid/updates?count=50&since=1700000000
+GET    /v1/newsletters/:jid/updates?count=50&after=42&since=1700000000
 POST   /v1/newsletters/:jid/follow         # also /unfollow
 POST   /v1/newsletters/:jid/mute           # { "muted": true }
 POST   /v1/newsletters/:jid/live-updates   # renew before durationSeconds expires
@@ -291,7 +291,7 @@ DELETE /v1/newsletters/:jid/messages/:messageId
 
 Media uses `type: image|video|audio|document` with the existing `mediaUrl`, `mediaBase64`, or multipart `file` fields. Publishing calls `client.newsletter.send`, not the regular message coordinator. Publishing/edit/revoke IDs are stanza IDs; react/vote/view require the **numeric server ID** from channel history. Poll options are base64 hashes, not labels. Following persists membership; live updates are a separate temporary subscription, renewed by the caller. Create/accept-invite automatically accept the corresponding WhatsApp terms upstream.
 
-`newsletter.update` and `newsletter.message_update` reach webhooks and SSE with JSON-safe payloads (edits contain projected content, votes contain base64 hashes). Channels are excluded from new chat/message projections and chat media storage. Read/update pages expose `{ name, attributes, children?, text?, bytesBase64? }` because upstream returns `BinaryNode`; metadata, directory and followers use explicit public fields. Followers support `count` only, without cursors. See [Channels guide](https://rafaelsantana6.github.io/zapo-rest/groups#channels).
+`newsletter.update` and `newsletter.message_update` reach webhooks and SSE with JSON-safe payloads (edits contain projected content, votes contain base64 hashes). Channels are excluded from new chat/message projections and chat media storage. Read/update pages expose `{ name, attributes, children?, text?, bytesBase64? }` because upstream returns `BinaryNode`; metadata, directory and followers use explicit public fields. Followers support `count` only, without cursors. Message pages accept at most one of `before` or `after`; update pages require exactly one, even when `since` is supplied. Missing channel metadata returns `404`. Media MIME is detected from the file when absent; unrecognized formats need an explicit `mimetype` (`400` otherwise). Inline channel pictures must be decodable JPEGs of at most **256 KiB** and **16 megapixels**. Admin invitation/demotion/ownership targets must resolve to PN/LID users; groups, broadcasts and channel JIDs return `400`. See [Channels guide](https://rafaelsantana6.github.io/zapo-rest/groups#channels).
 
 Lifecycle short form uses singular `/v1/instance` so it never collides with the admin collection `/v1/instances`.
 

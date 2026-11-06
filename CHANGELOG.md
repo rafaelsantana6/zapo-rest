@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Community sub-group inputs accept legacy hyphenated `@g.us` JIDs for linking, unlinking, suggestions and joining. The join request body is optional in OpenAPI as well as at runtime. Community operations document 401 and 502 responses; missing MEX transport returns 503, and recognized MEX failures return 502 with a static public message while IQ errors retain their existing status mapping.
+- Newsletter update reads now require exactly one `before`/`after` cursor; message pages reject both cursors together. Examples include the cursor required by zapo-js even when `since` is provided.
+- Channel base64/data-URL media without `mimetype` now uses file detection before publishing/editing; unrecognized formats return an actionable `400`, with temporary media cleaned on every path.
+- Missing channel metadata envelopes from upstream JID/invite lookups now return `404`, while unrelated transport failures remain errors.
+- Inline channel pictures are checked as decodable JPEGs (max 256 KiB decoded / 16 megapixels). Admin actions reject group, broadcast and channel targets and require resolved PN/LID user JIDs.
 
 ## [0.10.0] - 2026-11-06
 

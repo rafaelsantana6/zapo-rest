@@ -2008,7 +2008,7 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           {
-            'GET /:jid/messages?count=50&before=42 y /:jid/updates?count=50&since=1700000000 leen directamente de WhatsApp (count de 1 a 100; before/after disponibles). zapo-js 1.11 devuelve páginas BinaryNode sin decodificador público. Las respuestas son sobres de transporte { name, attributes, children?, text?, bytesBase64? }, no proyecciones de mensajes decodificados. Metadatos, directorio y seguidores tienen campos JSON públicos estables.'
+            'GET /:jid/messages?count=50&before=42 y /:jid/updates?count=50&after=42&since=1700000000 leen directamente de WhatsApp (count de 1 a 100; before y after son mutuamente excluyentes). Las actualizaciones requieren exactamente un cursor, incluso con since. Los metadatos ausentes por JID o invitación devuelven 404. zapo-js 1.11 devuelve páginas BinaryNode sin decodificador público. Las respuestas son sobres de transporte { name, attributes, children?, text?, bytesBase64? }, no proyecciones de mensajes decodificados. Metadatos, directorio y seguidores tienen campos JSON públicos estables.'
           }
         </p>
         <p>
@@ -2018,17 +2018,17 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           {
-            'Administración: POST en la colección con { name, description?, picture? } crea un canal (picture es un JPEG pequeño en base64). PATCH /:jid acepta name, description, picture (null la elimina) y reactionCodesSetting. DELETE /:jid elimina permanentemente. GET /:jid/admin devuelve información y capacidades administrativas; /followers?count=50 devuelve seguidores (sin cursor upstream); /pending-invites devuelve JID de usuarios.'
+            'Administración: POST en la colección con { name, description?, picture? } crea un canal (picture es un JPEG decodificable en base64, limitado a 256 KiB decodificados y 16 megapíxeles). PATCH /:jid acepta name, description, picture (null la elimina) y reactionCodesSetting. DELETE /:jid elimina permanentemente. GET /:jid/admin devuelve información y capacidades administrativas; /followers?count=50 devuelve seguidores (sin cursor upstream); /pending-invites devuelve JID de usuarios.'
           }
         </p>
         <p>
           {
-            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote y /:jid/owner reciben { "user": "111@lid" }; teléfonos y @handles pasan por el resolvedor existente de destinatarios. POST /:jid/admins/invite/accept acepta para la cuenta actual. Transferir requiere un administrador previamente invitado. El upstream acepta automáticamente los términos de creación/invitación administrativa al crear/aceptar.'
+            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote y /:jid/owner reciben { "user": "111@lid" }; teléfonos y @handles pasan por el resolvedor existente de destinatarios. Todos los destinos deben resolver a JID de usuario PN/LID; grupos, broadcasts y canales devuelven 400. POST /:jid/admins/invite/accept acepta para la cuenta actual. Transferir requiere un administrador previamente invitado. El upstream acepta automáticamente los términos de creación/invitación administrativa al crear/aceptar.'
           }
         </p>
         <p>
           {
-            'Publicación: POST /:jid/messages llama a client.newsletter.send. Usa { "type": "text", "text": "Noticias" } o type image/video/audio/document con mediaUrl, mediaBase64 o archivo multipart file, más caption/mimetype/fileName/ptt según el tipo. PATCH /:jid/messages/:messageId edita con el mismo cuerpo de texto/media; DELETE revoca. Estos ID son los ID de stanza devueltos en id al publicar, distintos de los ID numéricos de servidor usados por react/vote/view. Los archivos temporales se eliminan tras éxito o fallo.'
+            'Publicación: POST /:jid/messages llama a client.newsletter.send. Usa { "type": "text", "text": "Noticias" } o type image/video/audio/document con mediaUrl, mediaBase64 o archivo multipart file, más caption/mimetype/fileName/ptt según el tipo. PATCH /:jid/messages/:messageId edita con el mismo cuerpo de texto/media; DELETE revoca. Estos ID son los ID de stanza devueltos en id al publicar, distintos de los ID numéricos de servidor usados por react/vote/view. El MIME se detecta en el archivo si falta; los formatos no reconocidos requieren mimetype explícito (400 en caso contrario). Los archivos temporales se eliminan tras éxito o fallo, incluso si falla la detección de MIME.'
           }
         </p>
         <p>
