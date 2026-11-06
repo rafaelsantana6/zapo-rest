@@ -966,3 +966,28 @@ export const OPENAPI_TAGS = [
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
   },
 ] as const
+
+export const GroupMemberAddModeSchema = z.enum(['admin_add', 'all_member_add']).meta({
+  description: 'Who can add group members: admins only or all members.',
+  example: 'admin_add',
+})
+
+export const GroupMemberLinkModeSchema = z.enum(['admin_link', 'all_member_link']).meta({
+  description: 'Who can share the group invite link: admins only or all members.',
+  example: 'admin_link',
+})
+
+export const GroupHistoryShareModeSchema = z.enum(['admin_share', 'all_member_share']).meta({
+  description: 'Who can send group history bundles: admins only or all members.',
+  example: 'admin_share',
+})
+
+export const GroupMetadataSchema = z
+  .looseObject({
+    memberAddMode: GroupMemberAddModeSchema.optional(),
+    memberLinkMode: GroupMemberLinkModeSchema.optional(),
+    historyShareMode: GroupHistoryShareModeSchema.optional(),
+  })
+  .meta({
+    description: 'Upstream group metadata plus normalized member modes, omitted when not reported or unrecognized.',
+  })
