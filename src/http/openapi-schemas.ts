@@ -1349,3 +1349,12 @@ export const SendStickerPackBodySchema = z
       trayIcon: { media: { url: 'https://cdn.example.com/tray.png' }, fileName: 'tray.png' },
     },
   })
+
+export const CallAudioBodySchema = z
+  .object({
+    mediaUrl: z.url().optional().meta({ description: 'Public audio URL (SSRF guarded).' }),
+    mediaBase64: z.string().optional().meta({ description: 'Inline audio bytes, optionally a data URL.' }),
+    mimetype: z.string().optional(),
+    fileName: z.string().optional(),
+  })
+  .meta({ description: 'Audio URL, base64, or multipart file. Limited by MEDIA_UPLOAD_MAX_BYTES.' })

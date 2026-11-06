@@ -141,3 +141,5 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Local channel projections / stored channel media | N/A — deliberately excluded; read from WhatsApp directly |
 
 VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.
+
+VoIP file playback: ✅ `POST /v1/calls/:callId/audio` (`loadAudio`), URL/base64/multipart via capped media helpers, ffmpeg required (503), selects file playback and removes temporary files after decoding.

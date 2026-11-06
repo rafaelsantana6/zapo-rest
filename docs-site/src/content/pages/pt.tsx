@@ -1685,6 +1685,14 @@ const dec = new TextDecoder
     description: 'Sinalização JSON, PCM 16 kHz, gravação, audio blast e STT.',
     body: (
       <>
+        <h2 id="load-audio">Reproduzir um arquivo de áudio</h2>
+        <p>
+          <code>POST /v1/calls/:callId/audio</code> aceita <code>mediaUrl</code>, <code>mediaBase64</code> (JSON) ou{' '}
+          <code>file</code> multipart, limitado por <code>MEDIA_UPLOAD_MAX_BYTES</code>. Exige ffmpeg no PATH (503 se
+          ausente). O arquivo é apagado após decodificação ou erro. Desativa o áudio externo nessa chamada; pare o
+          stream PCM do microfone antes. Reabrir o stream volta ao áudio ao vivo. A resposta indica áudio carregado;{' '}
+          <code>call.audio_finished</code> indica o fim da reprodução.
+        </p>
         <h2 id="call-errors">Falhas e conclusão do áudio</h2>
         <p>
           Os eventos webhook/SSE <code>call.error</code> e <code>call.audio_finished</code> chegam no WS de controle

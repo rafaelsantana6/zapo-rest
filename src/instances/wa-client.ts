@@ -12,6 +12,7 @@ export type VoipSurface = {
           isVideo?: boolean
         },
   ) => Promise<string>
+  loadAudio: (callId: string, audioPath: string) => Promise<void>
   acceptCall: (callId: string) => Promise<void>
   rejectCall: (callId: string, reason?: string) => Promise<void>
   endCall: (callId: string, reason?: string) => Promise<void>

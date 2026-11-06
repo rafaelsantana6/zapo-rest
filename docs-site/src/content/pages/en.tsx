@@ -1664,6 +1664,14 @@ const dec = new TextDecoder
     description: 'JSON signaling, 16 kHz PCM, recording, audio blast and STT.',
     body: (
       <>
+        <h2 id="load-audio">Play an audio file</h2>
+        <p>
+          <code>POST /v1/calls/:callId/audio</code> takes <code>mediaUrl</code>, <code>mediaBase64</code> (JSON) or a
+          multipart <code>file</code>, capped by <code>MEDIA_UPLOAD_MAX_BYTES</code>. It requires ffmpeg on PATH (503 if
+          missing). The file is deleted after decoding or on error. It switches external audio off for that call; stop
+          the PCM microphone stream first. Reopening the stream switches back to live audio. The response means queued;{' '}
+          <code>call.audio_finished</code> means playback finished.
+        </p>
         <h2 id="call-errors">Call failures and playback completion</h2>
         <p>
           Webhook/SSE events <code>call.error</code> and <code>call.audio_finished</code> also arrive on the control WS

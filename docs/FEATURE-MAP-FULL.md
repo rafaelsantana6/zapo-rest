@@ -111,3 +111,5 @@ Last updated: 2026-07-14
 | Channel projection into `app_messages`/chats and chat media storage | N/A — deliberately excluded; existing rows retained |
 
 VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.
+
+VoIP file playback: ✅ `POST /v1/calls/:callId/audio` (`loadAudio`), URL/base64/multipart via capped media helpers, ffmpeg required (503), selects file playback and removes temporary files after decoding.

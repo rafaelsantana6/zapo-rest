@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `POST /v1/calls/:callId/audio` loads URL/base64/multipart audio through upstream ffmpeg (503 if missing), switches off external audio and cleans temporary files after decoding; completion arrives as `call.audio_finished`.
+
 - VoIP `call.error` and `call.audio_finished` webhook/SSE events and control WS `call:error` / `call:audio_finished`. Errors expose a sanitized public message/code and `call: null` because upstream omits call identity; playback completion includes the call snapshot.
 - Seven typed message routes: calendar events (`POST /v1/messages/event`, ISO dates with end ≥ start), event responses (`.../event/respond`), pin/unpin (`.../pin`, explicit 24h/7d/30d TTL), keep/unkeep (`.../keep`), poll votes (`.../poll/vote`), round video notes (`.../ptv`, URL/base64/multipart without caption), and sticker packs (`.../sticker-pack`, gateway limit 30 stickers). All return `{ id, result }`. Targeted actions recover the original instance/chat identity; votes/responses use the original secret from the session cache or stored payload (`404` absent original, `409` unavailable secret/author).
 - Safe `contextInfo` (`expirationSeconds`, `ephemeralSettingTimestamp`) on typed sends; raw `messageContextInfo` stays internal. Sticker `accessibilityLabel` is rejected because zapo-js 1.11 does not expose it.

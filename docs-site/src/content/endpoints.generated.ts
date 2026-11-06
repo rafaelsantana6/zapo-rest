@@ -943,6 +943,19 @@ export const ENDPOINTS: EndpointDoc[] = [
     responses: ['404'],
   },
   {
+    id: 'post-_v1_calls_callId_audio',
+    method: 'POST',
+    path: '/v1/calls/{callId}/audio',
+    summary: 'Play an audio file into a live call',
+    description:
+      'Accepts mediaUrl / mediaBase64 or multipart file (same inputs as message media). Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode after loading; stop the softphone microphone stream first. Opening /stream again switches back to external audio. Returns once decoded and queued, not when playback ends (call.audio_finished). Temporary files are removed after decoding or on error. Remote media mode returns 409.',
+    tags: ['Calls'],
+    security: true,
+    params: ['callId'],
+    bodyExample: null,
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
+  },
+  {
     id: 'post-_v1_calls_callId_hand',
     method: 'POST',
     path: '/v1/calls/{callId}/hand',

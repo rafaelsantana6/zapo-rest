@@ -325,6 +325,8 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 
 In-call hand raise (`POST .../calls/:callId/hand`, WS `call:hand`) and emoji reactions (`POST .../calls/:callId/reaction`, WS `call:reaction`) round-trip to the peer as `call.peer_mute`, `call.hand_raise`, and `call.reaction` (webhook + WS). The call snapshot adds `peerAudioMuted`, `handRaised`, and `raisedHands`.
 
+`POST /v1/calls/:callId/audio` plays `mediaUrl` / `mediaBase64` / multipart `file` (cap: `MEDIA_UPLOAD_MAX_BYTES`, ffmpeg required; 503 if missing). Stop the microphone PCM stream first: loading selects file playback; reopening `/stream` selects live audio. Temporary files are removed after decoding.
+
 Call errors and playback completion: webhook/SSE `call.error` / `call.audio_finished`, control WS `call:error` / `call:audio_finished`. Errors have `call: null` (upstream omits identity) and a sanitized public message/code; playback completion includes the call snapshot.
 
 Video: `isVideo: true` on 1:1 and group calls; an audio call upgrades with `POST .../calls/:callId/video/upgrade` (the peer's own request arrives as `call.video_state` with `upgradeRequested: true`), a group camera toggles with `.../video`, and `.../screen-share` swaps the camera for the screen. Frames ride `.../calls/:callId/video`, one `streamId` per sender (`stream_end` when it leaves). Control WS: `call:video_upgrade`, `call:video_upgrade_accept|reject|cancel`, `call:video`, `call:screen_share`. Events: `call.video_state`, `call.video_upgraded`, `call.screen_share` (WS `call:screen_share_changed`). `mediaType` reads `video` once a 1:1 call upgraded. The dashboard softphone tests and switches the camera and shares the screen.
@@ -489,6 +491,7 @@ GET /v1/events?instance=optional
 X-Api-Key: …
 
 # VoIP remains WebSocket
+# POST /v1/calls/:id/audio  (mediaUrl / mediaBase64 / multipart file; ffmpeg)
 # /v1/voip · /v1/calls/:id/stream  (instance key; ?apiKey= for browsers)
 # /v1/calls/:id/video — H.264, one stream id per sender; also on audio calls (they can upgrade)
 # POST /v1/instances/:name/calls/blast
