@@ -13,11 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `group.update` for upstream `member_add_mode` changes now also carries `memberAddMode`, retaining `action` and `mode`. zapo-js 1.11.0 does not decode link/history-share mode notifications; query metadata to observe those changes.
 - **Group join requests.** `GET /v1/groups/:groupId/membership-requests` lists pending requests with ISO timestamps and optional requester metadata. `POST .../membership-requests/approve`, `/reject`, and `/cancel` accept `{ "participants": ["phone-or-jid"] }`; cancel withdraws requests sent by this account. The existing `membership_approval_mode` setting enables approval. Known upstream permission, missing-group and approval-mode errors return 403/404/409 with the upstream message.
 
+- **WhatsApp Communities.** Ten instance-scoped endpoints under `/v1/communities`: create/deactivate, metadata, linked sub-groups, merged participants, suggestions, link/unlink, join and ownership transfer. Creation exposes all upstream community options; unlink supports `removeOrphanedMembers`, join supports optional `type`, and owner inputs use recipient resolution. Group ids accept digits or `@g.us` JIDs. Link/unlink preserve per-group partial failures. Unknown communities and ordinary groups return 404. Sub-group listing, suggestions and ownership transfer require the upstream MEX transport.
+- Group and community metadata share serialization and expose `isParentGroup`, `isClosedCommunity`, `defaultSubgroup`, `generalSubgroup`, `hiddenSubgroup`, `allowNonAdminSubGroupCreation` and `linkedParentJid` in OpenAPI. Existing `group.update` webhook/SSE payloads preserve upstream community `link`/`unlink`, `linkedGroups` and `contextGroupJid`; no new event names.
+
 ### Changed
 
 - `group.update` preserves its upstream payload and adds `type` for membership notifications: `membership_approval_request` adds `requesterJid` from the upstream author, while `created_membership_requests` / `revoked_membership_requests` add `requests` with requester JIDs when supplied upstream. The event name and SSE transport stay the same.
 
 - Membership notification documentation distinguishes webhook `payload.*` from SSE `data.*`; the OpenAPI webhook example now matches the delivered envelope (`id`, numeric `timestamp`, `engine`, `payload`).
+
+### Fixed
+
+- Community sub-group inputs accept legacy hyphenated `@g.us` JIDs for linking, unlinking, suggestions and joining. The join request body is optional in OpenAPI as well as at runtime. Community operations document 401 and 502 responses; missing MEX transport returns 503, and recognized MEX failures return 502 with a static public message while IQ errors retain their existing status mapping.
 
 ## [0.10.0] - 2026-11-06
 

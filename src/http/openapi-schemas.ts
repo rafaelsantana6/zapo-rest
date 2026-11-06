@@ -973,6 +973,11 @@ export const OPENAPI_TAGS = [
       'SSE carries the same fields under `data` (`data.type`, `data.requesterJid`, `data.requests[].jid`). ' +
       'Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests.',
   },
+  {
+    name: 'Communities',
+    description:
+      'WhatsApp parent groups: lifecycle, linked sub-groups, participants, suggestions and ownership. Sub-groups, suggestions and ownership require the upstream MEX transport (503 when absent; recognized MEX failures return 502).',
+  },
 ] as const
 
 export const GroupMemberAddModeSchema = z.enum(['admin_add', 'all_member_add']).meta({
@@ -992,6 +997,15 @@ export const GroupHistoryShareModeSchema = z.enum(['admin_share', 'all_member_sh
 
 export const GroupMetadataSchema = z
   .looseObject({
+    jid: z.string().optional(),
+    subject: z.string().optional(),
+    isParentGroup: z.boolean().optional(),
+    isClosedCommunity: z.boolean().optional(),
+    defaultSubgroup: z.boolean().optional(),
+    generalSubgroup: z.boolean().optional(),
+    hiddenSubgroup: z.boolean().optional(),
+    allowNonAdminSubGroupCreation: z.boolean().optional(),
+    linkedParentJid: z.string().optional(),
     memberAddMode: GroupMemberAddModeSchema.optional(),
     memberLinkMode: GroupMemberLinkModeSchema.optional(),
     historyShareMode: GroupHistoryShareModeSchema.optional(),
@@ -1027,3 +1041,103 @@ export const GroupMembershipRequestSchema = z.object({
 })
 
 export const GroupMembershipRequestsSchema = z.object({ requests: z.array(GroupMembershipRequestSchema) })
+/** Group metadata is passed through without dropping upstream fields. */
+export const CommunityGroupMetadataSchema = GroupMetadataSchema.extend({
+  jid: z.string(),
+  subject: z.string(),
+  isParentGroup: z.boolean().meta({ description: 'True for a community parent group.' }),
+  isClosedCommunity: z.boolean(),
+  defaultSubgroup: z.boolean(),
+  generalSubgroup: z.boolean(),
+  hiddenSubgroup: z.boolean(),
+  allowNonAdminSubGroupCreation: z.boolean(),
+  linkedParentJid: z.string().optional().meta({ description: 'Parent community JID of a linked sub-group.' }),
+  participants: z.array(
+    z.looseObject({
+      jid: z.string(),
+      type: z.string(),
+      isAdmin: z.boolean(),
+      isSuperAdmin: z.boolean(),
+    }),
+  ),
+})
+
+export const CommunityParamsSchema = z.object({
+  communityId: z
+    .string()
+    .regex(/^(?:\d+|\d+(?:-\d+)?@g\.us)$/)
+    .meta({
+      description: 'Group/community JID (including legacy hyphenated JIDs) or bare numeric id.',
+      example: '120363000000000000',
+    }),
+})
+
+export const CommunityCreateSchema = z
+  .object({
+    subject: z.string().min(1).max(100),
+    description: z.string().optional(),
+    membershipApprovalMode: z
+      .enum(['open', 'request_required'])
+      .optional()
+      .meta({ description: 'Defaults to request_required upstream.' }),
+    allowNonAdminSubGroupCreation: z.boolean().optional(),
+    createGeneralChat: z.boolean().optional(),
+  })
+  .meta({ example: { subject: 'My community', description: 'Community announcements', createGeneralChat: true } })
+
+export const CommunityGroupsSchema = z.object({
+  groups: z
+    .array(CommunityParamsSchema.shape.communityId)
+    .min(1)
+    .meta({ description: 'Sub-group JIDs or bare numeric ids.', example: ['120363000000000001'] }),
+})
+
+export const CommunityUnlinkSchema = CommunityGroupsSchema.extend({ removeOrphanedMembers: z.boolean().optional() })
+export const CommunityJoinParamsSchema = CommunityParamsSchema.extend({
+  groupId: CommunityParamsSchema.shape.communityId,
+})
+export const CommunityJoinSchema = z.object({ type: z.string().min(1).optional() }).nullish()
+export const CommunityOwnerSchema = z.object({
+  user: z.string().min(1).meta({ description: 'New owner phone, JID, LID or @username.', example: '5511999999999' }),
+})
+export const CommunityHintSchema = z.object({ hint: CommunityParamsSchema.shape.communityId })
+
+const CommunityFailedGroupSchema = z.object({ jid: z.string(), error: z.number().optional() })
+export const CommunityLinkResultSchema = z.object({
+  result: z.object({ linkedJids: z.array(z.string()), failed: z.array(CommunityFailedGroupSchema) }),
+})
+export const CommunityUnlinkResultSchema = z.object({
+  result: z.object({ unlinkedJids: z.array(z.string()), failed: z.array(CommunityFailedGroupSchema) }),
+})
+
+const CommunitySubGroupSchema = z.object({
+  jid: z.string(),
+  subject: z.string().optional(),
+  subjectTime: z.number().optional(),
+  defaultSubgroup: z.boolean(),
+  generalSubgroup: z.boolean(),
+  hiddenSubgroup: z.boolean(),
+  membershipApprovalEnabled: z.boolean(),
+  pendingMembershipRequests: z.number(),
+})
+export const CommunitySubGroupsSchema = z.object({
+  communityJid: z.string(),
+  announcementGroup: CommunitySubGroupSchema.nullable(),
+  subGroups: z.array(CommunitySubGroupSchema),
+})
+export const CommunityParticipantsSchema = z.object({ participants: CommunityGroupMetadataSchema.shape.participants })
+export const CommunitySuggestionsSchema = z.object({
+  suggestions: z.array(
+    z.object({
+      jid: z.string(),
+      subject: z.string().nullable(),
+      description: z.string().nullable(),
+      creator: z.string().nullable(),
+      creationTime: z.number().nullable(),
+      participantCount: z.number().nullable(),
+      isExistingGroup: z.boolean(),
+      hiddenGroup: z.boolean(),
+    }),
+  ),
+})
+export const CommunityMetadataSchema = z.object({ community: CommunityGroupMetadataSchema })

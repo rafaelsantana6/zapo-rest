@@ -9,6 +9,7 @@ import type { InstanceManager } from '~/instances/manager'
 import { serializeGroupMetadata } from '~/groups/metadata'
 import { registerGroupMemberModeRoutes } from './group-member-modes'
 import { badRequest, serviceUnavailable } from '~/lib/errors'
+import { normalizeGroupJid } from '~/lib/group-metadata'
 import { parseWaIqError } from '~/lib/wa-iq-error'
 import { resolveWhatsAppNumbers } from '~/lib/phone-resolve'
 import { normalizeProfileJpeg } from '~/media/profile-image'
@@ -522,9 +523,4 @@ export const groupRoutes: FastifyPluginAsync<GroupRoutesDeps> = async (fastify, 
     },
   )
   registerGroupMemberModeRoutes(fastify, manager, normalizeGroupJid)
-}
-
-function normalizeGroupJid(input: string): string {
-  if (input.includes('@')) return input
-  return `${input.replace(/\D/g, '')}@g.us`
 }
