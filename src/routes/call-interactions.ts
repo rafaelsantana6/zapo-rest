@@ -7,11 +7,13 @@ import {
   ErrorBodySchema,
   HandBodySchema,
   OkSchema,
+  ParticipantMuteBodySchema,
 } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
 import { asVoipClient } from '~/instances/wa-client'
 import { conflict, notFound, serviceUnavailable } from '~/lib/errors'
 import { sendCallReaction, setCallHand } from '~/voip/call-interactions'
+import { joinGroupCall, leaveGroupCall, requestParticipantMute } from '~/voip/group-call'
 
 export type CallInteractionRoutesDeps = {
   manager: InstanceManager
@@ -27,7 +29,10 @@ const ERRORS = {
   503: ErrorBodySchema,
 }
 
-/** Raise hand + emoji reactions on a live call. Peer side arrives as `call.hand_raise` / `call.reaction`. */
+/**
+ * Raise hand + emoji reactions on a live call, plus group-call leave / join / participant mute.
+ * Peer side arrives as `call.hand_raise` / `call.reaction` / `call.participants_changed`.
+ */
 export const callInteractionRoutes: FastifyPluginAsync<CallInteractionRoutesDeps> = async (app, deps) => {
   const { manager } = deps
 
@@ -78,6 +83,79 @@ export const callInteractionRoutes: FastifyPluginAsync<CallInteractionRoutesDeps
       const result = sendCallReaction(client, request.params.callId, request.body.reaction)
       if (!result) throw notFound(`call ${request.params.callId} not found`)
       if (!result.sent) throw conflict(`call ${result.callId} is not active or its reaction channel is not open yet`)
+      return { ok: true as const }
+    },
+  )
+
+  /** Upstream throws for a non-group call or a failed send; both are the caller's state, not ours. */
+  const asConflict = (err: unknown) => {
+    throw conflict(err instanceof Error ? err.message : String(err))
+  }
+
+  app.post<CallParams>(
+    scopedInstancePaths('/calls/:callId/leave'),
+    {
+      schema: {
+        tags: ['Calls'],
+        summary: 'Leave group call',
+        description:
+          'Leaves a group call; the others stay on it and it can be rejoined with `join`. ' +
+          '`409` on a 1:1 call (use `end`).',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        response: { 200: OkSchema, 409: ErrorBodySchema, ...ERRORS },
+      },
+    },
+    async (request) => {
+      const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      const callId = await leaveGroupCall(client, request.params.callId).catch(asConflict)
+      if (!callId) throw notFound(`call ${request.params.callId} not found`)
+      return { ok: true as const }
+    },
+  )
+
+  app.post<CallParams>(
+    scopedInstancePaths('/calls/:callId/join'),
+    {
+      schema: {
+        tags: ['Calls'],
+        summary: 'Join group call',
+        description:
+          'Joins a group call going on without this side (missed ring, or left earlier). ' +
+          '`409` when the call is not joinable, already joined, or the join fails.',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        response: { 200: OkSchema, 409: ErrorBodySchema, ...ERRORS },
+      },
+    },
+    async (request) => {
+      const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      await joinGroupCall(client, request.params.callId).catch(asConflict)
+      return { ok: true as const }
+    },
+  )
+
+  app.post<CallParams & { Body: z.infer<typeof ParticipantMuteBodySchema> }>(
+    scopedInstancePaths('/calls/:callId/participants/mute'),
+    {
+      schema: {
+        tags: ['Calls'],
+        summary: 'Ask a group participant to mute',
+        description:
+          'Asks one participant of a group call to mute. Nothing is forced: their client decides. ' +
+          'The other side receives it as `call.mute_requested`.\n\n```json\n{ "participant": "123456789012345@lid" }\n```',
+        security: [{ apiKey: [] }, { bearerAuth: [] }],
+        params: CallParamsSchema,
+        body: ParticipantMuteBodySchema,
+        response: { 200: OkSchema, 409: ErrorBodySchema, ...ERRORS },
+      },
+    },
+    async (request) => {
+      const client = asVoipClient(manager.requireRegisteredClient(resolveInstanceName(request)))
+      const callId = await requestParticipantMute(client, request.params.callId, request.body.participant).catch(
+        asConflict,
+      )
+      if (!callId) throw notFound(`call ${request.params.callId} not found`)
       return { ok: true as const }
     },
   )

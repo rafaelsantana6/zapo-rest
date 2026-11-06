@@ -84,6 +84,8 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | SSE `GET /v1/events` | ✅ |
 | VoIP control WS + PCM stream | ✅ |
 | In-call hand raise / emoji reactions | ✅ `POST .../calls/:id/hand` · `.../reaction` + WS `call:hand` / `call:reaction` |
+| Group calls (start / leave / join / ask to mute) | ✅ `POST .../calls` (`groupId` + `participants`) · `.../calls/:id/leave` · `.../join` · `.../participants/mute` + WS `call:leave` / `call:join` / `call:mute_participant` |
+| Group call video | ❌ (API is audio-only) |
 | Message brokers (Kafka/SQS/…) | ❌ |
 
 ---

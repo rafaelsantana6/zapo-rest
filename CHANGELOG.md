@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Group calls (voip 1.4).** `POST /v1/calls` takes `groupId` + `participants` (phones, JIDs or LIDs, max 31) instead of `to`; participants are resolved to LIDs and any without one returns `400` with `details.missing`. `POST /v1/calls/:callId/leave` leaves a group call the others stay on (`409` on a 1:1 call), `POST /v1/calls/:callId/join` joins one going on without you, and `POST /v1/calls/:callId/participants/mute` (`{ "participant": "…@lid" }`) asks a participant to mute. Same on the VoIP control WS: `call:leave`, `call:join`, `call:mute_participant`. New webhook/WS events `call.participants_changed`, `call.mute_requested`, `call.participant_media`. The call snapshot gains `isGroup`, `groupJid` and `participants`. Video is still not exposed.
+
 ## [0.9.0] - 2026-11-05
 
 ### Added

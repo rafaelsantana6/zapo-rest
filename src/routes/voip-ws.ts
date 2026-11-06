@@ -14,6 +14,8 @@
  * { op: "call:mute", id, callId, muted }
  * { op: "call:hand", id, callId, raised }
  * { op: "call:reaction", id, callId, reaction }
+ * { op: "call:leave" | "call:join", id, callId }           (group calls)
+ * { op: "call:mute_participant", id, callId, participant }  (group calls)
  * { op: "ping", id }
  *
  * Server → client:
@@ -23,6 +25,7 @@
  * { op: "call:offer" | "call:ringing" | "call:accepted" | "call:state" | "call:ended", call }
  * { op: "call:peer_mute", call, muted } | { op: "call:hand_raise", call, participantJid, raised }
  * { op: "call:reaction", call, reaction }
+ * { op: "call:participants_changed" | "call:mute_requested" | "call:participant_media", call, ... }
  * { op: "device:status", status, meJid? }
  * { op: "pong", id, ts }
  *
@@ -46,6 +49,7 @@ import { toRecipientJid } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { CacheClient } from '~/redis/client'
 import { sendCallReaction, setCallHand } from '~/voip/call-interactions'
+import { joinGroupCall, leaveGroupCall, requestParticipantMute } from '~/voip/group-call'
 import { resolveLiveCall, type SerializedCall, serializeCallInfo } from '~/voip/call-serialize'
 import type { CallRecordingManager } from '~/voip/recording-manager'
 
@@ -66,6 +70,7 @@ type ClientMsg = {
   muted?: boolean
   raised?: boolean
   reaction?: string
+  participant?: string
   contactName?: string
 }
 
@@ -74,6 +79,9 @@ const INTERACTION_EVENTS: Record<string, string> = {
   'call.peer_mute': 'call:peer_mute',
   'call.hand_raise': 'call:hand_raise',
   'call.reaction': 'call:reaction',
+  'call.participants_changed': 'call:participants_changed',
+  'call.mute_requested': 'call:mute_requested',
+  'call.participant_media': 'call:participant_media',
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
@@ -364,6 +372,9 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                     peerAudioMuted: null,
                     handRaised: false,
                     raisedHands: [],
+                    isGroup: false,
+                    groupJid: null,
+                    participants: [],
                     durationSecs: null,
                     endReason: null,
                   }
@@ -527,6 +538,35 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
               if (!result) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
               else if (!result.sent) ackErr(id, 'CALL_NOT_READY', 'call not active or reaction channel not open yet')
               else ackOk(id, { callId: result.callId, reaction })
+              return
+            }
+
+            if (op === 'call:leave' || op === 'call:join') {
+              if (!msg.callId) {
+                ackErr(id, 'INVALID_PAYLOAD', 'callId required')
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              if (op === 'call:join') {
+                ackOk(id, { callId: await joinGroupCall(client, msg.callId) })
+                return
+              }
+              const callId = await leaveGroupCall(client, msg.callId)
+              if (!callId) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else ackOk(id, { callId })
+              return
+            }
+
+            if (op === 'call:mute_participant') {
+              const participant = typeof msg.participant === 'string' ? msg.participant.trim() : ''
+              if (!msg.callId || !participant) {
+                ackErr(id, 'INVALID_PAYLOAD', 'callId + participant required')
+                return
+              }
+              const client = asVoipClient(manager.requireRegisteredClient(attached))
+              const callId = await requestParticipantMute(client, msg.callId, participant)
+              if (!callId) ackErr(id, 'CALL_NOT_FOUND', 'call not found')
+              else ackOk(id, { callId, participant })
               return
             }
           } catch (err) {
