@@ -1690,10 +1690,52 @@ const dec = new TextDecoder
           CRUD completo bajo <code>/v1/instances/:name/groups</code>: create, metadata, leave, subject/description,
           invite-code, participants add/remove, promote/demote, picture, settings (announcement, restrict, ephemeral…).
         </p>
+        <h2 id="member-settings">Permisos de los miembros</h2>
+        <p>
+          Cada ruta acepta <code>{'{ mode }'}</code>:
+        </p>
+        <ul>
+          <li>
+            Quién puede añadir miembros: <code>PUT /v1/groups/:groupId/settings/member-add-mode</code> —{' '}
+            <code>admin_add</code> / <code>all_member_add</code>.
+          </li>
+          <li>
+            Quién puede compartir el enlace de invitación:{' '}
+            <code>PUT /v1/groups/:groupId/settings/member-link-mode</code> — <code>admin_link</code> /{' '}
+            <code>all_member_link</code>.
+          </li>
+          <li>
+            Quién puede enviar historial: <code>PUT /v1/groups/:groupId/settings/history-share-mode</code> —{' '}
+            <code>admin_share</code> / <code>all_member_share</code>.
+          </li>
+        </ul>
+        <p>
+          Solo los administradores del grupo pueden cambiar los modos. Valores inválidos devuelven 400 con los valores
+          aceptados; grupo desconocido devuelve 404; permisos denegados por WhatsApp devuelven 403. Los ajustes
+          booleanos siguen usando <code>{'{ enabled }'}</code> (<code>PUT /v1/groups/:groupId/settings/:setting</code>).
+        </p>
+        <p>
+          En <code>GET /v1/groups/:groupId</code> / <code>GET /v1/groups</code>, los metadatos exponen{' '}
+          <code>memberAddMode</code>, <code>memberLinkMode</code>, <code>historyShareMode</code> cuando WhatsApp los
+          informa; los valores ausentes o desconocidos se omiten. El campo upstream{' '}
+          <code>memberShareGroupHistoryMode</code> se mantiene por compatibilidad.
+        </p>
+        <p>
+          Los cambios desde el teléfono al modo de adición llegan en <code>group.update</code> con{' '}
+          <code>action: "member_add_mode"</code>, <code>mode</code>, <code>memberAddMode</code>. zapo-js 1.11.0 no
+          decodifica notificaciones de los modos de enlace e historial: consulte los metadatos para observar esos
+          cambios.
+        </p>
+        <h2 id="group-history">Historial del grupo</h2>
         <p>
           <code>POST .../groups/:groupId/share-history</code> manda el historial reciente a quien entró después (la
           cuenta necesita <code>group_history_send</code>). Los bundles recibidos están activos por defecto (
           <code>HISTORY_GROUP_BUNDLES</code>) y aparecen como <code>history.group</code> más las proyecciones.
+        </p>
+        <p>
+          El envío respeta el <a href="#member-settings">modo de compartir historial</a> (<code>historyShareMode</code>
+          ): <code>admin_share</code> / <code>all_member_share</code>. <code>HISTORY_GROUP_BUNDLES</code> solo controla
+          la recepción de bundles.
         </p>
         <p>
           Referencia detallada: <a href="/guide/api/Groups">Groups API</a>.
