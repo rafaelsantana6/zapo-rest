@@ -3,6 +3,8 @@ export const WEBHOOK_EVENTS = [
   'instance.qr',
   'instance.connection',
   'instance.paired',
+  /** Pairing needed; `forceManual: true` = request a fresh pairing code / QR. */
+  'instance.pairing_required',
   'instance.logged_out',
   'message',
   'message.any',

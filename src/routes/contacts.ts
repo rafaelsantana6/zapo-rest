@@ -132,7 +132,7 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
           '- expands BR **nono dígito** / MX-AR variants\n' +
           '- **one** `getLidsByPhoneNumbers` batch (no spam)\n' +
           '- returns the WA-confirmed `jid` when `exists`\n' +
-          '- caches results (Redis/memory) for 24h',
+          '- caches results (Redis/memory) for 24h — except `status` `error` / `unanswered` (no verdict)',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         body: ResolveBody,
       },
@@ -177,6 +177,8 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
           localJid: r.localJid,
           variantsChecked: r.variantsChecked,
           cached: r.cached,
+          status: r.status,
+          lookupError: r.lookupError,
         })),
       }
     },
@@ -218,6 +220,8 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
           matchedNumber: r.matchedNumber,
           numberExists: r.exists,
           chatId: r.exists ? r.jid : null,
+          status: r.status,
+          lookupError: r.lookupError,
         })),
       }
     },
@@ -253,6 +257,8 @@ export const contactRoutes: FastifyPluginAsync<ContactRoutesDeps> = async (fasti
         jid: r?.jid ?? createJid(q.phone),
         lid: r?.lid ?? null,
         matchedNumber: r?.matchedNumber ?? null,
+        status: r?.status ?? 'unanswered',
+        lookupError: r?.lookupError ?? null,
         input: q.phone,
       }
     },

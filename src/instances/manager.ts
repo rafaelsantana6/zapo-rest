@@ -515,9 +515,12 @@ export class InstanceManager {
       runSafe('auth_qr', () => this.onAuthQr(name, qr, ttlMs))
     })
 
-    client.on('auth_pairing_required', () => {
+    // `forceManual: true` = the pending pairing code died (QR budget spent, or the
+    // code could not be re-registered after a reconnect): request a new one.
+    client.on('auth_pairing_required', ({ forceManual }) => {
       runSafe('auth_pairing_required', async () => {
-        await this.persistStatus(name, { status: 'pairing' })
+        const row = await this.persistStatus(name, { status: 'pairing' })
+        if (row) await this.opts.webhooks.emit(row, 'instance.pairing_required', { forceManual: Boolean(forceManual) })
       })
     })
 
@@ -611,7 +614,11 @@ export class InstanceManager {
     // Peer-side interactions (voip 1.2): data = { call, ...detail }
     onVoip('voip_call_peer_mute', (payload) => {
       runSafe('voip_call_peer_mute', () =>
-        this.onVoipInteraction(name, 'call.peer_mute', payload.call, { muted: Boolean(payload.muted) }),
+        this.onVoipInteraction(name, 'call.peer_mute', payload.call, {
+          muted: Boolean(payload.muted),
+          // Device that announced it (voip 1.4); matters on group calls.
+          participantJid: payload.participantJid ?? null,
+        }),
       )
     })
 
@@ -626,7 +633,10 @@ export class InstanceManager {
 
     onVoip('voip_call_reaction', (payload) => {
       runSafe('voip_call_reaction', () =>
-        this.onVoipInteraction(name, 'call.reaction', payload.call, { reaction: payload.reaction?.reaction ?? null }),
+        this.onVoipInteraction(name, 'call.reaction', payload.call, {
+          reaction: payload.reaction?.reaction ?? null,
+          participantJid: payload.participantJid ?? null,
+        }),
       )
     })
 

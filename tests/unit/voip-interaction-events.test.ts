@@ -62,4 +62,19 @@ describe('VoIP peer interaction events', () => {
     expect(data.reaction).toBe('🎉')
     expect(() => JSON.stringify(data)).not.toThrow()
   })
+
+  it('forwards the announcing device on call.peer_mute (voip 1.4)', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_peer_mute', { call, muted: false, participantJid: '5511888888888:3@s.whatsapp.net' })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ muted: false, participantJid: '5511888888888:3@s.whatsapp.net' })
+  })
+
+  it('emits instance.pairing_required with forceManual', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('auth_pairing_required', { forceManual: true })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[1]).toBe('instance.pairing_required')
+    expect(webhooks.emit.mock.calls[0]?.[2]).toEqual({ forceManual: true })
+  })
 })

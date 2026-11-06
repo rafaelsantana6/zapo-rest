@@ -141,3 +141,50 @@ describe('resolveRecipientJid', () => {
     expect(jid).toContain('@s.whatsapp.net')
   })
 })
+
+/** Named fake: in-memory CacheClient that records keys written. */
+function memoryCache() {
+  const store = new Map<string, string>()
+  const cache = {
+    get: async (k: string) => store.get(k) ?? null,
+    set: async (k: string, v: string) => {
+      store.set(k, v)
+    },
+    del: async () => undefined,
+  }
+  return { store, cache: cache as never }
+}
+
+describe('resolveWhatsAppNumbers lookup status (zapo-js 1.11)', () => {
+  it('reports an unanswered lookup and does not cache it as "no WhatsApp"', async () => {
+    const { store, cache } = memoryCache()
+    const client = mockClient()
+    client.profile.getLidsByPhoneNumbers.mockResolvedValue([
+      { phoneJid: '5511999999999@s.whatsapp.net', lidJid: null, exists: false, status: 'unanswered', error: { code: '500' } },
+      { phoneJid: '551199999999@s.whatsapp.net', lidJid: null, exists: false, status: 'out' },
+    ])
+    const [r] = await resolveWhatsAppNumbers(asWa(client), ['5511999999999'], { cache })
+    expect(r).toMatchObject({ exists: false, status: 'unanswered', lookupError: { code: '500' } })
+    expect(store.size).toBe(0)
+  })
+
+  it('caches a definite "out" with its status', async () => {
+    const { store, cache } = memoryCache()
+    const client = mockClient()
+    client.profile.getLidsByPhoneNumbers.mockImplementation(async (phones: string[]) =>
+      phones.map((p) => ({ phoneJid: `${p}@s.whatsapp.net`, lidJid: null, exists: false, status: 'out' })),
+    )
+    const [first] = await resolveWhatsAppNumbers(asWa(client), ['5511999999999'], { cache })
+    expect(first?.status).toBe('out')
+    expect(store.size).toBeGreaterThan(0)
+    const [cached] = await resolveWhatsAppNumbers(asWa(client), ['5511999999999'], { cache })
+    expect(cached).toMatchObject({ cached: true, status: 'out', exists: false })
+  })
+
+  it('marks group input as local (no lookup)', async () => {
+    const client = mockClient()
+    const [r] = await resolveWhatsAppNumbers(asWa(client), ['120363@g.us'])
+    expect(r?.status).toBe('local')
+    expect(client.profile.getLidsByPhoneNumbers).not.toHaveBeenCalled()
+  })
+})

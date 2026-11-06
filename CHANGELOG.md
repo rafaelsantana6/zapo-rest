@@ -12,10 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Username (`@handle`).** `GET/PUT/DELETE /v1/profile/username`, `GET /v1/profile/username/check`, and `POST /v1/profile/username/resolve`. Message `to` accepts `@handle` (and `@handle:key`). Inbound events include `senderUsername` and `recipientUsername`. Another device changing the handle emits `profile.username`. The recovery PIN is not returned.
 - **Group history for members who joined later.** `HISTORY_GROUP_BUNDLES` defaults on, so a shared bundle is downloaded, imported into `app_*`, and announced as `history.group`. `POST /v1/groups/:groupId/share-history` sends a bundle to specific members when the account has `group_history_send`.
 - **In-call hand raise and emoji reactions.** `POST /v1/calls/:callId/hand` (`{ "raised": true }`) raises or lowers the local hand — durable until lowered, announced to the peer; 404 on an unknown call. `POST /v1/calls/:callId/reaction` (`{ "reaction": "👍" }`, 1–32 chars) sends a momentary emoji reaction; 409 when the call is not active or its reaction channel is not open yet. Same ops on the VoIP control WS: `call:hand`, `call:reaction`. Peer-side interactions arrive as webhook/WS `call.peer_mute`, `call.hand_raise`, `call.reaction`. The call snapshot gains `peerAudioMuted`, `handRaised`, `raisedHands`; `endReason` can now also be `accepted_elsewhere`, `rejected_elsewhere`, or `relay_lost`.
+- **`instance.pairing_required`** webhook/SSE event, `{ "forceManual": boolean }`. `forceManual: true` means the pending pairing code or QR is dead (refresh budget spent, or zapo could not re-register the code after a reconnect): request a new one.
+- Number checks (`POST .../contacts/check`, `.../resolve`, `GET .../contacts/check`) return `status` (`in`, `out`, `invalid`, `error`, `unanswered`, or `local` when no lookup ran) and `lookupError`.
 - **`STORE_L1_CACHE`** (default `false`). In-process L1 read cache in front of the Postgres-backed Signal session, identity, sender-key, and privacy-token rows — fewer Postgres reads on the decrypt/encrypt hot path. Safe only with a single process or sticky sessions per instance (the supported deployment model). `STORE_L1_IDLE_TTL_SECONDS` (default `1800`, `0` = only the size cap evicts) bounds how long an idle peer stays cached.
 
 ### Changed
 
+- A number lookup the server did not answer (`status` `error` / `unanswered`) is no longer cached. Before, it was stored for 24h as `exists: false`, so a valid number read as "not on WhatsApp" for a day.
+- `call.peer_mute` and `call.reaction` carry `participantJid`, the device that sent them (needed to tell participants apart on group calls). `endReason` can also be `setup_failed` (the server refused the offer) or `invisible` (taken off a group call that goes on).
 - Inbound auto-download and `GET .../messages/:id/media` rehydrate now ask the sender to re-upload when the WhatsApp CDN returns 404 or 410 (expired blob, typical of history). The new `directPath` is downloaded once; `not_found` fails without repeating the dead URL. Transient errors still retry 5×.
 - Meta AI rich responses are stored as text (submessage text, image captions, and code blocks). A bot-forwarded message uses the inner type, so a forwarded image stays media instead of `unknown`.
 - `POST .../calls/:callId/mute` now also announces the mute state to the peer (upstream `@zapo-js/voip` 1.2 behavior).
@@ -43,6 +47,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Call media moves to `@zapo-js/voip-media`; adds hand raise and in-call emoji reactions, and
   `setMute` now announces the local mic state to the peer. zapo-rest exposes the new interactions
   as described in Added, above.
+- **Runtime**: `zapo-js` 1.10.0 → [1.11.0](https://github.com/vinikjkkj/zapo/releases/tag/v1.11.0).
+  Lookup status per phone number (used above), pairing code re-registered after a reconnect,
+  pairing waits for the server's connection restart, `requireFullSync` sent at pairing, socket
+  and noise state bound to their connection, album and group-retry fixes. Also adds group calls,
+  `messageContextInfo` on typed sends, `history.sink` and `syncSignalSession({ force })`, not
+  exposed yet.
+- **Runtime**: `@zapo-js/voip` 1.2.0 → 1.4.0 (with `@zapo-js/voip-media` 0.3.0): call audio at
+  parity with the official clients, group calls, and per-participant events.
+- **Runtime/Dev**: minor and patch bumps of fastify and plugins, AWS SDK, zod, pg, pino, sharp, ws,
+  biome, tsx and `@zapo-js/fake-server` 1.3.1. `vitest` 5 (major) is not included.
 - **Runtime**: peer dependency `libmlow-wasm` → `libmlow-wasm-fork` ^0.2.0 — voip 1.2 moved call
   media to `@zapo-js/voip-media`, which forks this native dependency. No zapo-rest API change.
 
