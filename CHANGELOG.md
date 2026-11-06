@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-06
+
 ### Fixed
 
 - Generated button/list reply IDs now reserve all explicit IDs and add collision suffixes; carousel cards share the reservation. Duplicate explicit reply IDs return 400, including across list sections and carousel cards.
