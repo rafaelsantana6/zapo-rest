@@ -54,6 +54,11 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | List chats / get messages | ✅ |
 | Mark read / archive / unread | ✅ |
 | Delete chat (local store) | ✅ |
+| Pin/unpin, mute/unmute, lock/unlock | ✅ `POST /chats/:chatId/{pin,mute,lock}`; projected phone mutations |
+| Clear chat (preserve starred by default) | ✅ `POST /chats/:chatId/clear` |
+| Delete chat on own linked devices | ✅ `POST /chats/:chatId/delete`; legacy DELETE remains local chat-row only |
+| Delete message for me | ✅ `DELETE /chats/:chatId/messages/:messageId/for-me` |
+| Chat flags | ✅ numeric `pinned`, `muted`, ISO `muteUntil`, `locked`; existing `muteEndMs` retained |
 | History sync on pair | ✅ |
 | On-demand history | ✅ `.../history-sync` |
 | Group history receive | ✅ `HISTORY_GROUP_BUNDLES` (default on) → `history.group` |

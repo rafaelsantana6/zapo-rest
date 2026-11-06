@@ -15,6 +15,8 @@ Last updated: 2026-07-14
 | Messages (text/media/sticker/location/contact/reaction/poll/status/star) | ✅ |
 | Interactive buttons/list/template Cloud | ❌ |
 | Chats (list/messages/read/archive/history-sync) | ✅ |
+| Chat pin/mute/lock + phone app-state projection | ✅ numeric pinned, muted, muteUntil, locked; chat.update |
+| Clear chat / synced delete chat / delete message for me | ✅ preserve starred by default; own devices only; legacy DELETE remains projection-only |
 | Contacts (resolve/check/block/picture/about) | ✅ |
 | Groups (full lifecycle) | ✅ |
 | Group member modes (add, invite link, history bundles) | ✅ Admin-only `PUT /v1/groups/:groupId/settings/{member-add-mode,member-link-mode,history-share-mode}` with `{ mode }`; metadata single/list exposes `memberAddMode`, `memberLinkMode`, `historyShareMode` |

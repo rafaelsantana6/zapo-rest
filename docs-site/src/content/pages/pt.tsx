@@ -209,6 +209,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <strong>Vídeo em canal binário próprio</strong> — frames H.264 nunca dividem o socket com o PCM; um
             visualizador lento cai para o próximo key frame em vez de crescer memória do servidor ou travar o áudio
           </li>
+          <li>
+            Configurações de conversa sincronizadas — ações bem-sucedidas e app-state do telefone atualizam o Postgres;
+            consultas refletem a expiração do mute.
+          </li>
         </ul>
 
         <h2 id="table">Decisão → benefício</h2>
@@ -306,6 +310,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
                 Vídeo em WS dedicado (<code>.../calls/:id/video</code>) + drop-until-keyframe
               </td>
               <td>Nunca bloqueia nem atrasa o PCM; visualizador lento descarta frames até o próximo key frame</td>
+            </tr>
+            <tr>
+              <td>Configurações de conversa projetadas do app-state</td>
+              <td>
+                Pin/mute/lock acompanham o telefone; mute temporário expira nas consultas. A exclusão somente local fica
+                explícita.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1188,6 +1199,56 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           num grupo é importado com <code>HISTORY_GROUP_BUNDLES</code> ligado (padrão) e anunciado como{' '}
           <code>history.group</code>.
         </Callout>
+        <h2 id="chat-actions">Ações de conversa</h2>
+        <p>
+          Os caminhos abaixo usam a chave da instância e aceitam telefones, JIDs de usuário/grupo e LIDs. As mudanças
+          afetam sua conta e os dispositivos vinculados; os outros participantes mantêm suas cópias. Nenhuma ação sai de
+          um grupo.
+        </p>
+        <p>
+          GET /v1/chats e GET /v1/chats/:chatId retornam pinned numérico (0 desfixado, positivo fixado), muted,
+          muteUntil (ISO ou null), locked e o muteEndMs existente. Mute expirado aparece como muted=false sem outro
+          evento do telefone. Para sempre usa 9999-12-31T23:59:59Z.
+        </p>
+        <CodeBlock
+          language="http"
+          code={`POST /v1/chats/:chatId/pin       { "pinned": true }
+POST /v1/chats/:chatId/mute      { "muted": true, "durationSeconds": 3600 }
+POST /v1/chats/:chatId/mute      { "muted": true, "until": "2090-01-01T00:00:00Z" }
+POST /v1/chats/:chatId/lock      { "locked": true }
+POST /v1/chats/:chatId/clear     { "deleteStarred": false, "deleteMedia": false }
+POST /v1/chats/:chatId/delete    { "deleteMedia": false }
+DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
+        />
+        <p>
+          Fixar também desarquiva. Bloquear limpa arquivo e fixação. Use false para desfixar, reativar notificações ou
+          desbloquear.
+        </p>
+        <p>
+          Mute aceita until (data ISO futura com fuso horário) ou durationSeconds (inteiro positivo), nunca ambos. Omita
+          os dois para silenciar para sempre. Para reativar notificações, envie apenas muted=false.
+        </p>
+        <p>
+          Clear usa deleteStarred=false e deleteMedia=false por padrão. Favoritas permanecem na projeção e a prévia é
+          recalculada. Envie deleteStarred=true para limpar todas as mensagens. deleteMedia é repassado ao zapo; objetos
+          de mídia/CAS do REST seguem sua própria retenção e não são apagados por essas rotas.
+        </p>
+        <p>
+          POST /v1/chats/:chatId/delete chama deleteChat do zapo e remove conversa/mensagens locais, incluindo aliases
+          LID. O DELETE /v1/chats/:chatId legado remove apenas a linha local da conversa e mantém mensagens. O zapo
+          monta automaticamente o intervalo da última mensagem a partir da mailbox; suas opções de deleteChat aceitam
+          apenas deleteMedia.
+        </p>
+        <p>
+          Excluir para mim usa fromMe, participante e timestamp da mensagem armazenada e valida se ela pertence à
+          conversa (404 caso contrário). Use ?deleteMedia=true para repassar a opção de mídia. Não revoga a cópia dos
+          destinatários.
+        </p>
+        <p>
+          As novas ações retornam 409 para conflitos de app-state e 503 para falhas de conexão, com a mensagem do
+          upstream. A projeção local muda após sucesso do upstream. Mudanças do telefone chegam pelo evento webhook/SSE
+          chat.update existente após persistência.
+        </p>
       </>
     ),
   },
@@ -1351,6 +1412,12 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           Quando configurado, o worker assina o POST (<code>X-Webhook-Hmac</code> / <code>X-Webhook-Hmac-Sha512</code>
           ). Retries: policy linear/exponential/constant + attempts + delaySeconds. O secret é write-only na API (nunca
           re-ecoado no GET).
+        </p>
+        <p>
+          Mudanças de app-state do telefone passam a emitir chat.update após projeção: chatId e os campos públicos da
+          conversa (pinned numérico, muted, muteUntil ISO, locked, archived). ClearChat/DeleteChat/DeleteMessageForMe
+          carregam action e deleted; deleted=true indica remoção da linha da conversa. Nenhum novo nome de evento ou
+          transporte foi adicionado.
         </p>
       </>
     ),

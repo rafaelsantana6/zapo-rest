@@ -264,3 +264,11 @@ iframes stay blocked; it only matters with an XSS on this origin. Serve the dash
 origin, or tighten the header at the reverse proxy, if that is a concern.
 
 **Code:** `src/plugins/security-headers.ts`.
+
+## Chat app-state actions and projections
+
+**Decision:** new pin/mute/lock/clear/delete routes call the typed `client.chat` coordinator first, then persist the matching projection. Connection failures return 503; other upstream app-state failures return 409. The manager also forwards inbound `mutation` events to the processor, which persists settings before `chat.update`. Omitted upsert fields preserve existing settings. Timed mute is computed on reads because zapo does not emit another mutation on expiration; forever uses its documented year-9999 convention.
+
+**Compatibility:** existing numeric `pinned` and `muteEndMs` stay available; `muted`, ISO `muteUntil` and `locked` are additive. Existing `DELETE /chats/:chatId` deletes only a local chat row; `POST /chats/:chatId/delete` synchronizes account deletion and removes local messages/aliases. Clear preserves starred rows by default, and previews are recalculated. zapo constructs the message range from its mailbox; callers do not supply last-message metadata.
+
+**Trade-off:** WhatsApp and Postgres cannot share a transaction. A DB failure after upstream success requires resync. Media deletion flags are forwarded to zapo; CAS objects are retained for storage retention policies. Phone clear/delete ranges preserve newer messages. No event names or transports are added.

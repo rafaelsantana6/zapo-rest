@@ -16470,6 +16470,2428 @@
         }
       }
     },
+    "/v1/chats/{chatId}/pin": {
+      "post": {
+        "summary": "Pin or unpin chat",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Pinning also unarchives the chat. Projection changes only after upstream success.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pinned": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pinned"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true,
+            "description": "Phone, user/group JID or LID"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chat": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "isGroup": {
+                          "type": "boolean"
+                        },
+                        "unreadCount": {
+                          "type": "number"
+                        },
+                        "archived": {
+                          "type": "boolean"
+                        },
+                        "pinned": {
+                          "type": "number",
+                          "description": "Existing numeric pin flag: 0 unpinned, positive pinned"
+                        },
+                        "muted": {
+                          "type": "boolean"
+                        },
+                        "muteUntil": {
+                          "description": "ISO notification resume time; null when unmuted. Forever uses year 9999.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "muteEndMs": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "locked": {
+                          "type": "boolean"
+                        },
+                        "markedAsUnread": {
+                          "type": "boolean"
+                        },
+                        "lastMessage": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "preview": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "timestamp": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "preview",
+                                "timestamp"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "altJids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "_data": {}
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "isGroup",
+                        "unreadCount",
+                        "archived",
+                        "pinned",
+                        "muted",
+                        "muteUntil",
+                        "muteEndMs",
+                        "locked",
+                        "markedAsUnread",
+                        "lastMessage",
+                        "altJids",
+                        "_data"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "chat"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chats/{chatId}/mute": {
+      "post": {
+        "summary": "Mute or unmute chat",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Use until (ISO) or durationSeconds; neither means forever. GET computes expiration without waiting for another phone event.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "muted": {
+                    "type": "boolean"
+                  },
+                  "until": {
+                    "description": "Absolute notification resume time (ISO 8601)",
+                    "example": "2027-01-01T12:00:00Z",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "durationSeconds": {
+                    "description": "Mute duration from now; mutually exclusive with until",
+                    "example": 3600,
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 253402300799
+                  }
+                },
+                "required": [
+                  "muted"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true,
+            "description": "Phone, user/group JID or LID"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chat": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "isGroup": {
+                          "type": "boolean"
+                        },
+                        "unreadCount": {
+                          "type": "number"
+                        },
+                        "archived": {
+                          "type": "boolean"
+                        },
+                        "pinned": {
+                          "type": "number",
+                          "description": "Existing numeric pin flag: 0 unpinned, positive pinned"
+                        },
+                        "muted": {
+                          "type": "boolean"
+                        },
+                        "muteUntil": {
+                          "description": "ISO notification resume time; null when unmuted. Forever uses year 9999.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "muteEndMs": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "locked": {
+                          "type": "boolean"
+                        },
+                        "markedAsUnread": {
+                          "type": "boolean"
+                        },
+                        "lastMessage": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "preview": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "timestamp": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "preview",
+                                "timestamp"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "altJids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "_data": {}
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "isGroup",
+                        "unreadCount",
+                        "archived",
+                        "pinned",
+                        "muted",
+                        "muteUntil",
+                        "muteEndMs",
+                        "locked",
+                        "markedAsUnread",
+                        "lastMessage",
+                        "altJids",
+                        "_data"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "chat"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chats/{chatId}/lock": {
+      "post": {
+        "summary": "Lock or unlock chat",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Locking also clears archive and pin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "locked": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "locked"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true,
+            "description": "Phone, user/group JID or LID"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "chat": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "isGroup": {
+                          "type": "boolean"
+                        },
+                        "unreadCount": {
+                          "type": "number"
+                        },
+                        "archived": {
+                          "type": "boolean"
+                        },
+                        "pinned": {
+                          "type": "number",
+                          "description": "Existing numeric pin flag: 0 unpinned, positive pinned"
+                        },
+                        "muted": {
+                          "type": "boolean"
+                        },
+                        "muteUntil": {
+                          "description": "ISO notification resume time; null when unmuted. Forever uses year 9999.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "muteEndMs": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "locked": {
+                          "type": "boolean"
+                        },
+                        "markedAsUnread": {
+                          "type": "boolean"
+                        },
+                        "lastMessage": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "preview": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "timestamp": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "preview",
+                                "timestamp"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "altJids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "_data": {}
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "isGroup",
+                        "unreadCount",
+                        "archived",
+                        "pinned",
+                        "muted",
+                        "muteUntil",
+                        "muteEndMs",
+                        "locked",
+                        "markedAsUnread",
+                        "lastMessage",
+                        "altJids",
+                        "_data"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "chat"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chats/{chatId}/clear": {
+      "post": {
+        "summary": "Clear chat history for your account",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Preserves the chat, starred messages and media by default. deleteStarred/deleteMedia are forwarded to zapo; stored media objects are not purged. Other participants keep their copies.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "deleteMedia": {
+                        "type": "boolean"
+                      },
+                      "deleteStarred": {
+                        "description": "Default false: preserve starred messages",
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true,
+            "description": "Phone, user/group JID or LID"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chats/{chatId}/delete": {
+      "post": {
+        "summary": "Delete chat and history for your account",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Syncs deleteChat across your devices and removes local chat/messages, including LID aliases. Does not leave groups. zapo builds the last-message range from its mailbox; no caller-supplied last message is accepted. DELETE /chats/:chatId only removes the local chat row. Stored media objects are not purged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "deleteMedia": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true,
+            "description": "Phone, user/group JID or LID"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chats/{chatId}/messages/{messageId}/for-me": {
+      "delete": {
+        "summary": "Delete one message for your account",
+        "tags": [
+          "Chats"
+        ],
+        "description": "Uses the stored fromMe, participant and timestamp; recipients keep their copy. Stored media objects are not purged.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "in": "query",
+            "name": "deleteMedia",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "chatId",
+            "required": true,
+            "description": "Phone, user/group JID or LID"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/chats": {
       "get": {
         "summary": "List chats",
@@ -16541,7 +18963,109 @@
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "additionalProperties": true
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "isGroup": {
+                            "type": "boolean"
+                          },
+                          "unreadCount": {
+                            "type": "number"
+                          },
+                          "archived": {
+                            "type": "boolean"
+                          },
+                          "pinned": {
+                            "type": "number",
+                            "description": "Existing numeric pin flag: 0 unpinned, positive pinned"
+                          },
+                          "muted": {
+                            "type": "boolean"
+                          },
+                          "muteUntil": {
+                            "description": "ISO notification resume time; null when unmuted. Forever uses year 9999.",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "muteEndMs": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "locked": {
+                            "type": "boolean"
+                          },
+                          "markedAsUnread": {
+                            "type": "boolean"
+                          },
+                          "lastMessage": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "preview": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "timestamp": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "preview",
+                                  "timestamp"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "altJids": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "_data": {}
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "isGroup",
+                          "unreadCount",
+                          "archived",
+                          "pinned",
+                          "muted",
+                          "muteUntil",
+                          "muteEndMs",
+                          "locked",
+                          "markedAsUnread",
+                          "lastMessage",
+                          "altJids",
+                          "_data"
+                        ],
+                        "additionalProperties": false
                       }
                     }
                   },
@@ -16669,7 +19193,109 @@
                   "properties": {
                     "chat": {
                       "type": "object",
-                      "additionalProperties": true
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "isGroup": {
+                          "type": "boolean"
+                        },
+                        "unreadCount": {
+                          "type": "number"
+                        },
+                        "archived": {
+                          "type": "boolean"
+                        },
+                        "pinned": {
+                          "type": "number",
+                          "description": "Existing numeric pin flag: 0 unpinned, positive pinned"
+                        },
+                        "muted": {
+                          "type": "boolean"
+                        },
+                        "muteUntil": {
+                          "description": "ISO notification resume time; null when unmuted. Forever uses year 9999.",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "muteEndMs": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "locked": {
+                          "type": "boolean"
+                        },
+                        "markedAsUnread": {
+                          "type": "boolean"
+                        },
+                        "lastMessage": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "preview": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "timestamp": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "preview",
+                                "timestamp"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "altJids": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "_data": {}
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "isGroup",
+                        "unreadCount",
+                        "archived",
+                        "pinned",
+                        "muted",
+                        "muteUntil",
+                        "muteEndMs",
+                        "locked",
+                        "markedAsUnread",
+                        "lastMessage",
+                        "altJids",
+                        "_data"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [

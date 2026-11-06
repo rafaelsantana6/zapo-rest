@@ -61,6 +61,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **WA Web wire parity** — WAM telemetry (`@zapo-js/wam`) on by default; set `WAM_ENABLED=false` to disable
 - **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
 - **@handle and late group history** — send to `@handle`; members who join a group later still receive shared history (`HISTORY_GROUP_BUNDLES`)
+- **Synced chat settings** — successful actions and phone app-state update Postgres; mute expiration is reflected on reads
 - **Video on its own binary channel** — H.264 frames never share the PCM socket; a lagging viewer drops to the next key frame instead of growing server memory or blocking audio
 
 | Decision | Benefit |
@@ -80,6 +81,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 | **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
+| **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Local-only deletion remains explicit. |
 | **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
 
 ---
@@ -349,6 +351,7 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 - **Instances** — create / connect / disconnect / QR / pairing / restart / delete / rotate key
 - **Messages** — text, reply, image, video, audio, document, sticker, location, poll, react, edit, revoke, contact, forward, star/unstar
 - **Chats** — list, messages, read, archive, delete, history-sync
+- **Chat actions** — pin/unpin, mute/unmute (ISO or duration; forever by default), lock/unlock, clear with starred preservation, synced chat delete and delete-message-for-me; reads include `pinned` (numeric), `muted`, `muteUntil`, `locked`
 - **Contacts** — list, check exists, about, profile picture, blocklist, BR 9th-digit aware resolve
 - **Groups** — create, metadata, invite, participants, promote/demote, picture; admin/member permissions to add members, share invite links, and share history
 - **Group join requests** — list, approve/reject, cancel our requests; `membership_approval_mode` toggle; notifications through `group.update`
@@ -424,6 +427,13 @@ GET /v1/chats                                   # instance key
 GET /v1/instances/:name/chats/:chatId/messages
 POST /v1/instances/:name/chats/:chatId/messages/read
 POST /v1/instances/:name/chats/:chatId/history-sync
+POST /v1/chats/:chatId/pin                     # { "pinned": true }
+POST /v1/chats/:chatId/mute                    # { "muted": true, "durationSeconds": 3600 } or "until": ISO
+POST /v1/chats/:chatId/lock                    # { "locked": true }
+POST /v1/chats/:chatId/clear                   # { "deleteStarred": false, "deleteMedia": false }
+POST /v1/chats/:chatId/delete                  # { "deleteMedia": false }; synced account deletion
+DELETE /v1/chats/:chatId                       # legacy local chat projection only; messages kept
+DELETE /v1/chats/:chatId/messages/:messageId/for-me # optional ?deleteMedia=true; recipients keep copies
 
 # Realtime SSE (prefer header auth)
 GET /v1/events?instance=optional

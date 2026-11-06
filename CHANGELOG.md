@@ -16,11 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **WhatsApp Communities.** Ten instance-scoped endpoints under `/v1/communities`: create/deactivate, metadata, linked sub-groups, merged participants, suggestions, link/unlink, join and ownership transfer. Creation exposes all upstream community options; unlink supports `removeOrphanedMembers`, join supports optional `type`, and owner inputs use recipient resolution. Group ids accept digits or `@g.us` JIDs. Link/unlink preserve per-group partial failures. Unknown communities and ordinary groups return 404. Sub-group listing, suggestions and ownership transfer require the upstream MEX transport.
 - Group and community metadata share serialization and expose `isParentGroup`, `isClosedCommunity`, `defaultSubgroup`, `generalSubgroup`, `hiddenSubgroup`, `allowNonAdminSubGroupCreation` and `linkedParentJid` in OpenAPI. Existing `group.update` webhook/SSE payloads preserve upstream community `link`/`unlink`, `linkedGroups` and `contextGroupJid`; no new event names.
 
+- Chat actions: `POST /v1/chats/:chatId/pin`, `/mute`, `/lock`, `/clear`, `/delete` and `DELETE /v1/chats/:chatId/messages/:messageId/for-me`. Mute accepts ISO `until` or `durationSeconds`, defaulting to forever. Clear preserves starred messages/media by default. Synced delete removes the chat/history for your account, without leaving groups; the existing `DELETE /v1/chats/:chatId` remains projection-only.
+- Chat reads expose `muted`, `muteUntil`, `locked` alongside existing numeric `pinned` and `muteEndMs`. Phone app-state pin/mute/lock/archive/read/clear/delete changes update projections and emit the existing `chat.update` webhook/SSE event after persistence. Lock storage is migrated idempotently.
+
 ### Changed
 
 - `group.update` preserves its upstream payload and adds `type` for membership notifications: `membership_approval_request` adds `requesterJid` from the upstream author, while `created_membership_requests` / `revoked_membership_requests` add `requests` with requester JIDs when supplied upstream. The event name and SSE transport stay the same.
 
 - Membership notification documentation distinguishes webhook `payload.*` from SSE `data.*`; the OpenAPI webhook example now matches the delivered envelope (`id`, numeric `timestamp`, `engine`, `payload`).
+
+- Chat projection upserts preserve omitted settings, so new messages do not reset pin/archive/mute/read/lock state. New chat-action routes return upstream conflicts as 409 and connection failures as 503, without applying a successful local-only fallback.
 
 ### Fixed
 
