@@ -13,7 +13,7 @@ import {
   PublicChatSchema,
 } from '~/http/openapi-schemas'
 import { chatMuteEnd, runChatMutation } from '~/lib/chat-actions'
-import { notFound } from '~/lib/errors'
+import { conflict, notFound } from '~/lib/errors'
 import { toPublicChat } from '~/store/chats'
 import type { ChatRoutesDeps } from './chats'
 
@@ -22,6 +22,7 @@ const responses = {
   200: OkSchema,
   400: ErrorBodySchema,
   401: ErrorBodySchema,
+  403: ErrorBodySchema,
   404: ErrorBodySchema,
   409: ErrorBodySchema,
   503: ErrorBodySchema,
@@ -59,13 +60,18 @@ export function registerChatActions(
       const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, request.params.chatId)
       const { pinned } = request.body
+      const timestampMs = Date.now()
       await runChatMutation(() => manager.requireRegisteredClient(name).chat.setChatPin(jid, pinned))
-      const chat = await chats.upsert({
-        instanceName: name,
-        chatJid: jid,
-        pinned: pinned ? 1 : 0,
-        ...(pinned ? { archived: false } : {}),
-      })
+      const chat = await chats.setState(
+        {
+          instanceName: name,
+          chatJid: jid,
+          pinned: pinned ? 1 : 0,
+          ...(pinned ? { archived: false } : {}),
+        },
+        timestampMs,
+      )
+      if (!chat) throw conflict('chat was deleted by a newer action')
       return { chat: toPublicChat(chat) }
     },
   )
@@ -85,9 +91,11 @@ export function registerChatActions(
     async (request) => {
       const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, request.params.chatId)
-      const end = chatMuteEnd(request.body)
+      const timestampMs = Date.now()
+      const end = chatMuteEnd(request.body, timestampMs)
       await runChatMutation(() => manager.requireRegisteredClient(name).chat.setChatMute(jid, request.body.muted, end))
-      const chat = await chats.upsert({ instanceName: name, chatJid: jid, muteEndMs: end ?? null })
+      const chat = await chats.setState({ instanceName: name, chatJid: jid, muteEndMs: end ?? null }, timestampMs)
+      if (!chat) throw conflict('chat was deleted by a newer action')
       return { chat: toPublicChat(chat) }
     },
   )
@@ -107,13 +115,18 @@ export function registerChatActions(
       const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, request.params.chatId)
       const { locked } = request.body
+      const timestampMs = Date.now()
       await runChatMutation(() => manager.requireRegisteredClient(name).chat.setChatLock(jid, locked))
-      const chat = await chats.upsert({
-        instanceName: name,
-        chatJid: jid,
-        locked,
-        ...(locked ? { archived: false, pinned: 0 } : {}),
-      })
+      const chat = await chats.setState(
+        {
+          instanceName: name,
+          chatJid: jid,
+          locked,
+          ...(locked ? { archived: false, pinned: 0 } : {}),
+        },
+        timestampMs,
+      )
+      if (!chat) throw conflict('chat was deleted by a newer action')
       return { chat: toPublicChat(chat) }
     },
   )
@@ -133,13 +146,10 @@ export function registerChatActions(
       const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, request.params.chatId)
       const options = request.body ?? {}
+      const beforeMs = Date.now()
       await runChatMutation(() => manager.requireRegisteredClient(name).chat.clearChat(jid, options))
       const jids = await aliases(name, jid)
-      await messages.clearChat(name, jids, options.deleteStarred === true)
-      for (const alias of jids) {
-        await chats.refreshLastMessage(name, alias, jids)
-        await chats.setUnread(name, alias, 0)
-      }
+      await messages.clearChat(name, jids, { deleteStarred: options.deleteStarred === true, beforeMs })
       return { ok: true as const }
     },
   )
@@ -158,10 +168,10 @@ export function registerChatActions(
     async (request) => {
       const name = resolveInstanceName(request)
       const jid = await resolveChatId(name, request.params.chatId)
+      const beforeMs = Date.now()
       await runChatMutation(() => manager.requireRegisteredClient(name).chat.deleteChat(jid, request.body ?? {}))
       const jids = await aliases(name, jid)
-      await messages.clearChat(name, jids, true)
-      for (const alias of jids) await chats.delete(name, alias)
+      await messages.clearChat(name, jids, { deleteStarred: true, beforeMs, deleteChat: true })
       return { ok: true as const }
     },
   )

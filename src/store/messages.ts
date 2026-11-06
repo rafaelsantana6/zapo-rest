@@ -1,4 +1,12 @@
 import type pg from 'pg'
+import {
+  CHAT_ACTION_ALIASES_SQL,
+  CHAT_DELETED_SQL,
+  refreshChatRows,
+  ChatActionStateStore,
+  withChatProjectionLock,
+  type ClearChatProjection,
+} from './chat-action-state'
 
 export type AppMessage = {
   instanceName: string
@@ -149,22 +157,34 @@ export function toPublicMessage(m: AppMessage, opts?: { instanceName?: string })
 }
 
 export class MessageStore {
-  constructor(private readonly pool: pg.Pool) {}
+  readonly actions: ChatActionStateStore
+  constructor(private readonly pool: pg.Pool) {
+    this.actions = new ChatActionStateStore(pool)
+  }
 
   /**
    * Upsert message by (instance, message_id).
    * Idempotent: replaying the same WA event updates fields without duplicating.
    */
-  async upsert(input: UpsertMessageInput): Promise<AppMessage> {
-    const { rows } = await this.pool.query<Row>(
-      `INSERT INTO app_messages (
+  async upsert(input: UpsertMessageInput): Promise<AppMessage | null> {
+    return withChatProjectionLock(this.pool, input.instanceName, async (client) => {
+      const { rows } = await client.query<Row>(
+        `WITH aliases AS (
+ SELECT $3::text AS jid UNION SELECT pn FROM lid_map WHERE instance_name = $1 AND lid = $3
+ UNION SELECT lid FROM lid_map WHERE instance_name = $1 AND pn = $3
+ UNION SELECT sibling.lid FROM lid_map source JOIN lid_map sibling ON sibling.instance_name = source.instance_name AND sibling.pn = source.pn WHERE source.instance_name = $1 AND source.lid = $3
+ ), state AS (
+ SELECT COALESCE((SELECT starred FROM app_message_actions WHERE instance_name = $1 AND message_id = $2), $19,
+ (SELECT starred FROM app_messages WHERE instance_name = $1 AND message_id = $2), false) AS starred
+ ) INSERT INTO app_messages (
  instance_name, message_id, chat_jid, sender_jid, participant_jid,
  from_me, timestamp_ms, ack, type, body, caption,
  media_url, media_mime, media_filename, media_storage_key, has_media,
  is_deleted, is_edited, starred, push_name, source, raw
- ) VALUES (
- $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb
- )
+ ) SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,state.starred,$20,$21,$22::jsonb FROM state
+ WHERE NOT EXISTS (SELECT 1 FROM app_message_actions WHERE instance_name = $1 AND message_id = $2 AND deleted)
+ AND NOT EXISTS (SELECT 1 FROM app_chat_actions WHERE instance_name = $1 AND chat_jid IN (SELECT jid FROM aliases)
+ AND (COALESCE($7::bigint, 0) <= clear_starred_before_ms OR (NOT state.starred AND COALESCE($7::bigint, 0) <= clear_before_ms)))
  ON CONFLICT (instance_name, message_id) DO UPDATE SET
  chat_jid = EXCLUDED.chat_jid,
  sender_jid = COALESCE(EXCLUDED.sender_jid, app_messages.sender_jid),
@@ -182,41 +202,41 @@ export class MessageStore {
  has_media = app_messages.has_media OR EXCLUDED.has_media,
  is_deleted = app_messages.is_deleted OR EXCLUDED.is_deleted,
  is_edited = app_messages.is_edited OR EXCLUDED.is_edited,
- starred = CASE WHEN $23 THEN EXCLUDED.starred ELSE app_messages.starred END,
+ starred = CASE WHEN $23 OR EXISTS (SELECT 1 FROM app_message_actions WHERE instance_name = $1 AND message_id = $2 AND starred IS NOT NULL) THEN EXCLUDED.starred ELSE app_messages.starred END,
  push_name = COALESCE(EXCLUDED.push_name, app_messages.push_name),
  source = CASE WHEN app_messages.source = 'history' AND EXCLUDED.source = 'live' THEN 'live' ELSE app_messages.source END,
  raw = CASE WHEN EXCLUDED.raw::text = '{}'::text THEN app_messages.raw ELSE EXCLUDED.raw END,
  updated_at = now()
  RETURNING *`,
-      [
-        input.instanceName,
-        input.messageId,
-        input.chatJid,
-        input.senderJid ?? null,
-        input.participantJid ?? null,
-        input.fromMe ?? false,
-        input.timestampMs ?? null,
-        input.ack ?? 0,
-        input.type ?? 'unknown',
-        input.body ?? null,
-        input.caption ?? null,
-        input.mediaUrl ?? null,
-        input.mediaMime ?? null,
-        input.mediaFilename ?? null,
-        input.mediaStorageKey ?? null,
-        input.hasMedia ?? false,
-        input.isDeleted ?? false,
-        input.isEdited ?? false,
-        input.starred ?? false,
-        input.pushName ?? null,
-        input.source ?? 'live',
-        JSON.stringify(input.raw ?? {}),
-        input.starred !== undefined,
-      ],
-    )
-    const row = rows[0]
-    if (!row) throw new Error('upsert returned no row')
-    return mapRow(row)
+        [
+          input.instanceName,
+          input.messageId,
+          input.chatJid,
+          input.senderJid ?? null,
+          input.participantJid ?? null,
+          input.fromMe ?? false,
+          input.timestampMs ?? null,
+          input.ack ?? 0,
+          input.type ?? 'unknown',
+          input.body ?? null,
+          input.caption ?? null,
+          input.mediaUrl ?? null,
+          input.mediaMime ?? null,
+          input.mediaFilename ?? null,
+          input.mediaStorageKey ?? null,
+          input.hasMedia ?? false,
+          input.isDeleted ?? false,
+          input.isEdited ?? false,
+          input.starred ?? null,
+          input.pushName ?? null,
+          input.source ?? 'live',
+          JSON.stringify(input.raw ?? {}),
+          input.starred !== undefined,
+        ],
+      )
+      const row = rows[0]
+      return row ? mapRow(row) : null
+    })
   }
 
   async get(instanceName: string, messageId: string): Promise<AppMessage | null> {
@@ -283,28 +303,81 @@ export class MessageStore {
   /** Re-key all messages from one chat_jid to another (after LID→PN resolve). */
   async rekeyChat(instanceName: string, fromJid: string, toJid: string): Promise<number> {
     if (fromJid === toJid) return 0
-    const res = await this.pool.query(
-      `UPDATE app_messages SET chat_jid = $3, updated_at = now()
+    return withChatProjectionLock(this.pool, instanceName, async (client) => {
+      await client.query(
+        `WITH aliases AS (${CHAT_ACTION_ALIASES_SQL} UNION SELECT $3::text AS jid)
+ DELETE FROM app_messages m WHERE m.instance_name = $1 AND m.chat_jid IN (SELECT jid FROM aliases)
+ AND (EXISTS (SELECT 1 FROM app_message_actions WHERE instance_name = $1 AND message_id = m.message_id AND deleted)
+ OR EXISTS (SELECT 1 FROM app_chat_actions WHERE instance_name = $1 AND chat_jid IN (SELECT jid FROM aliases)
+ AND (COALESCE(m.timestamp_ms, 0) <= clear_starred_before_ms OR (NOT COALESCE((SELECT starred FROM app_message_actions WHERE instance_name = $1 AND message_id = m.message_id), m.starred) AND COALESCE(m.timestamp_ms, 0) <= clear_before_ms))))`,
+        [instanceName, toJid, fromJid],
+      )
+      const res = await client.query(
+        `UPDATE app_messages m SET chat_jid = $3,
+ starred = COALESCE((SELECT starred FROM app_message_actions WHERE instance_name = $1 AND message_id = m.message_id), m.starred), updated_at = now()
  WHERE instance_name = $1 AND chat_jid = $2`,
-      [instanceName, fromJid, toJid],
-    )
-    return res.rowCount ?? 0
+        [instanceName, fromJid, toJid],
+      )
+      const { rows } = await client.query<{ jid: string }>(`${CHAT_ACTION_ALIASES_SQL} UNION SELECT $3::text AS jid`, [
+        instanceName,
+        toJid,
+        fromJid,
+      ])
+      const aliases = rows.map((row) => row.jid)
+      await client.query(
+        `WITH deletion AS (${CHAT_DELETED_SQL}) DELETE FROM app_chats WHERE instance_name = $1 AND chat_jid = ANY($3::text[]) AND (SELECT deleted FROM deletion)`,
+        [instanceName, toJid, aliases],
+      )
+      await refreshChatRows(client, instanceName, aliases)
+      return res.rowCount ?? 0
+    })
   }
 
-  async clearChat(instanceName: string, chatJids: string[], deleteStarred: boolean, beforeMs?: number): Promise<void> {
-    await this.pool.query(
-      `DELETE FROM app_messages WHERE instance_name = $1 AND chat_jid = ANY($2::text[])
- AND ($3 OR NOT starred) AND ($4::bigint IS NULL OR timestamp_ms <= $4)`,
-      [instanceName, chatJids, deleteStarred, beforeMs ?? null],
-    )
+  async clearChat(instanceName: string, chatJids: string[], options: ClearChatProjection): Promise<void> {
+    await withChatProjectionLock(this.pool, instanceName, async (client) => {
+      await client.query(
+        `WITH remembered AS (
+ INSERT INTO app_chat_actions (instance_name, chat_jid, clear_before_ms, clear_starred_before_ms, deleted_before_ms, keep_empty, action_timestamp_ms)
+ SELECT $1, unnest($2::text[]), $4::bigint, CASE WHEN $3 THEN $4::bigint ELSE -1 END, CASE WHEN $5 THEN $4::bigint ELSE -1 END, NOT $5, $6::bigint
+ ON CONFLICT (instance_name, chat_jid) DO UPDATE SET
+ clear_before_ms = GREATEST(app_chat_actions.clear_before_ms, EXCLUDED.clear_before_ms),
+ clear_starred_before_ms = GREATEST(app_chat_actions.clear_starred_before_ms, EXCLUDED.clear_starred_before_ms),
+ deleted_before_ms = GREATEST(app_chat_actions.deleted_before_ms, EXCLUDED.deleted_before_ms),
+ keep_empty = CASE WHEN EXCLUDED.action_timestamp_ms >= app_chat_actions.action_timestamp_ms THEN EXCLUDED.keep_empty ELSE app_chat_actions.keep_empty END,
+ action_timestamp_ms = GREATEST(app_chat_actions.action_timestamp_ms, EXCLUDED.action_timestamp_ms)
+ RETURNING chat_jid
+ ) DELETE FROM app_messages WHERE instance_name = $1 AND chat_jid IN (SELECT chat_jid FROM remembered)
+ AND ($3 OR NOT starred) AND COALESCE(timestamp_ms, 0) <= $4`,
+        [
+          instanceName,
+          chatJids,
+          options.deleteStarred,
+          options.beforeMs,
+          options.deleteChat === true,
+          options.timestampMs ?? options.beforeMs,
+        ],
+      )
+      if (options.deleteChat)
+        await client.query(
+          `DELETE FROM app_chats WHERE instance_name = $1 AND chat_jid = ANY($2::text[])
+ AND NOT EXISTS (SELECT 1 FROM app_messages WHERE instance_name = $1 AND chat_jid = ANY($2::text[]))
+ AND NOT EXISTS (SELECT 1 FROM app_chat_actions WHERE instance_name = $1 AND chat_jid = ANY($2::text[]) AND keep_empty)`,
+          [instanceName, chatJids],
+        )
+      await refreshChatRows(client, instanceName, chatJids, options.beforeMs)
+    })
   }
 
   async deleteForMe(instanceName: string, chatJid: string, messageId: string): Promise<void> {
-    await this.pool.query('DELETE FROM app_messages WHERE instance_name = $1 AND chat_jid = $2 AND message_id = $3', [
-      instanceName,
-      chatJid,
-      messageId,
-    ])
+    await withChatProjectionLock(this.pool, instanceName, async (client) => {
+      await client.query(
+        `WITH remembered AS (
+ INSERT INTO app_message_actions (instance_name, message_id, deleted) VALUES ($1, $3, true)
+ ON CONFLICT (instance_name, message_id) DO UPDATE SET deleted = true RETURNING message_id
+ ) DELETE FROM app_messages WHERE instance_name = $1 AND chat_jid = $2 AND message_id IN (SELECT message_id FROM remembered)`,
+        [instanceName, chatJid, messageId],
+      )
+    })
   }
 
   async updateAck(instanceName: string, messageId: string, ack: number): Promise<AppMessage | null> {
@@ -318,11 +391,14 @@ export class MessageStore {
     return rows[0] ? mapRow(rows[0]) : null
   }
 
-  async setStarred(instanceName: string, messageId: string, starred: boolean): Promise<void> {
-    await this.pool.query(
-      'UPDATE app_messages SET starred = $3, updated_at = now() WHERE instance_name = $1 AND message_id = $2',
-      [instanceName, messageId, starred],
-    )
+  async setStarred(instanceName: string, messageId: string, starred: boolean, timestampMs = Date.now()): Promise<void> {
+    await withChatProjectionLock(this.pool, instanceName, async (client) => {
+      await new ChatActionStateStore(client).rememberStar(instanceName, messageId, starred, timestampMs)
+      await client.query(
+        `UPDATE app_messages SET starred = (SELECT starred FROM app_message_actions WHERE instance_name = $1 AND message_id = $2), updated_at = now() WHERE instance_name = $1 AND message_id = $2`,
+        [instanceName, messageId],
+      )
+    })
   }
 
   async markDeleted(instanceName: string, messageId: string): Promise<AppMessage | null> {

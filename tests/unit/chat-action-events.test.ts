@@ -6,7 +6,7 @@ import { EventProcessor, type EventProcessorDeps } from '~/events/processor'
 import { InstanceManager } from '~/instances/manager'
 import { MUTE_FOREVER_MS } from '~/lib/chat-actions'
 import { toPublicChat } from '~/store/chats'
-import { makeEnv } from '../helpers/fixtures'
+import { makeEnv, textMessageEvent } from '../helpers/fixtures'
 import { MemoryInstanceRepo } from '../helpers/memory-repo'
 import {
   MemoryChatStore,
@@ -54,6 +54,19 @@ function processorContext() {
   const processor = new EventProcessor(deps as unknown as EventProcessorDeps)
   return { repo, messages, chats, lidMap, webhooks, processor, env: deps.env }
 }
+function mailboxClient(
+  chatJid: string,
+  messages: { id: string; timestampMs: number; fromMe?: boolean }[],
+  settings = {},
+) {
+  return {
+    store: {
+      threads: { list: async () => [{ jid: chatJid, name: 'Stored chat', ...settings }] },
+      messages: { listByThread: async () => messages.map((message) => ({ threadJid: chatJid, ...message })) },
+    },
+  } as never
+}
+
 const jid = '5511999999999@s.whatsapp.net'
 
 describe('phone chat app-state projections', () => {
@@ -167,6 +180,7 @@ describe('phone chat app-state projections', () => {
       ['new', 4000],
     ] as const) {
       const message = await ctx.messages.upsert({ instanceName: 'events', chatJid: jid, messageId, timestampMs })
+      if (!message) throw new Error('expected seeded message')
       message.starred = messageId === 'star'
     }
     await ctx.processor.onAppStateMutation(
@@ -242,6 +256,100 @@ describe('phone chat app-state projections', () => {
     await ctx.processor.onAppStateMutation('events', event)
     await ctx.processor.onAppStateMutation('events', event)
     expect(ctx.webhooks.emit).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['ClearChat', 'DeleteChat', 'DeleteMessageForMe'])(
+    'keeps %s deleted across mailbox import and live replay',
+    async (schema) => {
+      const ctx = processorContext()
+      await ctx.chats.upsert({ instanceName: 'events', chatJid: jid })
+      await ctx.messages.upsert({ instanceName: 'events', chatJid: jid, messageId: 'removed', timestampMs: 1000 })
+      await ctx.processor.onAppStateMutation(
+        'events',
+        fakeMutation({
+          schema,
+          chatJid: jid,
+          remote: jid,
+          id: 'removed',
+          fromMe: false,
+          deleteStarred: '1',
+          messageRange: { lastMessageTimestamp: 1 },
+        }),
+      )
+      await ctx.processor.importFromZapoStore('events', mailboxClient(jid, [{ id: 'removed', timestampMs: 1000 }]))
+      expect(await ctx.messages.get('events', 'removed')).toBeNull()
+      if (schema === 'DeleteChat') expect(await ctx.chats.get('events', jid)).toBeNull()
+    },
+  )
+
+  it('retains a phone star that precedes message materialization', async () => {
+    const ctx = processorContext()
+    await ctx.processor.onAppStateMutation(
+      'events',
+      fakeMutation({ schema: 'Star', remote: jid, id: 'late-star', fromMe: false, participant: null, starred: true }),
+    )
+    await ctx.processor.importFromZapoStore('events', mailboxClient(jid, [{ id: 'late-star', timestampMs: 1000 }]))
+    expect((await ctx.messages.get('events', 'late-star'))?.starred).toBe(true)
+    await ctx.processor.onAppStateMutation(
+      'events',
+      fakeMutation({
+        schema: 'ClearChat',
+        chatJid: jid,
+        deleteStarred: '0',
+        messageRange: { lastMessageTimestamp: 1 },
+      }),
+    )
+    expect((await ctx.messages.get('events', 'late-star'))?.starred).toBe(true)
+  })
+
+  it('ignores an old mutation after a more recent setting, including after history import', async () => {
+    const ctx = processorContext()
+    const first = fakeMutation({ schema: 'Pin', chatJid: jid, pinned: true, timestamp: 1000 })
+    const second = fakeMutation({ schema: 'Pin', chatJid: jid, pinned: false, timestamp: 2000 })
+    await ctx.processor.onAppStateMutation('events', first)
+    await ctx.processor.onAppStateMutation('events', second)
+    await ctx.processor.onAppStateMutation('events', first)
+    expect((await ctx.chats.get('events', jid))?.pinned).toBe(0)
+    await ctx.processor.importFromZapoStore(
+      'events',
+      mailboxClient(jid, [{ id: 'm', timestampMs: 1000 }], { pinned: 1 }),
+    )
+    expect((await ctx.chats.get('events', jid))?.pinned).toBe(0)
+  })
+
+  it('suppresses live message replay after a phone deletion', async () => {
+    const ctx = processorContext()
+    await ctx.processor.onAppStateMutation(
+      'events',
+      fakeMutation({ schema: 'DeleteMessageForMe', remote: jid, id: 'replayed', fromMe: false }),
+    )
+    await ctx.processor.onMessage('events', textMessageEvent({ id: 'replayed', remoteJid: jid }))
+    expect(await ctx.messages.get('events', 'replayed')).toBeNull()
+    expect(await ctx.chats.get('events', jid)).toBeNull()
+    expect(ctx.webhooks.emit.mock.calls.map((call) => call[1])).not.toContain('message')
+  })
+
+  it('recovers an equal-timestamp mutation after a partial projection failure', async () => {
+    const ctx = processorContext()
+    const event = fakeMutation({ schema: 'Pin', chatJid: jid, pinned: true, timestamp: 1000 })
+    vi.spyOn(ctx.chats, 'upsert').mockRejectedValueOnce(new Error('temporary database failure'))
+    await expect(ctx.processor.onAppStateMutation('events', event)).rejects.toThrow('temporary database failure')
+    await ctx.processor.onAppStateMutation('events', event)
+    expect((await ctx.chats.get('events', jid))?.pinned).toBe(1)
+    expect(ctx.webhooks.emit).toHaveBeenCalledTimes(1)
+  })
+
+  it('orders by mutation time rather than treating schema version as collection order', async () => {
+    const ctx = processorContext()
+    await ctx.processor.onAppStateMutation(
+      'events',
+      fakeMutation({ schema: 'Pin', chatJid: jid, pinned: true, timestamp: 1000, version: 10 }),
+    )
+    await ctx.processor.onAppStateMutation(
+      'events',
+      fakeMutation({ schema: 'Pin', chatJid: jid, pinned: false, timestamp: 2000, version: 5 }),
+    )
+    expect((await ctx.chats.get('events', jid))?.pinned).toBe(0)
   })
 
   it('InstanceManager wires the inbound mutation through the processor', async () => {

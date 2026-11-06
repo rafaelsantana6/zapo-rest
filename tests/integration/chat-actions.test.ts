@@ -43,6 +43,7 @@ describe('chat action routes', () => {
     vi.clearAllMocks()
     chats.byKey.clear()
     messages.byKey.clear()
+    messages.actions.clear()
     await chats.upsert({ instanceName, chatJid: jid, archived: true, pinned: 0 })
   })
   afterAll(async () => {
@@ -151,6 +152,17 @@ describe('chat action routes', () => {
     expect(messages.byKey.size).toBe(1)
   })
 
+  it.each(['clear', 'delete'])('%s preserves a message that arrives while upstream flushes', async (action) => {
+    await messages.upsert({ instanceName, chatJid: jid, messageId: 'old', timestampMs: 1000 })
+    chat[action === 'clear' ? 'clearChat' : 'deleteChat'].mockImplementationOnce(async () => {
+      await messages.upsert({ instanceName, chatJid: jid, messageId: 'concurrent', timestampMs: Date.now() + 1000 })
+    })
+    expect((await request('POST', `/${action}`)).statusCode).toBe(200)
+    expect(await messages.get(instanceName, 'old')).toBeNull()
+    expect(await messages.get(instanceName, 'concurrent')).toBeTruthy()
+    expect((await chats.get(instanceName, jid))?.lastMessageId).toBe('concurrent')
+  })
+
   it('legacy DELETE only removes the chat projection', async () => {
     await messages.upsert({ instanceName, chatJid: jid, messageId: 'local' })
     expect((await request('DELETE', '')).statusCode).toBe(200)
@@ -234,6 +246,14 @@ describe('chat action routes', () => {
     chat.deleteMessageForMe.mockRejectedValueOnce(new Error('app-state conflict'))
     expect((await request('DELETE', '/messages/keep/for-me')).statusCode).toBe(409)
     expect(await messages.get(instanceName, 'keep')).toBeTruthy()
+  })
+
+  it('documents optional clear/delete bodies and required flag bodies', () => {
+    const spec = ctx.app.swagger()
+    for (const action of ['clear', 'delete']) {
+      expect(spec.paths?.[`/v1/chats/{chatId}/${action}`]?.post).toHaveProperty('requestBody.required', false)
+    }
+    expect(spec.paths?.['/v1/chats/{chatId}/pin']?.post).toHaveProperty('requestBody.required', true)
   })
 
   it('requires an instance key', async () => {

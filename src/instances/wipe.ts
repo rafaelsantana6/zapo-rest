@@ -22,6 +22,9 @@ const APP_INSTANCE_TABLES = [
   'lid_map',
   'app_calls',
   'instance_webhooks',
+  'app_chat_actions',
+  'app_message_actions',
+  'app_state_projection_cursors',
 ] as const
 
 export type InstanceWipeReport = {

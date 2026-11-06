@@ -2,6 +2,7 @@ import type { WaAppStateMutationEvent, WaClient } from 'zapo-js'
 import type { Env } from '~/config/env'
 import type { InstanceRepo } from '~/instances/repo'
 import type { InstanceRecord } from '~/instances/types'
+import { createHash } from 'node:crypto'
 import { MUTE_FOREVER_MS } from '~/lib/chat-actions'
 import { toPublicChat, type UpsertChatInput } from '~/store/chats'
 import { isLidJid, isPnJid, toPnJid } from '~/lib/jid-canon'
@@ -92,6 +93,7 @@ export class EventProcessor {
     const isNew = await this.deps.idempotency.tryClaim(instanceName, `msg:${decoded.messageId}`, 'message')
 
     let msg = await this.projectMessage(instanceName, decoded, chatJid, source)
+    if (!msg) return
     await this.projectChat(instanceName, decoded, chatJid)
     await this.projectContact(instanceName, decoded, chatJid)
     msg = await this.maybeDownloadMedia(instanceName, event, decoded, source, client, msg)
@@ -117,7 +119,7 @@ export class EventProcessor {
     decoded: DecodedMessage,
     chatJid: string,
     source: 'live' | 'history',
-  ): Promise<AppMessage> {
+  ): Promise<AppMessage | null> {
     return this.deps.messages.upsert({
       instanceName,
       messageId: decoded.messageId,
@@ -288,6 +290,30 @@ export class EventProcessor {
           : undefined
     if (!sourceJid) return
     const chatJid = await this.canonicalChatJid(instanceName, sourceJid)
+    if (
+      ![
+        'Star',
+        'Pin',
+        'Mute',
+        'LockChat',
+        'Archive',
+        'MarkChatAsRead',
+        'ClearChat',
+        'DeleteChat',
+        'DeleteMessageForMe',
+      ].includes(event.schema)
+    )
+      return
+    if (!Number.isSafeInteger(event.timestamp) || event.timestamp < 0) return
+    if (await this.deps.idempotency.has(instanceName, this.chatMutationKey(event))) return
+    if (
+      !(await this.deps.chats.actions.acceptMutation(instanceName, {
+        collection: event.collection,
+        index: `${event.schema}:${event._raw.index}`,
+        timestamp: event.timestamp,
+      }))
+    )
+      return
     const patch: UpsertChatInput = { instanceName, chatJid }
     const active = event.operation === 'set'
     switch (event.schema) {
@@ -295,11 +321,10 @@ export class EventProcessor {
         const message = await this.deps.messages.get(instanceName, event.id)
         if (
           message &&
-          message.fromMe === event.fromMe &&
-          (await this.canonicalChatJid(instanceName, message.chatJid)) === chatJid
-        ) {
-          await this.deps.messages.setStarred(instanceName, event.id, active && Boolean(event.starred))
-        }
+          (message.fromMe !== event.fromMe || (await this.canonicalChatJid(instanceName, message.chatJid)) !== chatJid)
+        )
+          return
+        await this.deps.messages.setStarred(instanceName, event.id, active && Boolean(event.starred), event.timestamp)
         return
       }
       case 'Pin':
@@ -336,8 +361,11 @@ export class EventProcessor {
       default:
         return
     }
-    const chat = await this.deps.chats.upsert(patch)
-    await this.emitChatUpdate(instanceName, event, { chatId: chatJid, ...toPublicChat(chat) })
+    const chat =
+      event.schema === 'MarkChatAsRead'
+        ? await this.deps.chats.upsert(patch)
+        : await this.deps.chats.setState(patch, event.timestamp)
+    if (chat) await this.emitChatUpdate(instanceName, event, { chatId: chatJid, ...toPublicChat(chat) })
   }
 
   private async projectChatDeletion(
@@ -353,34 +381,34 @@ export class EventProcessor {
     ]
     if (event.schema === 'DeleteMessageForMe') {
       const message = await this.deps.messages.get(instanceName, event.id)
-      if (!message || !jids.includes(message.chatJid) || message.fromMe !== event.fromMe) return
-      await this.deps.messages.deleteForMe(instanceName, message.chatJid, event.id)
+      if (message && (!jids.includes(message.chatJid) || message.fromMe !== event.fromMe)) return
+      await this.deps.messages.deleteForMe(instanceName, message?.chatJid ?? chatJid, event.id)
     } else {
       // An old range must never erase messages received after the phone's action.
       const lastTimestamp = event.messageRange?.lastMessageTimestamp
       const beforeMs = lastTimestamp == null ? event.timestamp : Number(lastTimestamp) * 1000 + 999
       if (!Number.isSafeInteger(beforeMs) || beforeMs < 0) return
-      await this.deps.messages.clearChat(
-        instanceName,
-        jids,
-        event.schema === 'DeleteChat' || event.deleteStarred === '1',
+      await this.deps.messages.clearChat(instanceName, jids, {
+        deleteStarred: event.schema === 'DeleteChat' || event.deleteStarred === '1',
         beforeMs,
-      )
+        deleteChat: event.schema === 'DeleteChat',
+        timestampMs: event.timestamp,
+      })
     }
-    const remaining = await this.deps.messages.listByChat(instanceName, chatJid, { chatJids: jids, limit: 1 })
-    const deleted = event.schema === 'DeleteChat' && remaining.length === 0
-    for (const jid of jids) {
-      if (deleted) await this.deps.chats.delete(instanceName, jid)
-      else {
-        await this.deps.chats.refreshLastMessage(instanceName, jid, jids)
-        if (event.schema !== 'DeleteMessageForMe') await this.deps.chats.setUnread(instanceName, jid, 0)
-      }
+    if (event.schema === 'DeleteMessageForMe') {
+      for (const jid of jids) await this.deps.chats.refreshLastMessage(instanceName, jid, jids)
     }
+    const deleted = event.schema === 'DeleteChat' && !(await this.deps.chats.get(instanceName, chatJid))
     await this.emitChatUpdate(instanceName, event, { chatId: chatJid, action: event.schema, deleted })
   }
 
+  private chatMutationKey(event: WaAppStateMutationEvent): string {
+    const digest = createHash('sha256').update(JSON.stringify(event)).digest('hex')
+    return `chat:${digest}`
+  }
+
   private async emitChatUpdate(instanceName: string, event: WaAppStateMutationEvent, payload: unknown): Promise<void> {
-    const key = `chat:${event.schema}:${event._raw.index}:${event.version}:${event.timestamp}:${event.operation}`
+    const key = this.chatMutationKey(event)
     const claimed = await this.deps.idempotency.tryClaim(instanceName, key, 'chat.update')
     const row = await this.deps.instanceRepo.getByName(instanceName)
     if (claimed && row) await this.deps.webhooks.emit(row, 'chat.update', payload)
@@ -721,6 +749,7 @@ export class EventProcessor {
     if (isLidJid(chatJid) && threadMsgs.length === 0) return { chats: 0, messages: 0 }
 
     const { lastId, lastTs, count } = await this.importThreadMessages(instanceName, threadMsgs, chatJid)
+    if (await this.deps.chats.actions.isDeleted(instanceName, chatJid)) return { chats: 0, messages: count }
 
     if (threadMsgs.length === 0 && !t.name && !t.unreadCount) return { chats: 0, messages: count }
     await this.deps.chats.upsert({
@@ -751,7 +780,7 @@ export class EventProcessor {
     let count = 0
     for (const m of threadMsgs) {
       const msgChat = await this.canonicalThreadJid(instanceName, m.threadJid, chatJid)
-      await this.deps.messages.upsert({
+      const materialized = await this.deps.messages.upsert({
         instanceName,
         messageId: m.id,
         chatJid: msgChat,
@@ -763,6 +792,7 @@ export class EventProcessor {
         source: 'history',
         raw: { fromZapoStore: true, hasBytes: Boolean(m.messageBytes) },
       })
+      if (!materialized) continue
       count++
       if (m.timestampMs != null && (lastTs == null || m.timestampMs >= lastTs)) {
         lastTs = m.timestampMs

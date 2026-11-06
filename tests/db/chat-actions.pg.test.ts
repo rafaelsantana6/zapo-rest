@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import type pg from 'pg'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { migrate } from '~/db/migrate'
 import { ChatStore, toPublicChat } from '~/store/chats'
 import { MessageStore } from '~/store/messages'
@@ -17,6 +17,11 @@ describe.runIf(pool)('chat action projections (Postgres)', () => {
     await seedInstance(db, instanceName)
     chats = new ChatStore(db)
     messages = new MessageStore(db)
+  })
+  beforeEach(async () => {
+    await wipeInstance(db, instanceName)
+    await seedInstance(db, instanceName)
+    await chats.upsert({ instanceName, chatJid: jid })
   })
   afterAll(async () => {
     await wipeInstance(db, instanceName)
@@ -69,7 +74,7 @@ describe.runIf(pool)('chat action projections (Postgres)', () => {
     await messages.upsert({ instanceName, chatJid: jid, messageId: 'drop', timestampMs: 2000 })
     await messages.setStarred(instanceName, 'keep', true)
     await messages.upsert({ instanceName, chatJid: jid, messageId: 'keep' })
-    await messages.clearChat(instanceName, [jid], false)
+    await messages.clearChat(instanceName, [jid], { deleteStarred: false, beforeMs: Date.now() })
     expect(await messages.get(instanceName, 'drop')).toBeNull()
     expect(await messages.get(instanceName, 'keep')).toBeTruthy()
     await chats.refreshLastMessage(instanceName, jid, [jid])
@@ -83,10 +88,10 @@ describe.runIf(pool)('chat action projections (Postgres)', () => {
   it('phone clear cutoff preserves newer rows, then delete removes starred too', async () => {
     await messages.upsert({ instanceName, chatJid: jid, messageId: 'old', timestampMs: 1000 })
     await messages.upsert({ instanceName, chatJid: jid, messageId: 'new', timestampMs: 3000 })
-    await messages.clearChat(instanceName, [jid], true, 2000)
+    await messages.clearChat(instanceName, [jid], { deleteStarred: true, beforeMs: 2000 })
     expect(await messages.get(instanceName, 'old')).toBeNull()
     expect(await messages.get(instanceName, 'new')).toBeTruthy()
-    await messages.clearChat(instanceName, [jid], true)
+    await messages.clearChat(instanceName, [jid], { deleteStarred: true, beforeMs: Date.now() })
     await chats.delete(instanceName, jid)
     expect(await chats.get(instanceName, jid)).toBeNull()
     expect(await messages.listByChat(instanceName, jid)).toEqual([])

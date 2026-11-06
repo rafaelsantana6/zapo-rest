@@ -1,4 +1,5 @@
 import type { AppCall, CallRecordingStatus } from '~/store/calls'
+import type { ChatSettings, MutationCursor, ClearChatProjection } from '~/store/chat-action-state'
 import type { AppChat, UpsertChatInput } from '~/store/chats'
 import type { AppContact } from '~/store/contacts'
 import type { AppMessage, UpsertMessageInput } from '~/store/messages'
@@ -33,15 +34,90 @@ function baseMessage(input: UpsertMessageInput): AppMessage {
   }
 }
 
+export class MemoryChatActionState {
+  readonly settings = new Map<string, ChatSettings>()
+  readonly settingTimes = new Map<string, number>()
+  readonly stars = new Map<string, { starred: boolean; timestamp: number }>()
+  readonly deletedMessages = new Set<string>()
+  readonly clears = new Map<
+    string,
+    { beforeMs: number; starredBeforeMs: number; deletedBeforeMs: number; keepEmpty: boolean; timestamp: number }
+  >()
+  readonly cursors = new Map<string, number>()
+  chats?: MemoryChatStore
+  constructor(readonly messages?: MemoryMessageStore) {}
+
+  clear(): void {
+    this.settings.clear()
+    this.settingTimes.clear()
+    this.stars.clear()
+    this.deletedMessages.clear()
+    this.clears.clear()
+    this.cursors.clear()
+  }
+
+  async acceptMutation(instanceName: string, cursor: MutationCursor): Promise<boolean> {
+    const key = `${instanceName}::${cursor.collection}::${cursor.index}`
+    if ((this.cursors.get(key) ?? -1) > cursor.timestamp) return false
+    this.cursors.set(key, cursor.timestamp)
+    return true
+  }
+
+  async rememberSettings(
+    instanceName: string,
+    chatJid: string,
+    settings: ChatSettings,
+    timestamp: number,
+  ): Promise<void> {
+    const key = `${instanceName}::${chatJid}`
+    const current = this.settings.get(key) ?? {}
+    for (const [field, value] of Object.entries(settings)) {
+      if (value === undefined || (this.settingTimes.get(`${key}:${field}`) ?? -1) > timestamp) continue
+      Object.assign(current, { [field]: value })
+      this.settingTimes.set(`${key}:${field}`, timestamp)
+    }
+    this.settings.set(key, current)
+    const clear = this.clears.get(key)
+    if (clear && timestamp > clear.timestamp) this.clears.set(key, { ...clear, keepEmpty: true, timestamp })
+  }
+
+  async getSettings(instanceName: string, chatJid: string): Promise<ChatSettings> {
+    return this.settings.get(`${instanceName}::${chatJid}`) ?? {}
+  }
+
+  async isDeleted(instanceName: string, chatJid: string): Promise<boolean> {
+    const state = this.clears.get(`${instanceName}::${chatJid}`)
+    const remaining = [...(this.messages?.byKey.values() ?? [])].some(
+      (message) => message.instanceName === instanceName && message.chatJid === chatJid,
+    )
+    return Boolean(state && state.deletedBeforeMs >= 0 && !state.keepEmpty && !remaining)
+  }
+
+  async rememberStar(instanceName: string, messageId: string, starred: boolean, timestamp: number): Promise<void> {
+    const key = `${instanceName}::${messageId}`
+    if ((this.stars.get(key)?.timestamp ?? -1) <= timestamp) this.stars.set(key, { starred, timestamp })
+  }
+}
+
 export class MemoryMessageStore {
+  readonly actions = new MemoryChatActionState(this)
   readonly byKey = new Map<string, AppMessage>()
 
   private key(instance: string, id: string) {
     return `${instance}::${id}`
   }
 
-  async upsert(input: UpsertMessageInput): Promise<AppMessage> {
+  async upsert(input: UpsertMessageInput): Promise<AppMessage | null> {
     const k = this.key(input.instanceName, input.messageId)
+    const starred = this.actions.stars.get(k)?.starred ?? input.starred ?? this.byKey.get(k)?.starred ?? false
+    const clear = this.actions.clears.get(this.key(input.instanceName, input.chatJid))
+    if (
+      this.actions.deletedMessages.has(k) ||
+      (clear &&
+        ((input.timestampMs ?? 0) <= clear.starredBeforeMs || (!starred && (input.timestampMs ?? 0) <= clear.beforeMs)))
+    )
+      return null
+    input = { ...input, starred }
     const prev = this.byKey.get(k)
     if (!prev) {
       const msg = baseMessage(input)
@@ -71,19 +147,48 @@ export class MemoryMessageStore {
     return this.byKey.get(this.key(instanceName, messageId)) ?? null
   }
 
-  async clearChat(instanceName: string, chatJids: string[], deleteStarred: boolean, beforeMs?: number): Promise<void> {
+  async clearChat(instanceName: string, chatJids: string[], options: ClearChatProjection): Promise<void> {
+    for (const chatJid of chatJids) {
+      const key = this.key(instanceName, chatJid)
+      const prev = this.actions.clears.get(key)
+      const timestamp = options.timestampMs ?? options.beforeMs
+      this.actions.clears.set(key, {
+        beforeMs: Math.max(prev?.beforeMs ?? -1, options.beforeMs),
+        starredBeforeMs: Math.max(prev?.starredBeforeMs ?? -1, options.deleteStarred ? options.beforeMs : -1),
+        deletedBeforeMs: Math.max(prev?.deletedBeforeMs ?? -1, options.deleteChat ? options.beforeMs : -1),
+        keepEmpty: timestamp >= (prev?.timestamp ?? -1) ? !options.deleteChat : (prev?.keepEmpty ?? false),
+        timestamp: Math.max(prev?.timestamp ?? -1, timestamp),
+      })
+    }
     for (const [key, message] of this.byKey) {
       if (
         message.instanceName === instanceName &&
         chatJids.includes(message.chatJid) &&
-        (deleteStarred || !message.starred) &&
-        (beforeMs === undefined || (message.timestampMs !== null && message.timestampMs <= beforeMs))
+        (options.deleteStarred || !message.starred) &&
+        (message.timestampMs ?? 0) <= options.beforeMs
       )
         this.byKey.delete(key)
+    }
+    const remaining = [...this.byKey.values()].filter(
+      (message) => message.instanceName === instanceName && chatJids.includes(message.chatJid),
+    )
+    for (const chatJid of chatJids) {
+      if (
+        options.deleteChat &&
+        remaining.length === 0 &&
+        !this.actions.clears.get(this.key(instanceName, chatJid))?.keepEmpty
+      )
+        await this.actions.chats?.delete(instanceName, chatJid)
+      else {
+        await this.actions.chats?.refreshLastMessage(instanceName, chatJid, chatJids)
+        if (!remaining.some((message) => (message.timestampMs ?? 0) > options.beforeMs))
+          await this.actions.chats?.setUnread(instanceName, chatJid, 0)
+      }
     }
   }
 
   async deleteForMe(instanceName: string, chatJid: string, messageId: string): Promise<void> {
+    this.actions.deletedMessages.add(this.key(instanceName, messageId))
     const message = await this.get(instanceName, messageId)
     if (message?.chatJid === chatJid) this.byKey.delete(this.key(instanceName, messageId))
   }
@@ -96,9 +201,10 @@ export class MemoryMessageStore {
     return msg
   }
 
-  async setStarred(instanceName: string, messageId: string, starred: boolean): Promise<void> {
+  async setStarred(instanceName: string, messageId: string, starred: boolean, timestamp = Date.now()): Promise<void> {
+    await this.actions.rememberStar(instanceName, messageId, starred, timestamp)
     const message = await this.get(instanceName, messageId)
-    if (message) message.starred = starred
+    if (message) message.starred = this.actions.stars.get(this.key(instanceName, messageId))?.starred ?? starred
   }
 
   async markDeleted(instanceName: string, messageId: string): Promise<AppMessage | null> {
@@ -138,6 +244,17 @@ export class MemoryMessageStore {
     let n = 0
     for (const msg of this.byKey.values()) {
       if (msg.instanceName === instanceName && msg.chatJid === fromJid) {
+        const clear = this.actions.clears.get(this.key(instanceName, toJid))
+        const starred = this.actions.stars.get(this.key(instanceName, msg.messageId))?.starred ?? msg.starred
+        if (
+          this.actions.deletedMessages.has(this.key(instanceName, msg.messageId)) ||
+          (clear &&
+            ((msg.timestampMs ?? 0) <= clear.starredBeforeMs || (!starred && (msg.timestampMs ?? 0) <= clear.beforeMs)))
+        ) {
+          this.byKey.delete(this.key(instanceName, msg.messageId))
+          continue
+        }
+        msg.starred = starred
         msg.chatJid = toJid
         n++
       }
@@ -173,14 +290,30 @@ export class MemoryMessageStore {
 }
 
 export class MemoryChatStore {
-  constructor(readonly messages?: MemoryMessageStore) {}
+  readonly actions: MemoryChatActionState
+  constructor(readonly messages?: MemoryMessageStore) {
+    this.actions = messages?.actions ?? new MemoryChatActionState()
+    this.actions.chats = this
+  }
+
+  async setState(input: UpsertChatInput, timestamp = Date.now()): Promise<AppChat | null> {
+    await this.actions.rememberSettings(
+      input.instanceName,
+      input.chatJid,
+      { archived: input.archived, pinned: input.pinned, muteEndMs: input.muteEndMs, locked: input.locked },
+      timestamp,
+    )
+    return this.upsert(input)
+  }
   readonly byKey = new Map<string, AppChat>()
 
   private key(instance: string, jid: string) {
     return `${instance}::${jid}`
   }
 
-  async upsert(input: UpsertChatInput): Promise<AppChat> {
+  async upsert(input: UpsertChatInput): Promise<AppChat | null> {
+    if (await this.actions.isDeleted(input.instanceName, input.chatJid)) return null
+    input = { ...input, ...(await this.actions.getSettings(input.instanceName, input.chatJid)) }
     const k = this.key(input.instanceName, input.chatJid)
     const prev = this.byKey.get(k)
     const now = new Date()
@@ -247,7 +380,10 @@ export class MemoryChatStore {
   }
 
   async get(instanceName: string, chatJid: string): Promise<AppChat | null> {
-    return this.byKey.get(this.key(instanceName, chatJid)) ?? null
+    if (await this.actions.isDeleted(instanceName, chatJid)) return null
+    const row = this.byKey.get(this.key(instanceName, chatJid))
+    if (row) Object.assign(row, await this.actions.getSettings(instanceName, chatJid))
+    return row ?? null
   }
 
   async delete(instanceName: string, chatJid: string): Promise<boolean> {
