@@ -81,3 +81,46 @@ describe('VoIP peer interaction events', () => {
     expect(webhooks.emit.mock.calls[0]?.[2]).toEqual({ forceManual: true })
   })
 })
+
+describe('VoIP group call events (voip 1.4)', () => {
+  it('emits call.participants_changed without key internals', async () => {
+    const { client, webhooks } = await wiredManager()
+    const joined = { jid: '111@lid', devices: ['111:2@lid'], state: 'connected', devicePids: { '111:2@lid': 0 } }
+    client.emit('voip_call_participants_changed', {
+      call,
+      diff: {
+        added: [joined],
+        removed: [{ jid: '222@lid', participant: { jid: '222@lid', devices: [] }, cause: 'departed' }],
+        switched: [],
+        devicesAdded: [],
+        devicesRemoved: [],
+        rekeyRequired: true,
+        rekeyReason: 'participant_added',
+      },
+    })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    const [, event, data] = webhooks.emit.mock.calls[0] ?? []
+    expect(event).toBe('call.participants_changed')
+    expect(data).toMatchObject({
+      added: [{ jid: '111@lid', devices: ['111:2@lid'], state: 'connected' }],
+      removed: [{ jid: '222@lid', cause: 'departed' }],
+    })
+    expect(data).not.toHaveProperty('rekeyRequired')
+  })
+
+  it('emits call.mute_requested with a decoded flag', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_mute_requested', { call, participantJid: '111:2@lid', requestState: '1' })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[1]).toBe('call.mute_requested')
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ participantJid: '111:2@lid', muted: true })
+  })
+
+  it('emits call.participant_media', async () => {
+    const { client, webhooks } = await wiredManager()
+    client.emit('voip_call_participant_media', { call, participantJid: '111:2@lid', receiving: false })
+    await vi.waitFor(() => expect(webhooks.emit).toHaveBeenCalled())
+    expect(webhooks.emit.mock.calls[0]?.[1]).toBe('call.participant_media')
+    expect(webhooks.emit.mock.calls[0]?.[2]).toMatchObject({ participantJid: '111:2@lid', receiving: false })
+  })
+})

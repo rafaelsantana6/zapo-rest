@@ -556,14 +556,36 @@ export const ChatstateParamsSchema = z.object({
 
 export const StartCallBodySchema = z
   .object({
-    to: RecipientToSchema.meta({
-      description: 'Peer to call — digits, JID, or @handle. Audio-only live VoIP',
+    to: RecipientToSchema.optional().meta({
+      description: 'Peer to call — digits, JID, or @handle. Audio-only live VoIP. Omit for a group call',
     }),
+    groupId: z.string().trim().min(1).optional().meta({
+      description: 'Group call: the group (`...@g.us` or its id). Requires `participants`',
+      example: '120363000000000000@g.us',
+    }),
+    participants: z
+      .array(z.string().trim().min(1))
+      .min(1)
+      .max(31)
+      .optional()
+      .meta({
+        description: 'Group call: who to ring (phones, PN JIDs or LIDs), yourself excluded. Max 31',
+        example: ['5511888888888', '5511777777777'],
+      }),
+  })
+  .refine((b) => (b.to ? !b.groupId && !b.participants : Boolean(b.groupId && b.participants)), {
+    message: 'send either `to` (1:1) or `groupId` + `participants` (group call)',
   })
   .meta({
     description: 'Start outbound voice call (stream PCM over WebSocket; no file autoplay)',
     example: EXAMPLES.startCall,
   })
+
+export const CallParticipantSchema = z.object({
+  jid: z.string().meta({ description: 'Participant account (usually a LID)' }),
+  devices: z.array(z.string()).meta({ description: 'Device JIDs on the call, primary first' }),
+  state: z.string().nullable().meta({ description: 'Raw roster state: connected, outgoing, invited, terminated, …' }),
+})
 
 export const CallInfoSchema = z
   .object({
@@ -597,6 +619,12 @@ export const CallInfoSchema = z
       .optional()
       .meta({ description: 'Device JIDs of remote participants with a raised hand' }),
     // Live calls often have null duration/endReason until hangup — must allow null (not just optional)
+    isGroup: z.boolean().optional().meta({ description: 'Group call' }),
+    groupJid: z.string().nullable().optional().meta({ description: 'Group the call belongs to' }),
+    participants: z
+      .array(CallParticipantSchema)
+      .optional()
+      .meta({ description: 'Group call roster as last known (empty on 1:1 calls)' }),
     durationSecs: z.number().nullable().optional(),
     endReason: z
       .string()
@@ -616,7 +644,12 @@ export const CallInfoSchema = z
 export const StartCallResponseSchema = z
   .object({
     callId: z.string().meta({ example: EXAMPLES.startCallResponse.callId }),
-    peerJid: z.string().meta({ example: EXAMPLES.startCallResponse.peerJid }),
+    peerJid: z.string().meta({
+      description: 'Peer called; the group JID on a group call',
+      example: EXAMPLES.startCallResponse.peerJid,
+    }),
+    groupJid: z.string().nullable().optional().meta({ description: 'Set on a group call' }),
+    participants: z.array(z.string()).optional().meta({ description: 'LIDs rung on a group call' }),
   })
   .meta({ example: EXAMPLES.startCallResponse })
 
@@ -654,6 +687,15 @@ export const CallReactionBodySchema = z
       .meta({ description: 'Emoji glyph sent as an in-call reaction', example: '👍' }),
   })
   .meta({ example: { reaction: '👍' } })
+
+export const ParticipantMuteBodySchema = z
+  .object({
+    participant: z.string().trim().min(1).meta({
+      description: 'Participant device or account JID, as the call snapshot / webhooks name it',
+      example: '123456789012345@lid',
+    }),
+  })
+  .meta({ example: { participant: '123456789012345@lid' } })
 
 export const BlastBodySchema = z
   .object({
@@ -866,7 +908,8 @@ export const OPENAPI_TAGS = [
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
-      '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`.\n\n' +
+      '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
+      '`call.participants_changed`, `call.mute_requested`, `call.participant_media`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.',
   },
 ] as const

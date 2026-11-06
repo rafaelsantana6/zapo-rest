@@ -19,6 +19,7 @@ import type { CacheClient } from '~/redis/client'
 import { AvatarStore } from '~/store/avatars'
 import type { ContactStore } from '~/store/contacts'
 import { asPhoneJid, serializeCallInfo } from '~/voip/call-serialize'
+import { serializeCompositionDiff } from '~/voip/group-call'
 import type { WebhookDispatcher } from '~/webhooks/dispatcher'
 import { createSharedRuntime, createWaClient, type SharedZapoRuntime, type TestClientHooks } from './client-factory'
 import type { InstanceRepo } from './repo'
@@ -636,6 +637,33 @@ export class InstanceManager {
         this.onVoipInteraction(name, 'call.reaction', payload.call, {
           reaction: payload.reaction?.reaction ?? null,
           participantJid: payload.participantJid ?? null,
+        }),
+      )
+    })
+
+    // Group calls (voip 1.4)
+    onVoip('voip_call_participants_changed', (payload) => {
+      runSafe('voip_call_participants_changed', () =>
+        this.onVoipInteraction(name, 'call.participants_changed', payload.call, serializeCompositionDiff(payload.diff)),
+      )
+    })
+
+    onVoip('voip_call_mute_requested', (payload) => {
+      runSafe('voip_call_mute_requested', () =>
+        this.onVoipInteraction(name, 'call.mute_requested', payload.call, {
+          participantJid: payload.participantJid,
+          // Raw upstream state: '1' asks to mute
+          muted: payload.requestState === '1',
+          requestState: payload.requestState ?? null,
+        }),
+      )
+    })
+
+    onVoip('voip_call_participant_media', (payload) => {
+      runSafe('voip_call_participant_media', () =>
+        this.onVoipInteraction(name, 'call.participant_media', payload.call, {
+          participantJid: payload.participantJid,
+          receiving: Boolean(payload.receiving),
         }),
       )
     })

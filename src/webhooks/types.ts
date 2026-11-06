@@ -28,6 +28,12 @@ export const WEBHOOK_EVENTS = [
   'call.hand_raise',
   /** Emoji reaction sent during a call. */
   'call.reaction',
+  /** Group call roster changed: joined, left, switched device. */
+  'call.participants_changed',
+  /** A group participant asked this side to mute. */
+  'call.mute_requested',
+  /** A group participant's media started or stopped arriving. */
+  'call.participant_media',
   'history.sync',
   /** Group history bundle shared with this account after it joined. */
   'history.group',

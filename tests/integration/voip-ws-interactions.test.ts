@@ -14,6 +14,9 @@ function fakeVoipSurface() {
     getCalls: vi.fn(() => [call]),
     setHandRaised: vi.fn(async (_callId: string, _raised: boolean) => undefined),
     sendReaction: vi.fn((_callId: string, _reaction: string) => surface.reactionReady),
+    leaveCall: vi.fn(async (_callId: string) => undefined),
+    joinCall: vi.fn(async (_callId: string) => undefined),
+    requestParticipantMute: vi.fn(async (_callId: string, _jid: string) => undefined),
   }
   return surface
 }
@@ -80,5 +83,20 @@ describe('VoIP control WS: hand + reaction', () => {
     })
     const frame = await next((f) => f.eventId === 'E1')
     expect(frame).toMatchObject({ op: 'call:hand_raise', participantJid: 'p@s.whatsapp.net', raised: true })
+  })
+
+  it('acks call:leave and call:mute_participant on the resolved call', async () => {
+    ws.send(JSON.stringify({ op: 'call:leave', id: 'l1', callId: 'call1' }))
+    expect(await next((f) => f.id === 'l1')).toMatchObject({ ok: true, data: { callId: 'CALL1' } })
+    expect(voip.leaveCall).toHaveBeenCalledWith('CALL1')
+    ws.send(JSON.stringify({ op: 'call:mute_participant', id: 'm1', callId: 'CALL1', participant: '111@lid' }))
+    expect(await next((f) => f.id === 'm1')).toMatchObject({ ok: true, data: { participant: '111@lid' } })
+    expect(voip.requestParticipantMute).toHaveBeenCalledWith('CALL1', '111@lid')
+  })
+
+  it('reports a failed call:join as CALL_FAILED', async () => {
+    voip.joinCall.mockRejectedValueOnce(new Error('no joinable call'))
+    ws.send(JSON.stringify({ op: 'call:join', id: 'j1', callId: 'GONE' }))
+    expect(await next((f) => f.id === 'j1')).toMatchObject({ ok: false, code: 'CALL_FAILED' })
   })
 })

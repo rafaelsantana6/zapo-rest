@@ -1310,7 +1310,9 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
           <li>
             Calls: <code>call.incoming</code>, <code>call.state</code>, <code>call.ended</code>,{' '}
-            <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>
+            <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
+            <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
+            <code>call.participant_media</code>
           </li>
         </ul>
 
@@ -1385,7 +1387,9 @@ const dec = new TextDecoder
 { "op": "call:end", "id": "5", "callId": "call_…" }
 { "op": "call:mute", "id": "6", "callId": "call_…", "muted": true }
 { "op": "call:hand", "id": "7", "callId": "call_…", "raised": true }
-{ "op": "call:reaction", "id": "8", "callId": "call_…", "reaction": "👍" }`}
+{ "op": "call:reaction", "id": "8", "callId": "call_…", "reaction": "👍" }
+{ "op": "call:leave", "id": "9", "callId": "call_…" }
+{ "op": "call:mute_participant", "id": "10", "callId": "call_…", "participant": "…@lid" }`}
         />
 
         <h2 id="server-push">Push do servidor</h2>
@@ -1413,9 +1417,36 @@ const dec = new TextDecoder
             <code>call:reaction</code> — um peer mandou uma reação emoji
           </li>
           <li>
+            <code>call:participants_changed</code> / <code>call:mute_requested</code> /{' '}
+            <code>call:participant_media</code> — chamadas em grupo
+          </li>
+          <li>
             <code>device:status</code> — status da sessão WA
           </li>
         </ul>
+
+        <h2 id="group-calls">Chamadas em grupo</h2>
+        <p>
+          Para ligar para um grupo, troque <code>to</code> por <code>groupId</code> + <code>participants</code> em{' '}
+          <code>POST .../calls</code>. Os participantes (telefone, JID ou LID, até 31, sem você) são resolvidos para
+          LID; quem não tiver LID volta em <code>400</code> com <code>details.missing</code>. A resposta traz{' '}
+          <code>groupJid</code> e os LIDs chamados.
+        </p>
+        <p>
+          Controle: <code>POST .../calls/:callId/leave</code> sai da chamada sem encerrá-la para os outros (409 em call
+          1:1 — use <code>end</code>); <code>POST .../calls/:callId/join</code> entra numa chamada em andamento que você
+          perdeu ou saiu; <code>POST .../calls/:callId/participants/mute</code> (
+          <code>{'{ "participant": "…@lid" }'}</code>) pede para um participante silenciar — quem decide é o cliente
+          dele. No WS: <code>call:leave</code>, <code>call:join</code>, <code>call:mute_participant</code>.
+        </p>
+        <p>
+          Eventos: <code>call.participants_changed</code> (<code>added</code>, <code>removed</code> com{' '}
+          <code>cause</code>, <code>switched</code>, <code>devicesAdded</code>, <code>devicesRemoved</code>),{' '}
+          <code>call.mute_requested</code> (<code>participantJid</code>, <code>muted</code>) e{' '}
+          <code>call.participant_media</code> (<code>participantJid</code>, <code>receiving</code>). O snapshot ganha{' '}
+          <code>isGroup</code>, <code>groupJid</code> e <code>participants</code> (<code>jid</code>,{' '}
+          <code>devices</code>, <code>state</code>). Vídeo continua fora: a API é só de áudio.
+        </p>
 
         <h2 id="interactions">Levantar a mão &amp; reações</h2>
         <p>

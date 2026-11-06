@@ -21,12 +21,14 @@ import type { InstanceManager } from '~/instances/manager'
 import type { InstanceRepo } from '~/instances/repo'
 import { asVoipClient } from '~/instances/wa-client'
 import { badRequest, notFound } from '~/lib/errors'
+import { toRecipientJid } from '~/lib/phone'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { MediaStorage } from '~/media/storage'
 import type { CacheClient } from '~/redis/client'
 import type { CallStore } from '~/store/calls'
 import { toPublicCall } from '~/store/calls'
 import { resolveLiveCall, serializeCallInfo } from '~/voip/call-serialize'
+import { resolveParticipantLids, startGroupCall } from '~/voip/group-call'
 import { attachCallStream } from '~/voip/call-stream'
 import type { CallRecordingManager } from '~/voip/recording-manager'
 
@@ -54,6 +56,9 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         summary: 'Start outbound voice call',
         description:
           'Places an **audio-only** WhatsApp voice call (`client.voip.startCall`).\n\n' +
+          '**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved ' +
+          'to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as ' +
+          '`call.participants_changed`.\n\n' +
           'Returns `callId` immediately after the offer is sent. Progress continues via webhooks ' +
           '`call.state` / `call.ended` and the live PCM WebSocket.\n\n' +
           '**No file / audioUrl playback** — open the stream and send live mic PCM.\n\n' +
@@ -82,9 +87,23 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
       const name = resolveInstanceName(request)
       const body = request.body
       const client = asVoipClient(manager.requireRegisteredClient(name))
-      // 55 + nono dígito via usync (e.g. 68981159096 → 556881159096@…)
-      const peerJid = await resolveRecipientJid(client, body.to, cache)
-      const callId = await client.voip.startCall({ peerJid })
+      let peerJid: string
+      let callId: string
+      let group: { groupJid: string; participants: string[] } | null = null
+      if (body.groupId && body.participants) {
+        const groupJid = toRecipientJid(body.groupId.includes('@') ? body.groupId : `${body.groupId}@g.us`)
+        if (!groupJid.endsWith('@g.us')) throw badRequest('groupId must be a group (@g.us)')
+        // Group offers name participants by LID
+        const { lids, missing } = await resolveParticipantLids(client, body.participants, cache)
+        if (missing.length) throw badRequest('participants without a WhatsApp LID', { missing })
+        callId = await startGroupCall(client, groupJid, lids)
+        peerJid = groupJid
+        group = { groupJid, participants: lids }
+      } else {
+        // 55 + nono dígito via usync (e.g. 68981159096 → 556881159096@…)
+        peerJid = await resolveRecipientJid(client, body.to ?? '', cache)
+        callId = await client.voip.startCall({ peerJid })
+      }
       try {
         client.voip.setExternalAudioMode(callId, true)
       } catch {
@@ -99,7 +118,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           state: 'calling',
         })
       }
-      return { callId, peerJid }
+      return group ? { callId, peerJid, ...group } : { callId, peerJid }
     },
   )
 

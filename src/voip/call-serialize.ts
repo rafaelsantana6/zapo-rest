@@ -1,6 +1,7 @@
 /** Shared CallInfo → JSON for REST + VoIP control WS. */
 
 import { bareUserJid, isLidJid, isPnJid, toPnJid } from '~/lib/jid-canon'
+import { serializeParticipant } from '~/voip/group-call'
 
 /**
  * Coerce free-form phone / JID into a PN JID, or null if it's a LID / unusable.
@@ -78,6 +79,12 @@ export function serializeCallInfo(call: any, extras?: { mappedPn?: string | null
     handRaised: Boolean(call.stateData?.handRaised),
     /** Device JIDs of remote participants with a raised hand. */
     raisedHands: call.raisedHands instanceof Set ? [...(call.raisedHands as Set<string>)] : [],
+    isGroup: Boolean(call.groupJid),
+    groupJid: (call.groupJid ?? null) as string | null,
+    /** Group roster (voip 1.4); empty on 1:1 calls. */
+    participants: Array.isArray(call.groupComposition?.participants)
+      ? (call.groupComposition.participants as { jid: string }[]).map(serializeParticipant)
+      : [],
     durationSecs: (call.stateData?.durationSecs ?? null) as number | null,
     endReason: (call.stateData?.endReason ?? null) as string | null,
   }

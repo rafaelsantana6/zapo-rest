@@ -281,6 +281,8 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 
 In-call hand raise (`POST .../calls/:callId/hand`, WS `call:hand`) and emoji reactions (`POST .../calls/:callId/reaction`, WS `call:reaction`) round-trip to the peer as `call.peer_mute`, `call.hand_raise`, and `call.reaction` (webhook + WS). The call snapshot adds `peerAudioMuted`, `handRaised`, and `raisedHands`.
 
+Group calls: `POST .../calls` with `groupId` + `participants` (resolved to LIDs; `400` with `details.missing` otherwise) instead of `to`. `POST .../calls/:callId/leave` (WS `call:leave`), `.../join` (WS `call:join`) and `.../participants/mute` (WS `call:mute_participant`). Roster and media changes arrive as `call.participants_changed`, `call.mute_requested`, and `call.participant_media`; the snapshot adds `isGroup`, `groupJid`, and `participants`.
+
 ---
 
 ## Architecture decisions
@@ -403,6 +405,12 @@ X-Api-Key: …
 # In-call hand raise / reactions — named or short
 POST /v1/calls/:callId/hand                     # { "raised": true }
 POST /v1/calls/:callId/reaction                 # { "reaction": "👍" }
+
+# Group calls — named or short
+POST /v1/calls                                  # { "groupId": "1203…@g.us", "participants": ["5511…"] }
+POST /v1/calls/:callId/leave
+POST /v1/calls/:callId/join
+POST /v1/calls/:callId/participants/mute        # { "participant": "…@lid" }
 ```
 
 Full contract: `/docs` or `pnpm openapi:export` → `openapi.json`.

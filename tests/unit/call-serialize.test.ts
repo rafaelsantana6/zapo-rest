@@ -80,3 +80,22 @@ describe('serializeCallInfo interactions (voip 1.2)', () => {
     expect(snap.raisedHands).toEqual([])
   })
 })
+
+describe('serializeCallInfo group calls (voip 1.4)', () => {
+  it('exposes the group and its roster', () => {
+    const snap = serializeCallInfo({
+      callId: 'g1',
+      groupJid: '120363000000000000@g.us',
+      stateData: { state: 'active' },
+      groupComposition: { participants: [{ jid: '111@lid', devices: ['111:2@lid'], state: 'connected' }] },
+    })
+    expect(snap.isGroup).toBe(true)
+    expect(snap.groupJid).toBe('120363000000000000@g.us')
+    expect(snap.participants).toEqual([{ jid: '111@lid', devices: ['111:2@lid'], state: 'connected' }])
+  })
+
+  it('reports a 1:1 call as not a group', () => {
+    const snap = serializeCallInfo({ callId: 'p1', stateData: { state: 'active' } })
+    expect(snap).toMatchObject({ isGroup: false, groupJid: null, participants: [] })
+  })
+})
