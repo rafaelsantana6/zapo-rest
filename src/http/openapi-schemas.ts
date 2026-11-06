@@ -997,6 +997,15 @@ export const GroupHistoryShareModeSchema = z.enum(['admin_share', 'all_member_sh
 
 export const GroupMetadataSchema = z
   .looseObject({
+    jid: z.string().optional(),
+    subject: z.string().optional(),
+    isParentGroup: z.boolean().optional(),
+    isClosedCommunity: z.boolean().optional(),
+    defaultSubgroup: z.boolean().optional(),
+    generalSubgroup: z.boolean().optional(),
+    hiddenSubgroup: z.boolean().optional(),
+    allowNonAdminSubGroupCreation: z.boolean().optional(),
+    linkedParentJid: z.string().optional(),
     memberAddMode: GroupMemberAddModeSchema.optional(),
     memberLinkMode: GroupMemberLinkModeSchema.optional(),
     historyShareMode: GroupHistoryShareModeSchema.optional(),

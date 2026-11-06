@@ -20,6 +20,10 @@ describe('shared group metadata serializer', () => {
     expect(serialized).toEqual(metadata)
     expect(GroupMetadataSchema.parse(serialized)).toEqual(metadata)
     expect(serialized.participants).not.toBe(metadata.participants)
+    expect(serializeGroupMetadata(communityMetadata({ memberShareGroupHistoryMode: 'admin_share' }))).toMatchObject({
+      historyShareMode: 'admin_share',
+      isParentGroup: true,
+    })
   })
 
   it.each(['120363000000000000', COMMUNITY_JID])('normalizes group id %s consistently', (id) => {
