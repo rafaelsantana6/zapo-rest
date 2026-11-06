@@ -20,6 +20,8 @@ import { AvatarStore } from '~/store/avatars'
 import type { ContactStore } from '~/store/contacts'
 import { asPhoneJid, serializeCallInfo } from '~/voip/call-serialize'
 import { serializeScreenShare, serializeVideoState } from '~/voip/call-video-controls'
+import { serializeGroupEvent } from '~/groups/metadata'
+import type { WaGroupEvent } from 'zapo-js'
 import { serializeCompositionDiff } from '~/voip/group-call'
 import type { WebhookDispatcher } from '~/webhooks/dispatcher'
 import { createSharedRuntime, createWaClient, type SharedZapoRuntime, type TestClientHooks } from './client-factory'
@@ -849,9 +851,9 @@ export class InstanceManager {
     })
   }
 
-  private async onGroup(name: string, event: unknown): Promise<void> {
+  private async onGroup(name: string, event: WaGroupEvent): Promise<void> {
     const row = await this.getRecord(name)
-    if (row) await this.opts.webhooks.emit(row, 'group.update', event)
+    if (row) await this.opts.webhooks.emit(row, 'group.update', serializeGroupEvent(event))
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: picture event shape from zapo

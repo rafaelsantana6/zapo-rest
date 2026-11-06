@@ -350,11 +350,13 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 - **Messages** — text, reply, image, video, audio, document, sticker, location, poll, react, edit, revoke, contact, forward, star/unstar
 - **Chats** — list, messages, read, archive, delete, history-sync
 - **Contacts** — list, check exists, about, profile picture, blocklist, BR 9th-digit aware resolve
-- **Groups** — create, metadata, invite, participants, promote/demote, picture
+- **Groups** — create, metadata, invite, participants, promote/demote, picture; admin/member permissions to add members, share invite links, and share history
 - **Profile / presence / privacy / status stories / labels / lids**
 - **Webhooks** — multi-config, HMAC-SHA512, exponential retries, custom headers
 - **Realtime SSE** + **VoIP WebSocket**
 - **Dashboard** + **OpenAPI** + narrative **guide** at `/guide`
+
+Member modes use explicit `/settings/...` routes with `{ mode }`; boolean settings keep `{ enabled }` at `/settings/:setting`. Invalid modes return 400 with accepted values, unknown groups 404, and WhatsApp admin denials 403. Reads omit modes WhatsApp does not report (or values outside the supported enums); the original `memberShareGroupHistoryMode` metadata field remains for compatibility. `historyShareMode` governs who may send history bundles; `HISTORY_GROUP_BUNDLES` controls receiving them. Phone changes to add mode arrive on `group.update` as `action: "member_add_mode"`, `mode`, and `memberAddMode`. zapo-js 1.11.0 does not decode link/history mode notifications; use metadata reads for those changes. See the [groups guide](https://rafaelsantana6.github.io/zapo-rest/guide/groups).
 
 Parity matrices: [`docs/API-COVERAGE.md`](docs/API-COVERAGE.md), [`docs/FEATURE-MAP-FULL.md`](docs/FEATURE-MAP-FULL.md).
 
@@ -389,7 +391,14 @@ GET/PUT/DELETE /v1/profile/username
 GET /v1/profile/username/check?username=loja
 POST /v1/profile/username/resolve               # { "username": "@loja" }
 
-# Group history shared with members who joined later
+# Group member modes — instance key; changing these requires group admin
+PUT /v1/groups/:groupId/settings/member-add-mode     # { "mode": "admin_add" | "all_member_add" }
+PUT /v1/groups/:groupId/settings/member-link-mode    # { "mode": "admin_link" | "all_member_link" }
+PUT /v1/groups/:groupId/settings/history-share-mode  # { "mode": "admin_share" | "all_member_share" }
+GET /v1/groups/:groupId                            # group.memberAddMode, memberLinkMode, historyShareMode
+GET /v1/groups                                    # same fields in groups[]
+
+# Group history shared with members who joined later (subject to historyShareMode)
 POST /v1/groups/:groupId/share-history          # { "to": ["@lid-or-phone"], "count": 50 }
 
 # Chats / history — named or short

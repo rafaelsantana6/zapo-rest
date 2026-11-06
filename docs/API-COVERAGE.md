@@ -70,6 +70,11 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Block / unblock / blocklist | ✅ |
 | LID map list/count/get | ✅ |
 | Groups full lifecycle | ✅ |
+| Who can add members | ✅ `PUT /v1/groups/:groupId/settings/member-add-mode` — `admin_add` / `all_member_add` |
+| Who can share invite links | ✅ `PUT /v1/groups/:groupId/settings/member-link-mode` — `admin_link` / `all_member_link` |
+| Who can share history bundles | ✅ `PUT /v1/groups/:groupId/settings/history-share-mode` — `admin_share` / `all_member_share`; governs `share-history`, not `HISTORY_GROUP_BUNDLES` receiving |
+| Member mode reads | ✅ `GET /v1/groups/:groupId` + list: `memberAddMode`, `memberLinkMode`, `historyShareMode` when reported |
+| Member mode notifications | 🟡 `group.update` adds `memberAddMode` for `member_add_mode`; link/history notifications are not decoded by zapo-js 1.11.0 (query metadata) |
 | Profile get/update | ✅ |
 | Username get/set/delete/check/resolve | ✅ `/profile/username` |
 | Send to `@handle` | ✅ `to` on messages, calls, blast |

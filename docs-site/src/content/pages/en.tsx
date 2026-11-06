@@ -1673,13 +1673,67 @@ const dec = new TextDecoder
     body: (
       <>
         <p>
-          Full CRUD under <code>/v1/instances/:name/groups</code>: create, metadata, leave, subject/description,
+          Full CRUD under <code>/v1/groups</code> using the instance key: create, metadata, leave, subject/description,
           invite-code, participants add/remove, promote/demote, picture, settings (announcement, restrict, ephemeral…).
         </p>
+        <h2 id="member-settings">Member permissions</h2>
+        <p>
+          Each route accepts <code>{'{ mode }'}</code>:
+        </p>
+        <ul>
+          <li>
+            Who can add members: <code>PUT /v1/groups/:groupId/settings/member-add-mode</code> — <code>admin_add</code>{' '}
+            / <code>all_member_add</code>.
+          </li>
+          <li>
+            Who can share the invite link: <code>PUT /v1/groups/:groupId/settings/member-link-mode</code> —{' '}
+            <code>admin_link</code> / <code>all_member_link</code>.
+          </li>
+          <li>
+            Who can send history: <code>PUT /v1/groups/:groupId/settings/history-share-mode</code> —{' '}
+            <code>admin_share</code> / <code>all_member_share</code>.
+          </li>
+        </ul>
+        <CodeBlock
+          language="bash"
+          code={`curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-add-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_add"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/member-link-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_link"}'
+
+curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
+ -H "X-Api-Key: $KEY" -H "Content-Type: application/json" \\
+ -d '{"mode":"all_member_share"}'`}
+        />
+        <p>
+          Only group admins can change the modes. Invalid values return 400 with accepted values; unknown groups return
+          404; WhatsApp permission denials return 403. Boolean settings still use <code>{'{ enabled }'}</code> (
+          <code>PUT /v1/groups/:groupId/settings/:setting</code>).
+        </p>
+        <p>
+          In <code>GET /v1/groups/:groupId</code> / <code>GET /v1/groups</code>, metadata exposes{' '}
+          <code>memberAddMode</code>, <code>memberLinkMode</code>, <code>historyShareMode</code> when reported by
+          WhatsApp; missing or unrecognized values are omitted. The upstream field{' '}
+          <code>memberShareGroupHistoryMode</code> remains for compatibility.
+        </p>
+        <p>
+          Phone changes to add mode arrive on <code>group.update</code> with <code>action: "member_add_mode"</code>,{' '}
+          <code>mode</code>, <code>memberAddMode</code>. zapo-js 1.11.0 does not decode link/history mode notifications:
+          query metadata to observe those changes.
+        </p>
+        <h2 id="group-history">Group history</h2>
         <p>
           <code>POST .../groups/:groupId/share-history</code> sends recent history to members who joined later (the
           account needs <code>group_history_send</code>). Incoming bundles are on by default (
           <code>HISTORY_GROUP_BUNDLES</code>) and show up as <code>history.group</code> plus normal message projections.
+        </p>
+        <p>
+          Sending follows the <a href="#member-settings">history sharing mode</a> (<code>historyShareMode</code>):{' '}
+          <code>admin_share</code> / <code>all_member_share</code>. <code>HISTORY_GROUP_BUNDLES</code> only controls
+          receiving bundles.
         </p>
         <p>
           Detailed reference: <a href="/guide/api/Groups">Groups API</a>.

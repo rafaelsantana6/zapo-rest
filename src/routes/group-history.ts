@@ -40,7 +40,7 @@ export const groupHistoryRoutes: FastifyPluginAsync<GroupHistoryRoutesDeps> = as
         description:
           'Sends a history bundle only to `to` (`client.message.shareGroupHistory`), then a hidden notice to the whole group.\n\n' +
           '`to` accepts the same forms as message send, including `@handle`. Each JID must be a current member in the **group addressing mode** (LID groups want `@lid`).\n\n' +
-          'The account must have the `group_history_send` property. Admin-only groups reject a share from a regular member. An absent `noticeMessageId` means the bundle was delivered and must not be retried.',
+          'Group `historyShareMode` (PUT /v1/groups/:groupId/settings/history-share-mode) controls who may send bundles; `HISTORY_GROUP_BUNDLES` controls receiving, not sending. The account must have the `group_history_send` property. Admin-only groups reject a share from a regular member. An absent `noticeMessageId` means the bundle was delivered and must not be retried.',
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: GroupParams,
         body: z.object({

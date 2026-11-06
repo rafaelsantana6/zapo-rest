@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Group member modes.** Admin-only `PUT /v1/groups/:groupId/settings/member-add-mode`, `.../member-link-mode`, and `.../history-share-mode` accept `{ mode }` with the upstream enums. Metadata reads (single and list) expose `memberAddMode`, `memberLinkMode`, and `historyShareMode` when reported. The last controls who can send `share-history` bundles, independently of receiving via `HISTORY_GROUP_BUNDLES`. Invalid modes return 400 with accepted values; WhatsApp missing-group and admin errors map to 404/403.
+- `group.update` for upstream `member_add_mode` changes now also carries `memberAddMode`, retaining `action` and `mode`. zapo-js 1.11.0 does not decode link/history-share mode notifications; query metadata to observe those changes.
+
 ## [0.10.0] - 2026-11-06
 
 ### Added

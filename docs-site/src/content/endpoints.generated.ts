@@ -1175,7 +1175,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['groupId'],
     bodyExample: null,
-    responses: ['200'],
+    responses: ['200', '403', '404'],
   },
   {
     id: 'post-_v1_groups_groupId_leave',
@@ -1384,12 +1384,57 @@ export const ENDPOINTS: EndpointDoc[] = [
     responses: ['200'],
   },
   {
+    id: 'put-_v1_groups_groupId_settings_member-add-mode',
+    method: 'PUT',
+    path: '/v1/groups/{groupId}/settings/member-add-mode',
+    summary: 'Set group member-add-mode',
+    description:
+      'Admin-only. Send { mode }; accepted values are listed in the body schema. Read current values with GET /v1/groups/:groupId. History sharing controls POST /v1/groups/:groupId/share-history, independently of HISTORY_GROUP_BUNDLES (receiving).',
+    tags: ['Groups'],
+    security: true,
+    params: ['groupId'],
+    bodyExample: {
+      mode: 'admin_add',
+    },
+    responses: ['200', '400', '403', '404', '503'],
+  },
+  {
+    id: 'put-_v1_groups_groupId_settings_member-link-mode',
+    method: 'PUT',
+    path: '/v1/groups/{groupId}/settings/member-link-mode',
+    summary: 'Set group member-link-mode',
+    description:
+      'Admin-only. Send { mode }; accepted values are listed in the body schema. Read current values with GET /v1/groups/:groupId. History sharing controls POST /v1/groups/:groupId/share-history, independently of HISTORY_GROUP_BUNDLES (receiving).',
+    tags: ['Groups'],
+    security: true,
+    params: ['groupId'],
+    bodyExample: {
+      mode: 'admin_link',
+    },
+    responses: ['200', '400', '403', '404', '503'],
+  },
+  {
+    id: 'put-_v1_groups_groupId_settings_history-share-mode',
+    method: 'PUT',
+    path: '/v1/groups/{groupId}/settings/history-share-mode',
+    summary: 'Set group history-share-mode',
+    description:
+      'Admin-only. Send { mode }; accepted values are listed in the body schema. Read current values with GET /v1/groups/:groupId. History sharing controls POST /v1/groups/:groupId/share-history, independently of HISTORY_GROUP_BUNDLES (receiving).',
+    tags: ['Groups'],
+    security: true,
+    params: ['groupId'],
+    bodyExample: {
+      mode: 'admin_share',
+    },
+    responses: ['200', '400', '403', '404', '503'],
+  },
+  {
     id: 'post-_v1_groups_groupId_share-history',
     method: 'POST',
     path: '/v1/groups/{groupId}/share-history',
     summary: 'Share group history with members who joined later',
     description:
-      'Sends a history bundle only to `to` (`client.message.shareGroupHistory`), then a hidden notice to the whole group.\n\n`to` accepts the same forms as message send, including `@handle`. Each JID must be a current member in the **group addressing mode** (LID groups want `@lid`).\n\nThe account must have the `group_history_send` property. Admin-only groups reject a share from a regular member. An absent `noticeMessageId` means the bundle was delivered and must not be retried.',
+      'Sends a history bundle only to `to` (`client.message.shareGroupHistory`), then a hidden notice to the whole group.\n\n`to` accepts the same forms as message send, including `@handle`. Each JID must be a current member in the **group addressing mode** (LID groups want `@lid`).\n\nGroup `historyShareMode` (PUT /v1/groups/:groupId/settings/history-share-mode) controls who may send bundles; `HISTORY_GROUP_BUNDLES` controls receiving, not sending. The account must have the `group_history_send` property. Admin-only groups reject a share from a regular member. An absent `noticeMessageId` means the bundle was delivered and must not be retried.',
     tags: ['Groups'],
     security: true,
     params: ['groupId'],
