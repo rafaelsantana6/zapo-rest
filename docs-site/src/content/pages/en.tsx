@@ -1,3 +1,4 @@
+import { InteractiveMessagesGuide, InteractiveWebhookGuide, InteractiveDesignRow } from '../interactive-messages'
 import { Callout } from '../../components/Callout'
 import { CodeBlock } from '../../components/CodeBlock'
 import { ExternalLink } from '../../components/ExternalLink'
@@ -315,6 +316,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               </td>
               <td>Never blocks or slows down PCM; a lagging viewer drops frames until the next key frame</td>
             </tr>
+            <InteractiveDesignRow locale="en" />
             <tr>
               <td>Chat settings projected from app-state</td>
               <td>
@@ -1290,6 +1292,7 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
         <p>
           Event <code>message.ack</code> updates delivered/read. In the store: map by messageIds.
         </p>
+        <InteractiveMessagesGuide locale="en" />
       </>
     ),
   },
@@ -1626,6 +1629,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           pinned, muted, ISO muteUntil, locked, archived). ClearChat/DeleteChat/DeleteMessageForMe carry action and
           deleted; deleted=true means the chat row was removed. No new event name or transport is added.
         </p>
+        <InteractiveWebhookGuide locale="en" />
       </>
     ),
   },

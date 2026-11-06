@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Generated button/list reply IDs now reserve all explicit IDs and add collision suffixes; carousel cards share the reservation. Duplicate explicit reply IDs return 400, including across list sections and carousel cards.
+- Interactive carousel/product uploads reject malformed base64/data URIs, empty content and unidentified media without a caller-declared MIME (request field or data URI). They no longer invent JPEG/MP4 for unrecognized bytes or trust a download MIME header for those bytes.
+
+### Added
+
+- Interactive/business raw-proto sends over zapo-js 1.11: `POST /v1/messages/buttons`, `/interactive`, `/list`, `/carousel`, `/native-form`, `/pix`, `/charge`, and `/product`. Shared Zod/OpenAPI validation; same recipient resolution and `{ id, result }` as text. Carousel/product images use upstream encrypted uploads. Forms return a supplied token or generated UUID, and reject groups/broadcasts.
+- Optional `groupSafe: true` on buttons/interactive turns group quick replies into private `wa.me` URL buttons addressed to the connected account PN (never LID). Default keeps group replies public. `cta_catalog` works inside interactive messages/carousels; standalone `catalog_message` is pending an upstream biz-name fix.
+
+### Changed
+
+- Message webhook/SSE payloads decode buttons, lists, native flows (first button name), carousels, products, orders and reply selections into readable types/summaries. Optional `interactive` carries selected IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and the token from the quoted form. Existing message event names are unchanged.
+
 ## [0.11.0] - 2026-11-06
 
 ### Added

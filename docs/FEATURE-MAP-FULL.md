@@ -13,13 +13,20 @@ Last updated: 2026-07-14
 | Instances (create/connect/QR/pairing/restart/delete) | ✅ |
 | Dual instance paths (named `/v1/instances/:name/...` + short `/v1/...` / `/v1/instance/...`; admin must name) | ✅ |
 | Messages (text/media/sticker/location/contact/reaction/poll/status/star) | ✅ |
+| Interactive response buttons/native flow/single-select list | ✅ raw proto (`/messages/buttons`, `/interactive`, `/list`) |
+| Carousel image/video | ✅ `/messages/carousel`; upstream 1.11 has no carousel biz addon, device verification pending |
+| Business app native forms + structured responses | ✅ `/messages/native-form`, 1:1 only, flowToken + fields/answers |
+| PIX / review-and-pay charge | ✅ `/messages/pix`, `/messages/charge`, validated key formats and integer money |
+| Real catalog product card | ✅ `/messages/product`, uploaded optional image, catalog product required |
+| Group-safe private quick replies | ✅ opt-in `groupSafe` on buttons/interactive, own PN wa.me links |
+| Standalone catalog_message | ❌ upstream biz-name fix pending; working alternative: cta_catalog in interactive/carousel (include URL CTA on mobile cards) |
+| Cloud templates | ❌ |
 | Calendar event + response (`/messages/event`, `/messages/event/respond`) | ✅ ISO dates; original identity + secret for responses |
 | Pin/unpin + keep/unkeep (`/messages/pin`, `/messages/keep`) | ✅ stored targets; explicit pin duration, default 24h |
 | Poll vote (`/messages/poll/vote`) | ✅ original author/fromMe/participant + secret; non-empty names |
 | Video note (`/messages/ptv`) | ✅ URL/base64/multipart; no caption |
 | Sticker pack (`/messages/sticker-pack`) | ✅ gateway cap 30; SSRF-guarded URL/base64 media; JPEG cover derived from tray when omitted; total MEDIA_UPLOAD_MAX_BYTES budget; no accessibilityLabel upstream |
 | Typed send context + extended inbound types | ✅ safe contextInfo expiration settings; event / event-response / pin / keep / poll-vote / ptv / sticker-pack summaries |
-| Interactive buttons/list/template Cloud | ❌ |
 | Chats (list/messages/read/archive/history-sync) | ✅ |
 | Chat pin/mute/lock + phone app-state projection | ✅ numeric pinned, muted, muteUntil, locked; chat.update |
 | Durable action metadata / stale-replay guard / retained empty chats | ✅ survives restart and mailbox imports; canonical alias flags |
@@ -94,6 +101,10 @@ Last updated: 2026-07-14
 - Chatwoot / Typebot / generic bot runtimes
 - Meta Cloud API HSM templates
 - Multi-region message bus adapters (Kafka/NATS/…) as first-class products
+
+## Interactive receive
+
+Existing message webhooks/SSE expose readable buttons/list/interactive/carousel/product/order and response types. Optional `interactive` includes selected ID/text, first native button name/parsed params, or native-form fields across screens, answers, sensitivity and quoted flowToken. Decoder extension lives in `src/events/decode-interactive.ts`. One pure builder per send format stays isolated under `src/messages/interactive/`; upstream owns secrets/biz/encryption. See [wire contract and limitations](../README.md#interactive-and-business-messages).
 
 
 ## WhatsApp Channels / Newsletters

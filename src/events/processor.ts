@@ -271,6 +271,7 @@ export class EventProcessor {
       lid: decoded.lidPnPair?.lid ?? null,
       pn: decoded.lidPnPair?.pn ?? (isPnJid(chatJid) ? chatJid : null),
       _data: msg.raw,
+      ...(decoded.interactive ? { interactive: decoded.interactive } : {}),
     }
   }
 

@@ -6,6 +6,7 @@ import { decodeExtraMessage } from './decode-message-extra'
 
 import { bareUserJid, extractLidPnPair, isGroupJid, type LidPnPair, preferPnChatJid } from '~/lib/jid-canon'
 import { sanitizeRawForStorage } from '~/media/revive-raw'
+import { decodeInteractive, type InteractiveDetails } from './decode-interactive'
 
 export type DecodedMessage = {
   messageId: string
@@ -38,6 +39,7 @@ export type DecodedMessage = {
   /** Recipient handle without `@`. */
   recipientUsername: string | null
   raw: unknown
+  interactive?: InteractiveDetails
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: zapo event shapes vary
@@ -58,8 +60,9 @@ export function decodeIncomingMessage(event: any): DecodedMessage | null {
   // Descend the same wrappers zapo uses on the wire (ephemeral, bot-forwarded, …)
   // so a forwarded image stays media and an AI rich response is not `unknown`.
   const message = unwrapInboundMessage(event.message ?? event)
-  const type = detectType(message)
-  const body = extractBody(message)
+  const interactive = decodeInteractive(message)
+  const type = interactive?.type ?? detectType(message)
+  const body = interactive?.body ?? extractBody(message)
   const caption = extractCaption(message)
   const hasMedia = MEDIA_TYPES.has(type)
 
@@ -97,6 +100,7 @@ export function decodeIncomingMessage(event: any): DecodedMessage | null {
     senderUsername: handleOrNull(key.senderUsername),
     recipientUsername: handleOrNull(key.recipientUsername),
     raw: sanitizeRawForStorage(event),
+    ...(interactive?.details ? { interactive: interactive.details } : {}),
   }
 }
 

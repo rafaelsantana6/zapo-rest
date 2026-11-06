@@ -979,6 +979,7 @@ export const OPENAPI_TAGS = [
       '`call.incoming`, `call.state`, `call.ended`, `call.error`, `call.audio_finished`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
+      'Message payloads additionally expose readable interactive/business types and optional `interactive` selection IDs/text, parsed native-flow params, or native-form fields/answers/sensitivity and quoted flowToken. Existing event names are unchanged.\n\n' +
       '`group.update` membership notifications preserve upstream `action` and add `payload.type`: ' +
       '`membership_approval_request` has `payload.requesterJid` from the upstream author; ' +
       '`created_membership_requests` / `revoked_membership_requests` have `payload.requests[].jid` ' +
@@ -1367,3 +1368,15 @@ export const CallAudioBodySchema = z
     fileName: z.string().optional(),
   })
   .meta({ description: 'Audio URL, base64, or multipart file. Limited by MEDIA_UPLOAD_MAX_BYTES.' })
+
+// Interactive sends keep their contract together while typed upstream builders are pending.
+export {
+  SendButtonsBodySchema,
+  SendInteractiveBodySchema,
+  SendListBodySchema,
+  SendCarouselBodySchema,
+  SendNativeFormBodySchema,
+  SendPixBodySchema,
+  SendChargeBodySchema,
+  SendProductBodySchema,
+} from './interactive-schemas'

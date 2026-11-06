@@ -1,3 +1,4 @@
+import { InteractiveMessagesGuide, InteractiveWebhookGuide, InteractiveDesignRow } from '../interactive-messages'
 import { Callout } from '../../components/Callout'
 import { CodeBlock } from '../../components/CodeBlock'
 import { ExternalLink } from '../../components/ExternalLink'
@@ -323,6 +324,7 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               </td>
               <td>Nunca bloqueia nem atrasa o PCM; visualizador lento descarta frames até o próximo key frame</td>
             </tr>
+            <InteractiveDesignRow locale="pt" />
             <tr>
               <td>Configurações de conversa projetadas do app-state</td>
               <td>
@@ -1302,6 +1304,7 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
         <p>
           Evento <code>message.ack</code> atualiza delivered/read. No store: mapa por messageIds.
         </p>
+        <InteractiveMessagesGuide locale="pt" />
       </>
     ),
   },
@@ -1646,6 +1649,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           carregam action e deleted; deleted=true indica remoção da linha da conversa. Nenhum novo nome de evento ou
           transporte foi adicionado.
         </p>
+        <InteractiveWebhookGuide locale="pt" />
       </>
     ),
   },

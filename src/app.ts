@@ -38,6 +38,7 @@ import { meRoutes } from '~/routes/me'
 import { mediaRoutes } from '~/routes/media'
 import { messageRoutes } from '~/routes/messages'
 import { messageExtraRoutes } from '~/routes/messages-extra'
+import { interactiveMessageRoutes } from '~/routes/messages-interactive'
 import { metricsRoutes } from '~/routes/metrics'
 import { presenceRoutes } from '~/routes/presence'
 import { privacyRoutes } from '~/routes/privacy'
@@ -167,6 +168,12 @@ export async function buildApp(deps: BuildAppDeps) {
     messages: deps.messages,
     cache: deps.cache,
     lidMap: deps.lidMap,
+  })
+  await app.register(interactiveMessageRoutes, {
+    manager: deps.manager,
+    env: deps.env,
+    messages: deps.messages,
+    cache: deps.cache,
   })
   await app.register(contactRoutes, {
     manager: deps.manager,

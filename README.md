@@ -85,6 +85,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **Listen before long WA boot** | Docker/Swarm healthchecks stay green while reconnect + lid reconcile run in the background. |
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 | **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
+| **Interactive/business proto isolated per format; opt-in private group replies** | Upstream owns secrets, biz nodes and media encryption; `groupSafe` sends replies to the account PN. See [interactive sends](#interactive-and-business-messages). |
 | **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Durable cutoffs/settings survive mailbox imports; clear/delete preserve newer messages and empty cleared chats stay listed. |
 | **Dedicated channel routes and events** | Channel traffic does not create hidden chat projections or trigger chat media downloads. Read history directly from WhatsApp; renew live updates using `durationSeconds`. |
 | **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
@@ -402,6 +403,7 @@ Optional (`REDIS_URL`). Cache + pub/sub fanout. Falls back to in-memory when uns
 
 - **Instances** — create / connect / disconnect / QR / pairing / restart / delete / rotate key
 - **Messages** — text, reply, image, video, audio, document, sticker, location, poll, react, edit, revoke, contact, forward, star/unstar
+- **Interactive/business** — response buttons, native-flow CTAs (including catalog), single-select lists, image/video carousels, phone-created forms, PIX key cards, review-and-pay charges and real catalog product cards; structured inbound selections/form answers
 - **Extended messages** — calendar events and responses, pin/unpin (24h/7d/30d), keep/unkeep, poll votes, PTV video notes, sticker packs (up to 30); safe `contextInfo` expiration settings on typed sends.
 - **Chats** — list, messages, read, archive, delete, history-sync
 - **Chat actions** — pin/unpin, mute/unmute (ISO or duration; forever by default), lock/unlock, clear with starred preservation, synced chat delete and delete-message-for-me; reads include `pinned` (numeric), `muted`, `muteUntil`, `locked`
@@ -440,6 +442,14 @@ GET  /v1/instance/qr
 # Messages — named or short
 POST /v1/instances/:name/messages/{text,reply,image,…}
 POST /v1/messages/{text,reply,image,…}          # instance key
+POST /v1/messages/buttons                     # 1–3 response buttons; optional groupSafe
+POST /v1/messages/interactive                 # quick_reply / url / copy / call / catalog
+POST /v1/messages/list                        # single_select; 1–10 sections, 10 total rows
+POST /v1/messages/carousel                    # 2–10 uploaded image/video cards
+POST /v1/messages/native-form                 # phone-created form, 1:1 only; returns flowToken
+POST /v1/messages/pix                         # payment_info static PIX key card
+POST /v1/messages/charge                      # review_and_pay; major-unit BRL input
+POST /v1/messages/product                     # real catalog product; thousandth prices
 POST /v1/messages/event                       # ISO startTime/endTime → Unix seconds
 POST /v1/messages/event/respond               # stored eventMessageId + response
 POST /v1/messages/pin                         # messageId + pinned + duration (default 24h)
@@ -710,3 +720,28 @@ Use this software in accordance with WhatsApp’s terms and applicable law. You 
 MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.
 
 Per-participant PCM (local only): `VOIP_PARTICIPANT_AUDIO=false` by default. Opt in via `/v1/calls/:callId/stream?participants=1`: every server frame gains a 4-byte header (`u8 version=1`, `u8 reserved=0`, `u16 BE streamId`), then f32le PCM. Mix id 0; participant ids announced with JSON `stream` (`participantJid`) and retired with `stream_end`. Client frames stay raw PCM. Without the flag, protocol unchanged. Disabled opt-in: close 4409. No PCM on SSE/webhooks; no separate participant recordings.
+
+## Interactive and business messages
+
+All eight routes accept an instance key and `to` (phone/JID/username), using the same recipient handling as text. They return `{ id, result }`; `/native-form` also returns `flowToken`. OpenAPI includes examples for every route. Payloads are raw proto built in `src/messages/interactive/`, one pure module per format, ready to switch to upstream typed builders. zapo-js owns message secrets, biz nodes and encrypted media uploads.
+
+- `/buttons`: `{ to, text, footer?, buttons: [{ id?, text }], groupSafe? }`, 1–3 response buttons, caption-wrapper/EMPTY header.
+- `/interactive`: `{ to, body, footer?, header?, buttons, groupSafe? }`, 1–3 discriminated buttons: `quick_reply` (`id?, text`), `url` (`text, url, webview?`), `copy` (`text, code`), `call` (`text, phoneNumber`), `catalog` (`productId?`). Catalog uses the connected account PN, never LID. Webview adds the full-screen interaction flags.
+- `/list`: `{ to, body, footer?, buttonText, sections: [{ title, rows: [{ id?, title, description? }] }] }`. API bounds: 1–10 sections, nonempty rows, 10 rows total. Default row IDs include both indexes to remain distinct across sections.
+- `/carousel`: `{ to, body, cards: [{ media: { url } | { base64 }, mediaType?: "image" | "video", title?, body, buttons }] }`. API bounds: 2–10 cards, 1–3 buttons per card. Media defaults to image, accepts optional `mimetype`, and uses the existing bounded/SSRF-protected download path, then `client.message.upload`. On 1.11, the addon resolver only inspects a top-level native flow; it returns no biz addon for a carousel. This route preserves the requested proto; rendering/delivery needs device verification and may need an upstream fix. A catalog-only card can be dropped on mobile: include a `url` CTA (e.g. `https://wa.me/c/<own PN>`) before `catalog`.
+- `/native-form`: `{ to, flowId, body?, cta?, formType?, screen?, data?, flowToken? }`. The form must exist in the Business app on the phone. Defaults: `cta: "Open form"`, `formType: "template"`, UUID token. Only 1:1; groups/broadcasts return 400. Uses `galaxy_message` v3, which upstream sends with biz `mixed` v9. Do not override it with `galaxy_message`: linked devices reject that biz name (405).
+- `/pix`: `{ to, merchantName, key, keyType?, reference?, body?, footer? }`, static key card. `keyType`: EMAIL, E.164 PHONE (leading `+`), 11-digit CPF, 14-digit CNPJ, or UUID EVP; inferred in that order when omitted. Validation checks format, not ownership/bank acceptance.
+- `/charge`: same PIX settings plus required `reference` and `items: [{ name, amount, quantity }]`; optional `subtotal`, `total`, `discount`, `shipping`, `tax`. All BRL values are **major units**, max two decimal places. Subtotal is sum of unit price × quantity; total = subtotal − discount + shipping + tax. Supplied totals must match. Wire amounts are integer cents with offset 100. No transfer is initiated by sending a card.
+- `/product`: `{ to, productId, title, description, currencyCode, priceAmount1000, salePriceAmount1000?, retailerId?, url?, productImage?, productImageCount?, businessOwnerJid? }`. Owner defaults to the connected bare PN. Prices are **thousandths**: `49900` means BRL 49.90. Optional image accepts `{ url }` or `{ base64 }` and is uploaded first. **Only a real product in that business's catalog renders**; arbitrary IDs/descriptions do not create a catalog product.
+
+Explicit reply IDs must be unique within the message, including across all list sections and carousel cards; duplicates return 400. Auto-generated IDs reserve explicit IDs first and add `_2`, `_3`, … on collision, preserving every supplied ID.
+
+Carousel/product base64 must be valid and nonempty; base64 data URIs and unpadded base64 are accepted. Empty downloads return 400. Unknown content requires a MIME declared in `media.mimetype` / `productImage.mimetype` or the data URI; the API does not assume JPEG/MP4 or trust a download Content-Type alone. Detection takes precedence over the declared MIME. A declaration is metadata, not validation that the media can be decoded/rendered.
+
+Quick replies in a group post the choice to the **whole group**. On `/buttons` and `/interactive`, `groupSafe: true` converts only group quick replies to `cta_url` links: `https://wa.me/<own PN>?text=<encoded display text>`. The participant opens a private chat and sends the text there; the original reply ID is no longer emitted. Default is no conversion. Direct chats keep their quick replies. Missing own PN returns 503 for catalog/private reply/default product owner instead of using LID.
+
+Standalone `catalog_message` is **pending upstream**: 1.11 chooses biz `mixed` and phones show unsupported. Use `catalog` (`cta_catalog`) inside `/messages/interactive`, or in a carousel subject to the caveats above. This gateway does not manufacture biz nodes or message secrets.
+
+Existing `message`, `message.any`, `message.inbound` webhooks/SSE now carry types `buttons`, `list`, `interactive`, `carousel`, `product`, `order`, `buttons_response`, `list_response`, `template_reply`, `native_flow_response`, `native_form_response`. `body` is a readable summary. Optional `interactive` includes `{ selectedId, displayText }`, `{ name, params }`, product price/currency, or order item count/total. For native forms it adds `{ flowId, flowName, title, fields: [{ screen, type, name, label, value, sensitive }], answers: { [name]: value }, flowToken? }`; token comes from the quoted form when available. Malformed JSON yields empty/null details without dropping the message. No new event names or transports.
+
+Wire references: [zapo raw sends](https://zapo.to/en/guides/raw-sends), [message types](https://zapo.to/en/reference/message-types). Phone-level field evidence was inspected in [AstraCalls](https://github.com/AstraOnlineWeb/AstraCalls) (AGPL-3.0) solely to understand serialized fields; no source code, comments or implementation structure were copied. Limits above are explicit conservative API bounds: the supplied raw-send guide/phone handlers do not specify carousel/total-row maxima.
