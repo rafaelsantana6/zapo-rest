@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_NEWSLETTER_PICTURE_BYTES } from '~/newsletters/admin-input'
 import { SendMediaBodySchema } from './openapi-schemas'
 
 export const NewsletterJidSchema = z
@@ -81,10 +82,24 @@ export const NewsletterFollowersSchema = z.object({
     }),
   ),
 })
+const MAX_PICTURE_BASE64_LENGTH = Math.ceil(MAX_NEWSLETTER_PICTURE_BYTES / 3) * 4
+const NewsletterPictureInputSchema = z
+  .base64()
+  .min(4)
+  .max(MAX_PICTURE_BASE64_LENGTH)
+  .refine(
+    (value) =>
+      value.length <= MAX_PICTURE_BASE64_LENGTH && Buffer.from(value, 'base64').length <= MAX_NEWSLETTER_PICTURE_BYTES,
+    'picture must not exceed 256 KiB decoded',
+  )
+  .meta({
+    description:
+      'Decodable JPEG, at most 256 KiB decoded and 16 megapixels, encoded as base64 (inline upstream upload)',
+  })
 export const NewsletterCreateSchema = z.object({
   name: z.string().trim().min(1),
   description: z.string().optional(),
-  picture: z.base64().min(4).optional().meta({ description: 'Small JPEG encoded as base64 (inline upstream upload)' }),
+  picture: NewsletterPictureInputSchema.optional(),
 })
 export const NewsletterUpdateSchema = NewsletterCreateSchema.partial()
   .extend({
@@ -115,13 +130,39 @@ export const NewsletterInviteSchema = z.object({
   inviteId: z.string().optional(),
   expirationTime: z.number().optional(),
 })
-export const NewsletterUserSchema = z.object({ user: z.string().min(1) })
+export const NewsletterUserSchema = z.object({
+  user: z
+    .string()
+    .trim()
+    .min(1)
+    .refine(
+      (input) =>
+        !input.includes('@') || input.startsWith('@') || /^\d+(?::\d+)?@(s\.whatsapp\.net|lid|c\.us)$/.test(input),
+      'Expected a phone number, @handle, or PN/LID user JID; group, broadcast and newsletter JIDs are not admin targets',
+    )
+    .meta({ description: 'Account recipient (phone, @handle, PN/LID JID); must resolve to a PN/LID user JID' }),
+})
 export const NewsletterCountSchema = z.coerce.number().int().min(1).max(100).default(50)
-export const NewsletterRangeSchema = z.object({
+const NewsletterRangeBaseSchema = z.object({
   count: NewsletterCountSchema,
   before: z.coerce.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
   after: z.coerce.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
 })
+export const NewsletterRangeSchema = NewsletterRangeBaseSchema.refine(
+  ({ before, after }) => before === undefined || after === undefined,
+  'Use at most one cursor: before or after',
+).meta({ description: 'Optional message page cursor: before or after, never both' })
+export const NewsletterUpdatesQuerySchema = NewsletterRangeBaseSchema.extend({
+  since: z.coerce.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+})
+  .refine(
+    ({ before, after }) => (before === undefined) !== (after === undefined),
+    'Provide exactly one cursor: before or after',
+  )
+  .meta({
+    description:
+      'Exactly one cursor (before or after) is required. since is an optional Unix timestamp in seconds, not a replacement for a cursor.',
+  })
 export const NewsletterVoteSchema = z
   .object({
     options: z

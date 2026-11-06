@@ -1,4 +1,5 @@
 import type { InjectOptions } from 'fastify'
+import sharp from 'sharp'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fakeNewsletterClient, NEWSLETTER_JID, newsletterMetadata } from '../helpers/fake-newsletter'
 import { ADMIN_KEY, buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
@@ -73,7 +74,7 @@ describe('Newsletters REST area', () => {
     ] as const) {
       const res = await request(
         'GET',
-        `${channel}/${suffix}?count=5&before=20&after=2${suffix === 'updates' ? '&since=100' : ''}`,
+        `${channel}/${suffix}?count=5&before=20${suffix === 'updates' ? '&since=100' : ''}`,
       )
       expect(res.statusCode).toBe(200)
       expect(res.json()).toEqual({
@@ -85,7 +86,6 @@ describe('Newsletters REST area', () => {
         newsletterJid: NEWSLETTER_JID,
         count: 5,
         before: 20,
-        after: 2,
         ...(suffix === 'updates' ? { since: 100 } : {}),
       })
     }
@@ -130,7 +130,9 @@ describe('Newsletters REST area', () => {
     expect(newsletter.sendViewReceipt).toHaveBeenCalledWith({ newsletterJid: NEWSLETTER_JID, itemServerIds: [42] })
   })
   it('creates and updates channel metadata with binary pictures and removal', async () => {
-    const picture = Buffer.from('jpeg')
+    const picture = await sharp({ create: { width: 2, height: 2, channels: 3, background: 'red' } })
+      .jpeg()
+      .toBuffer()
     expect(
       (
         await request('POST', '/v1/newsletters', {
@@ -157,6 +159,31 @@ describe('Newsletters REST area', () => {
       picture: null,
       reactionCodesSetting: 'ALL',
     })
+  })
+  it.each([
+    ['admins/invite', 'createAdminInvite'],
+    ['admins/invite/revoke', 'revokeAdminInvite'],
+    ['admins/demote', 'demoteAdmin'],
+    ['owner', 'changeOwner'],
+  ] as const)('rejects non-user admin targets at %s before invoking the coordinator', async (suffix, method) => {
+    for (const user of ['123@g.us', '123@broadcast', 'status@broadcast', '123@newsletter']) {
+      expect((await request('POST', `${channel}/${suffix}`, { user })).statusCode).toBe(400)
+    }
+    wa.profile.resolveUsername.mockResolvedValueOnce({ status: 'found', jid: '123@g.us' })
+    expect((await request('POST', `${channel}/${suffix}`, { user: '@invalid-resolution' })).statusCode).toBe(400)
+    expect(newsletter[method]).not.toHaveBeenCalled()
+  })
+  it.each(['POST', 'PATCH'] as const)('rejects invalid or oversized inline pictures for %s', async (method) => {
+    const url = method === 'POST' ? '/v1/newsletters' : channel
+    for (const picture of [Buffer.from([1, 2, 3]), Buffer.alloc(256 * 1024 + 1)]) {
+      expect((await request(method, url, { name: 'News', picture: picture.toString('base64') })).statusCode).toBe(400)
+    }
+    const png = await sharp({ create: { width: 2, height: 2, channels: 3, background: 'red' } })
+      .png()
+      .toBuffer()
+    expect((await request(method, url, { name: 'News', picture: png.toString('base64') })).statusCode).toBe(400)
+    expect(newsletter.create).not.toHaveBeenCalled()
+    expect(newsletter.update).not.toHaveBeenCalled()
   })
   it('gets admin capabilities, followers and pending invites', async () => {
     expect((await request('GET', `${channel}/admin`)).json()).toEqual({

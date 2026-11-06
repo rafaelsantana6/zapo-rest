@@ -21,13 +21,15 @@ import {
   NewsletterServerMessageParams,
   NewsletterStanzaSchema,
   NewsletterUpdateSchema,
+  NewsletterUpdatesQuerySchema,
   NewsletterUserSchema,
   NewsletterVoteSchema,
 } from '~/http/newsletter-schemas'
 import { ErrorBodySchema, MEDIA_INPUT_HELP, OkSchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
-import { resolveRecipientJid } from '~/lib/phone-resolve'
 import { mediaPreValidation } from '~/media/request-media'
+import { decodeNewsletterPicture, resolveNewsletterAdminUser } from '~/newsletters/admin-input'
+import { lookupNewsletter } from '~/newsletters/lookup'
 import { publishNewsletter } from '~/newsletters/publish'
 import {
   serializeAdmin,
@@ -116,7 +118,7 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
         response: response(NewsletterMetadataSchema),
       },
     },
-    async (request) => serializeNewsletter(await client(request).newsletter.fetchByInvite(request.params.code)),
+    async (request) => lookupNewsletter(() => client(request).newsletter.fetchByInvite(request.params.code)),
   )
   app.get(
     paths('/:jid'),
@@ -128,7 +130,7 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
         response: response(NewsletterMetadataSchema),
       },
     },
-    async (request) => serializeNewsletter(await client(request).newsletter.fetch(request.params.jid)),
+    async (request) => lookupNewsletter(() => client(request).newsletter.fetch(request.params.jid)),
   )
   app.get(
     paths('/:jid/messages'),
@@ -139,7 +141,7 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
         params: NewsletterParams,
         querystring: NewsletterRangeSchema,
         description:
-          'Upstream returns a transport envelope, not decoded messages. Bytes are base64. No local chat projection.',
+          'Upstream returns a transport envelope, not decoded messages. Bytes are base64. No local chat projection. Use at most one cursor: before or after.',
         response: response(NewsletterNodeSchema),
       },
     },
@@ -155,10 +157,9 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
         ...common,
         summary: 'Fetch channel message updates',
         params: NewsletterParams,
-        description: 'Upstream transport envelope with base64 bytes. since is a Unix timestamp in seconds.',
-        querystring: NewsletterRangeSchema.extend({
-          since: z.coerce.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
-        }),
+        description:
+          'Upstream transport envelope with base64 bytes. Exactly one of before or after is required; since is an optional Unix timestamp in seconds.',
+        querystring: NewsletterUpdatesQuerySchema,
         response: response(NewsletterNodeSchema),
       },
     },
@@ -282,14 +283,14 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
         body: NewsletterCreateSchema,
         response: response(NewsletterMetadataSchema),
         description:
-          'Creates an owned channel. Upstream automatically accepts the channel creation terms. picture is small JPEG bytes as base64.',
+          'Creates an owned channel. Upstream automatically accepts the channel creation terms. picture is a decodable JPEG as base64, at most 256 KiB decoded and 16 megapixels.',
       },
     },
     async (request) =>
       serializeNewsletter(
         await client(request).newsletter.create({
           ...request.body,
-          picture: request.body.picture === undefined ? undefined : Buffer.from(request.body.picture, 'base64'),
+          picture: (await decodeNewsletterPicture(request.body.picture)) ?? undefined,
         }),
       ),
   )
@@ -308,10 +309,7 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
       serializeNewsletter(
         await client(request).newsletter.update(request.params.jid, {
           ...request.body,
-          picture:
-            typeof request.body.picture === 'string'
-              ? Buffer.from(request.body.picture, 'base64')
-              : request.body.picture,
+          picture: await decodeNewsletterPicture(request.body.picture),
         }),
       ),
   )
@@ -392,7 +390,7 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
       const wa = client(request)
       return wa.newsletter.createAdminInvite({
         newsletterJid: request.params.jid,
-        userJid: await resolveRecipientJid(wa, request.body.user, cache),
+        userJid: await resolveNewsletterAdminUser(wa, request.body.user, cache),
       })
     },
   )
@@ -432,7 +430,7 @@ export const newsletterRoutes: FastifyPluginAsync<NewsletterRoutesDeps> = async 
         const wa = client(request)
         await wa.newsletter[method]({
           newsletterJid: request.params.jid,
-          userJid: await resolveRecipientJid(wa, request.body.user, cache),
+          userJid: await resolveNewsletterAdminUser(wa, request.body.user, cache),
         })
         return { ok: true as const }
       },

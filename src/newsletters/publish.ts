@@ -1,9 +1,24 @@
 import type { FastifyRequest } from 'fastify'
+import { fileTypeFromFile } from 'file-type'
 import type { WaClient } from 'zapo-js'
 import type { z } from 'zod'
 import type { Env } from '~/config/env'
 import type { NewsletterPublishSchema } from '~/http/newsletter-schemas'
+import { badRequest } from '~/lib/errors'
+import type { ResolvedMedia } from '~/media/fetch'
 import { requireMediaFromRequest } from '~/media/request-media'
+
+async function newsletterMimetype(media: ResolvedMedia, explicit?: string): Promise<string> {
+  if (explicit?.trim()) return explicit.trim()
+  if (media.mimetype?.trim() && media.mimetype !== 'application/octet-stream') return media.mimetype.trim()
+  try {
+    const detected = await fileTypeFromFile(media.path)
+    if (detected) return detected.mime
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err) throw err
+  }
+  throw badRequest('Cannot determine media format; provide mimetype (for example image/png or application/pdf)')
+}
 
 export async function publishNewsletter(
   newsletter: WaClient['newsletter'],
@@ -21,7 +36,7 @@ export async function publishNewsletter(
     return await send({
       type: body.type,
       media: media.path,
-      mimetype: media.mimetype ?? body.mimetype,
+      mimetype: await newsletterMimetype(media, body.mimetype),
       caption: body.caption,
       fileName: body.fileName ?? media.fileName,
       ptt: body.ptt,
