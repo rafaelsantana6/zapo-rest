@@ -239,9 +239,17 @@ export class FakePhone {
     }
     this.counters.rtpIn += 1
     const receivedAt = performance.now()
-    if (pt === PT_AUDIO && this.codec) {
-      const pcm = this.codec.decode(packet.payload)
-      for (const l of this.audioListeners) l({ pcm, receivedAt })
+    if ((pt === PT_AUDIO || pt === 121) && this.codec) {
+      this.codec.decodeSequenced(
+        packet.header.sequenceNumber,
+        packet.payload,
+        (pcm) => {
+          // Decoder storage is reused as soon as the callback returns.
+          for (const l of this.audioListeners) l({ pcm: pcm.slice(), receivedAt })
+        },
+        packet.header.timestamp,
+        pt === 121 ? 1 : 0,
+      )
       return
     }
     if ((pt === PT_VIDEO || pt === PT_VIDEO_RTX) && this.depacketizer) {

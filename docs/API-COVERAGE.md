@@ -143,3 +143,5 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.
 
 VoIP file playback: ✅ `POST /v1/calls/:callId/audio` (`loadAudio`), URL/base64/multipart via capped media helpers, ffmpeg required (503), selects file playback and removes temporary files after decoding.
+
+MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.

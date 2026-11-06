@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Opt-in `VOIP_MLOW_RED=false` passes MLow RED to local call media: low-rate previous-frame redundancy, DTX disabled, higher bandwidth. Call harness: `CALL_HARNESS_MLOW_RED=true`.
+
 - `POST /v1/calls/:callId/audio` loads URL/base64/multipart audio through upstream ffmpeg (503 if missing), switches off external audio and cleans temporary files after decoding; completion arrives as `call.audio_finished`.
 
 - VoIP `call.error` and `call.audio_finished` webhook/SSE events and control WS `call:error` / `call:audio_finished`. Errors expose a sanitized public message/code and `call: null` because upstream omits call identity; playback completion includes the call snapshot.

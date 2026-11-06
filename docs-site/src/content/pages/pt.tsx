@@ -1685,6 +1685,12 @@ const dec = new TextDecoder
     description: 'Sinalização JSON, PCM 16 kHz, gravação, audio blast e STT.',
     body: (
       <>
+        <h2 id="mlow-red">Redundância MLow</h2>
+        <p>
+          <code>VOIP_MLOW_RED=false</code> vem desativado. Ative no modo local para enviar uma cópia de baixa taxa do
+          quadro anterior: melhora a recuperação sob perda, desativa DTX e aumenta o consumo de banda. Hosts remotos
+          precisam ativar RED no receiver.
+        </p>
         <h2 id="load-audio">Reproduzir um arquivo de áudio</h2>
         <p>
           <code>POST /v1/calls/:callId/audio</code> aceita <code>mediaUrl</code>, <code>mediaBase64</code> (JSON) ou{' '}

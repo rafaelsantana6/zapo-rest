@@ -697,3 +697,5 @@ The WhatsApp protocol implementation is provided by **zapo-js** under its own MI
 ## Disclaimer
 
 Use this software in accordance with WhatsApp’s terms and applicable law. You are solely responsible for how you operate instances, store messages, and contact end users. The authors provide the software “as is”, without warranty.
+
+MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.

@@ -139,7 +139,7 @@ export function createWaClient(
       groupBundles: env.HISTORY_GROUP_BUNDLES,
     },
     plugins: [
-      voipPlugin({ maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS }),
+      voipPlugin({ maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS, mlowRed: env.VOIP_MLOW_RED }),
       // WAM = WA Web client-side analytics (`w:stats`). Default on for wire parity.
       ...(env.WAM_ENABLED ? [wamPlugin()] : []),
     ],
