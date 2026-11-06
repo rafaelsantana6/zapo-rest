@@ -56,6 +56,10 @@ Engineering “why” (CAS, outbox, SSE/WS, LID) for visitors: architecture + me
 Regenerate endpoint stubs after OpenAPI changes:
 
 ```bash
-# export openapi then re-run the node generator used in docs setup, or refresh openapi.json
-pnpm openapi:export
+pnpm openapi:export     # refresh root openapi.json
+pnpm docs:endpoints     # regenerate src/content/endpoints.generated.ts
+pnpm format:fix
 ```
+
+`extras.ts` only holds routes the OpenAPI export cannot see (WS, hidden routes); a route already
+in `openapi.json` there is dead code, because the generated entry wins the merge.

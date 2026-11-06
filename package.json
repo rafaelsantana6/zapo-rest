@@ -55,6 +55,7 @@
     "test:unit:critical": "vitest run tests/unit/event-processor.test.ts tests/unit/webhook-outbox.test.ts tests/unit/webhook-dispatcher.test.ts tests/unit/media-storage-local.test.ts tests/unit/openapi-schemas.test.ts tests/unit/realtime-bus.test.ts tests/integration/sse-auth.test.ts",
     "test:db": "vitest run tests/db --reporter=verbose",
     "openapi:export": "tsx scripts/export-openapi.ts",
+    "docs:endpoints": "tsx scripts/gen-docs-endpoints.ts",
     "version:patch": "pnpm version patch",
     "version:minor": "pnpm version minor",
     "version:major": "pnpm version major",

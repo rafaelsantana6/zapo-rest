@@ -2,6 +2,29 @@ import { type EndpointDoc, ENDPOINTS as GENERATED, type HttpMethod } from './end
 import { EXTRA_ENDPOINTS } from './extras'
 
 const RESPONSE_EXAMPLES: Record<string, unknown> = {
+  'GET /v1/profile/username': { username: 'loja', state: 'ACTIVE' },
+  'PUT /v1/profile/username': { ok: true, username: 'loja' },
+  'DELETE /v1/profile/username': { ok: true },
+  'GET /v1/profile/username/check': { available: false, suggestions: ['loja2'] },
+  'POST /v1/profile/username/resolve': {
+    status: 'found',
+    username: 'loja',
+    jid: '123@lid',
+    pnJid: '5511999999999@s.whatsapp.net',
+    isBusiness: false,
+  },
+  'POST /v1/groups/{groupId}/share-history': {
+    bundleMessageId: '3EB0ABC',
+    noticeMessageId: '3EB0DEF',
+    messagesCount: 50,
+    historyReceivers: ['5511999999999@s.whatsapp.net'],
+    nonHistoryReceivers: [],
+  },
+  'POST /v1/calls/{callId}/hand': { ok: true },
+  'POST /v1/calls/{callId}/reaction': { ok: true },
+  'POST /v1/calls/{callId}/leave': { ok: true },
+  'POST /v1/calls/{callId}/join': { ok: true },
+  'POST /v1/calls/{callId}/participants/mute': { ok: true },
   'GET /health': { status: 'ok' },
   'GET /ready': { status: 'ready' },
   'GET /v1/me': { role: 'admin' },
