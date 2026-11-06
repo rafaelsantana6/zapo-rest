@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type pg from 'pg'
+import type { WaGroupEvent } from 'zapo-js'
 import { describe, expect, it, vi } from 'vitest'
 import { parseEnv, resetEnvCache } from '~/config/env'
 import { InstanceManager } from '~/instances/manager'
@@ -30,12 +31,19 @@ async function wiredManager() {
   return { client, webhooks }
 }
 
+function fakeGroupModeEvent(mode: string) {
+  const groupJid = '12036@g.us'
+  const rawActionNode = { tag: 'member_add_mode', attrs: {}, content: Buffer.from(mode) }
+  const rawNode = { tag: 'notification', attrs: { from: groupJid, type: 'w:gp2' }, content: [rawActionNode] }
+  return { action: 'member_add_mode', groupJid, mode, rawNode, rawActionNode } satisfies WaGroupEvent
+}
+
 describe('group mode events', () => {
   it.each(['admin_add', 'all_member_add'])(
     'forwards phone member_add_mode %s as group.update with REST names',
     async (mode) => {
       const { client, webhooks } = await wiredManager()
-      const event = { action: 'member_add_mode', groupJid: '12036@g.us', mode }
+      const event = fakeGroupModeEvent(mode)
       client.emit('group', event)
       await vi.waitFor(() =>
         expect(webhooks.emit).toHaveBeenCalledExactlyOnceWith(

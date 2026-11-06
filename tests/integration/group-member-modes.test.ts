@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 
 function fakeGroupModesClient() {
-  const metadata = {
+  const initialMetadata = {
     jid: '120363000000000000@g.us',
     subject: 'Modes',
     participants: [],
@@ -10,11 +10,21 @@ function fakeGroupModesClient() {
     memberLinkMode: 'admin_link',
     memberShareGroupHistoryMode: 'admin_share',
   }
+  let metadata = { ...initialMetadata }
   return {
+    resetMetadata: () => {
+      metadata = { ...initialMetadata }
+    },
     group: {
-      setMemberAddMode: vi.fn(async (_jid: string, _mode: string) => undefined),
-      setMemberLinkMode: vi.fn(async (_jid: string, _mode: string) => undefined),
-      setMemberShareGroupHistoryMode: vi.fn(async (_jid: string, _mode: string) => undefined),
+      setMemberAddMode: vi.fn(async (_jid: string, mode: string) => {
+        metadata.memberAddMode = mode
+      }),
+      setMemberLinkMode: vi.fn(async (_jid: string, mode: string) => {
+        metadata.memberLinkMode = mode
+      }),
+      setMemberShareGroupHistoryMode: vi.fn(async (_jid: string, mode: string) => {
+        metadata.memberShareGroupHistoryMode = mode
+      }),
       queryGroupMetadata: vi.fn(async (_jid: string) => metadata),
       queryAllGroups: vi.fn(async () => [metadata]),
       setSetting: vi.fn(async (_jid: string, _setting: string, _enabled: boolean) => undefined),
@@ -23,11 +33,22 @@ function fakeGroupModesClient() {
 }
 
 const settings = [
-  { setting: 'member-add-mode', method: 'setMemberAddMode', modes: ['admin_add', 'all_member_add'] },
-  { setting: 'member-link-mode', method: 'setMemberLinkMode', modes: ['admin_link', 'all_member_link'] },
+  {
+    setting: 'member-add-mode',
+    method: 'setMemberAddMode',
+    field: 'memberAddMode',
+    modes: ['admin_add', 'all_member_add'],
+  },
+  {
+    setting: 'member-link-mode',
+    method: 'setMemberLinkMode',
+    field: 'memberLinkMode',
+    modes: ['admin_link', 'all_member_link'],
+  },
   {
     setting: 'history-share-mode',
     method: 'setMemberShareGroupHistoryMode',
+    field: 'historyShareMode',
     modes: ['admin_share', 'all_member_share'],
   },
 ] as const
@@ -51,18 +72,28 @@ describe('group member modes', () => {
     apiKey = (await createInstance(ctx.app, 'group-modes')).apiKey
     vi.spyOn(ctx.manager, 'requireRegisteredClient').mockReturnValue(client as never)
   })
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    client.resetMetadata()
+  })
   afterAll(async () => {
     await ctx.app.close()
   })
 
-  for (const { setting, method, modes } of settings) {
+  for (const { setting, method, field, modes } of settings) {
     describe(setting, () => {
-      it.each(modes)('writes %s using the normalized group JID', async (mode) => {
+      it.each(modes)('writes and reads %s using the normalized group JID', async (mode) => {
         const res = await put(setting, { mode })
         expect(res.statusCode).toBe(200)
         expect(res.json()).toEqual({ ok: true, mode })
         expect(client.group[method]).toHaveBeenCalledExactlyOnceWith(jid, mode)
+        const read = await ctx.app.inject({
+          method: 'GET',
+          url: `/v1/groups/${groupId}`,
+          headers: { 'x-api-key': apiKey },
+        })
+        expect(read.statusCode).toBe(200)
+        expect(read.json().group[field]).toBe(mode)
       })
       it('preserves a full group JID', async () => {
         expect((await put(setting, { mode: modes[0] }, jid)).statusCode).toBe(200)
