@@ -44,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Missing channel metadata envelopes from upstream JID/invite lookups now return `404`, while unrelated transport failures remain errors.
 - Inline channel pictures are checked as decodable JPEGs (max 256 KiB decoded / 16 megapixels). Admin actions reject group, broadcast and channel targets and require resolved PN/LID user JIDs.
 
+### Changed
+
+- Stored-message targets accept explicit and mapped PN/LID aliases. Group targets recover a valid author from the mailbox sender; group/broadcast/newsletter JIDs cannot be authors. Self-authored direct-message history requires proof of the original author (`409` if unavailable), rather than using the peer.
+- Explicit safe context settings are forwarded as send options so the upstream chat-ephemeral auto-injection cannot override the requested expiration.
+- Sticker-pack covers are always normalized to JPEG 252×252 and derived from the tray icon when omitted. The complete pack (source files plus generated JPEG) shares one `MEDIA_UPLOAD_MAX_BYTES` budget; over-budget downloads abort and all temporary files are removed.
+
 ## [0.10.0] - 2026-11-06
 
 ### Added

@@ -1179,6 +1179,11 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
   }
 }`}
         />
+        <p>
+          Covers are normalized to JPEG 252×252; omit <code>coverThumbnail</code> to derive one from the tray icon. All
+          source files plus the generated JPEG share a single <code>MEDIA_UPLOAD_MAX_BYTES</code> budget; exceeding it
+          returns 400 and removes temporary files.
+        </p>
         <h3 id="safe-message-context">Safe context and inbound messages</h3>
         <p>
           Typed sends accept optional <code>contextInfo</code> with only <code>expirationSeconds</code> and{' '}
@@ -1190,6 +1195,11 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
           language="json"
           code={`{ "to": "5511999999999", "text": "Hello", "contextInfo": { "expirationSeconds": 86400 } }`}
         />
+        <p>
+          Explicit <code>contextInfo.expirationSeconds</code> overrides the chat TTL. Stored targets accept explicit and
+          mapped PN/LID aliases. A self-authored direct message recovered from history without proof of its original
+          author returns 409.
+        </p>
         <p>
           Existing message events now identify <code>event</code>, <code>event-response</code>, <code>pin</code>/
           <code>unpin</code>, <code>keep</code>/<code>unkeep</code>, <code>poll-vote</code>, <code>ptv</code> and{' '}

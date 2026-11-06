@@ -1198,6 +1198,11 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
   }
 }`}
         />
+        <p>
+          Las portadas se normalizan a JPEG 252×252; omita <code>coverThumbnail</code> para generarla a partir del
+          icono. Todos los archivos de origen más el JPEG generado comparten un único límite{' '}
+          <code>MEDIA_UPLOAD_MAX_BYTES</code>; excederlo devuelve 400 y elimina los archivos temporales.
+        </p>
         <h3 id="safe-message-context">Contexto seguro y mensajes recibidos</h3>
         <p>
           Los envíos tipados aceptan <code>contextInfo</code> opcional con solo <code>expirationSeconds</code> y{' '}
@@ -1209,6 +1214,11 @@ curl -s -X POST "$BASE/v1/profile/username/resolve" -H "X-Api-Key: $INSTANCE_API
           language="json"
           code={`{ "to": "5511999999999", "text": "Hello", "contextInfo": { "expirationSeconds": 86400 } }`}
         />
+        <p>
+          El valor explícito de <code>contextInfo.expirationSeconds</code> prevalece sobre el TTL de la conversación.
+          Los mensajes almacenados aceptan alias PN/LID explícitos y mapeados. Un mensaje propio de conversación directa
+          recuperado del historial sin prueba del autor original devuelve 409.
+        </p>
         <p>
           Los eventos de mensaje existentes identifican <code>event</code>, <code>event-response</code>,{' '}
           <code>pin</code>/<code>unpin</code>, <code>keep</code>/<code>unkeep</code>, <code>poll-vote</code>,{' '}
