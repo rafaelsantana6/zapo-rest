@@ -1885,6 +1885,12 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
           hiddenSubgroup cuando se proporcionan. contextGroupJid también se conserva. No hay nuevos nombres de evento.
         </p>
         <p>
+          Los JIDs de grupo antiguos, como 5511999999999-1234567890@g.us, se aceptan sin cambios para vincular,
+          desvincular, sugerir y entrar. La ausencia de transporte MEX devuelve 503; los fallos reconocidos de consultas
+          MEX devuelven 502 con un mensaje público estático. Los errores IQ conservan su mapeo de estado existente. El
+          cuerpo de join también es opcional en el contrato OpenAPI.
+        </p>
+        <p>
           <a href="/guide/api/Communities">Communities API</a>
         </p>
       </>

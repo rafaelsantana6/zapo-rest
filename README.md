@@ -453,13 +453,16 @@ POST /v1/calls/:callId/video                    # { "enabled": true } — group 
 POST /v1/calls/:callId/screen-share             # { "sharing": true }
 ```
 
-Community and sub-group ids accept bare digits or `@g.us` JIDs. Creation also accepts
+Community and sub-group ids accept bare digits or `@g.us` JIDs, including legacy hyphenated
+group JIDs such as `5511999999999-1234567890@g.us`. Creation also accepts
 `membershipApprovalMode` (`open` / `request_required`, default `request_required`),
 `allowNonAdminSubGroupCreation` and `createGeneralChat`. Link/unlink return the upstream
 `result` with `linkedJids` / `unlinkedJids` and per-group `failed` entries (`jid`, `error`):
 HTTP 200 can contain partial failures. Existing-community operations verify parent metadata
 first (404 for unknown communities or ordinary groups). Sub-group listing, suggestions and
-ownership transfer require the upstream MEX transport. Join acknowledges success; read
+ownership transfer require the upstream MEX transport (503 when absent). Recognized MEX
+query failures return 502 with a static public message; IQ failures keep their existing
+status mapping. Join accepts an optional request body and acknowledges success; read
 `GET /v1/groups/:groupId` for the joined group's metadata. The existing `group.update`
 webhook/SSE event preserves `action: link | unlink | linked_group_promote | linked_group_demote`,
 `linkedGroups` (`jid`, `subject`, `subjectTimestampSeconds`, `hiddenSubgroup`) and

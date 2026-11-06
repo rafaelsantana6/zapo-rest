@@ -1866,6 +1866,11 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
           hiddenSubgroup when supplied. contextGroupJid is also passed through. There are no new event names.
         </p>
         <p>
+          Legacy group JIDs such as 5511999999999-1234567890@g.us are accepted unchanged for linking, unlinking, hints
+          and joining. Missing MEX transport returns 503; recognized MEX query failures return 502 with a static public
+          message. IQ errors keep their existing status mapping. The join body is optional in the OpenAPI contract too.
+        </p>
+        <p>
           <a href="/guide/api/Communities">Communities API</a>
         </p>
       </>
