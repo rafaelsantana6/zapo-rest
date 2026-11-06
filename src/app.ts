@@ -165,6 +165,7 @@ export async function buildApp(deps: BuildAppDeps) {
     env: deps.env,
     messages: deps.messages,
     cache: deps.cache,
+    lidMap: deps.lidMap,
   })
   await app.register(contactRoutes, {
     manager: deps.manager,
