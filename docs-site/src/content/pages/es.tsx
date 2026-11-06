@@ -1344,7 +1344,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
 
         <p>
           Solicitudes de ingreso a grupos: consulta <a href="/guide/groups#join-requests">Solicitudes de ingreso</a> —{' '}
-          <code>group.update</code>, <code>data.type</code>, <code>data.requesterJid</code> /{' '}
+          <code>group.update</code>, <code>payload.type</code>, <code>payload.requesterJid</code> /{' '}
+          <code>payload.requests[].jid</code>. SSE usa <code>data.type</code>, <code>data.requesterJid</code> y{' '}
           <code>data.requests[].jid</code>.
         </p>
 
@@ -1780,11 +1781,12 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           Las notificaciones usan <code>group.update</code> en webhooks y SSE. Los campos actuales del upstream,
-          incluido <code>action</code>, se conservan. <code>data.type</code> es <code>membership_approval_request</code>{' '}
-          con <code>data.requesterJid</code> del autor del upstream, o <code>created_membership_requests</code> /{' '}
-          <code>revoked_membership_requests</code> con <code>data.requests[].jid</code> (<code>phoneJid</code>/
-          <code>username</code> opcionales). Se omiten las identidades que el upstream no proporciona; consulta las
-          solicitudes pendientes para reconciliar la cola.
+          incluido <code>action</code>, se conservan. <code>payload.type</code> es{' '}
+          <code>membership_approval_request</code> con <code>payload.requesterJid</code> del autor del upstream, o{' '}
+          <code>created_membership_requests</code> / <code>revoked_membership_requests</code> con{' '}
+          <code>payload.requests[].jid</code> (<code>phoneJid</code>/<code>username</code> opcionales). Se omiten las
+          identidades que el upstream no proporciona; consulta las solicitudes pendientes para reconciliar la cola. SSE
+          usa <code>data.type</code>, <code>data.requesterJid</code> y <code>data.requests[].jid</code>.
         </p>
       </>
     ),

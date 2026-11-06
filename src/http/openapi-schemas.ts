@@ -951,10 +951,12 @@ export const OPENAPI_TAGS = [
       'When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n' +
       '```json\n' +
       '{\n' +
+      ' "id": "01K9D453G00000000000000000",\n' +
       ' "event": "message.inbound",\n' +
       ' "instance": "sales-1",\n' +
-      ' "timestamp": "2026-07-11T12:10:00.000Z",\n' +
-      ' "data": { }\n' +
+      ' "timestamp": 1793966400000,\n' +
+      ' "engine": "zapo",\n' +
+      ' "payload": { }\n' +
       '}\n' +
       '```\n\n' +
       '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, ' +
@@ -964,10 +966,11 @@ export const OPENAPI_TAGS = [
       '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
-      '`group.update` membership notifications preserve upstream `action` and add `data.type`: ' +
-      '`membership_approval_request` has `data.requesterJid` from the upstream author; ' +
-      '`created_membership_requests` / `revoked_membership_requests` have `data.requests[].jid` ' +
+      '`group.update` membership notifications preserve upstream `action` and add `payload.type`: ' +
+      '`membership_approval_request` has `payload.requesterJid` from the upstream author; ' +
+      '`created_membership_requests` / `revoked_membership_requests` have `payload.requests[].jid` ' +
       '(optional `phoneJid` / `username`). Identities are omitted when upstream does not supply them. ' +
+      'SSE carries the same fields under `data` (`data.type`, `data.requesterJid`, `data.requests[].jid`). ' +
       'Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests.',
   },
 ] as const

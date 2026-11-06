@@ -1341,7 +1341,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
 
         <p>
           Pedidos de entrada em grupos: veja <a href="/guide/groups#join-requests">Pedidos de entrada</a> —{' '}
-          <code>group.update</code>, <code>data.type</code>, <code>data.requesterJid</code> /{' '}
+          <code>group.update</code>, <code>payload.type</code>, <code>payload.requesterJid</code> /{' '}
+          <code>payload.requests[].jid</code>. O SSE usa <code>data.type</code>, <code>data.requesterJid</code> e{' '}
           <code>data.requests[].jid</code>.
         </p>
 
@@ -1773,11 +1774,12 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           As notificações usam <code>group.update</code> nos webhooks e SSE. Os campos atuais do upstream, incluindo{' '}
-          <code>action</code>, são preservados. <code>data.type</code> é <code>membership_approval_request</code> com{' '}
-          <code>data.requesterJid</code> vindo do autor no upstream, ou <code>created_membership_requests</code> /{' '}
-          <code>revoked_membership_requests</code> com <code>data.requests[].jid</code> (<code>phoneJid</code>/
+          <code>action</code>, são preservados. <code>payload.type</code> é <code>membership_approval_request</code> com{' '}
+          <code>payload.requesterJid</code> vindo do autor no upstream, ou <code>created_membership_requests</code> /{' '}
+          <code>revoked_membership_requests</code> com <code>payload.requests[].jid</code> (<code>phoneJid</code>/
           <code>username</code> opcionais). Identidades são omitidas quando o upstream não as fornece; consulte os
-          pedidos pendentes para reconciliar a fila.
+          pedidos pendentes para reconciliar a fila. O SSE usa <code>data.type</code>, <code>data.requesterJid</code> e{' '}
+          <code>data.requests[].jid</code>.
         </p>
       </>
     ),

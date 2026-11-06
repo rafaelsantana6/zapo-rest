@@ -1333,7 +1333,8 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
 
         <p>
           Group join requests: see <a href="/guide/groups#join-requests">Join requests</a> — <code>group.update</code>,{' '}
-          <code>data.type</code>, <code>data.requesterJid</code> / <code>data.requests[].jid</code>.
+          <code>payload.type</code>, <code>payload.requesterJid</code> / <code>payload.requests[].jid</code>. SSE uses{' '}
+          <code>data.type</code>, <code>data.requesterJid</code> and <code>data.requests[].jid</code>.
         </p>
 
         <h2 id="hmac">HMAC and retries</h2>
@@ -1762,11 +1763,12 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           Membership notifications use <code>group.update</code> on webhooks and SSE. Existing upstream fields,
-          including <code>action</code>, remain available. <code>data.type</code> is{' '}
-          <code>membership_approval_request</code> with <code>data.requesterJid</code> from the upstream author, or{' '}
+          including <code>action</code>, remain available. <code>payload.type</code> is{' '}
+          <code>membership_approval_request</code> with <code>payload.requesterJid</code> from the upstream author, or{' '}
           <code>created_membership_requests</code> / <code>revoked_membership_requests</code> with{' '}
-          <code>data.requests[].jid</code> (optional <code>phoneJid</code>/<code>username</code>). Identities are
-          omitted when upstream does not supply them; list pending requests to reconcile the queue.
+          <code>payload.requests[].jid</code> (optional <code>phoneJid</code>/<code>username</code>). Identities are
+          omitted when upstream does not supply them; list pending requests to reconcile the queue. SSE uses{' '}
+          <code>data.type</code>, <code>data.requesterJid</code> and <code>data.requests[].jid</code>.
         </p>
       </>
     ),

@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - `group.update` preserves its upstream payload and adds `type` for membership notifications: `membership_approval_request` adds `requesterJid` from the upstream author, while `created_membership_requests` / `revoked_membership_requests` add `requests` with requester JIDs when supplied upstream. The event name and SSE transport stay the same.
 
+- Membership notification documentation distinguishes webhook `payload.*` from SSE `data.*`; the OpenAPI webhook example now matches the delivered envelope (`id`, numeric `timestamp`, `engine`, `payload`).
+
 ## [0.10.0] - 2026-11-06
 
 ### Added
