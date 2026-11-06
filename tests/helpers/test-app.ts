@@ -1,3 +1,4 @@
+import type { MessageStore } from '~/store/messages'
 import type { FastifyInstance } from 'fastify'
 import type pg from 'pg'
 import { buildApp } from '~/app'
