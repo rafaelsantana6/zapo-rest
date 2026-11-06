@@ -75,6 +75,8 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Who can share history bundles | ✅ `PUT /v1/groups/:groupId/settings/history-share-mode` — `admin_share` / `all_member_share`; governs `share-history`, not `HISTORY_GROUP_BUNDLES` receiving |
 | Member mode reads | ✅ `GET /v1/groups/:groupId` + list: `memberAddMode`, `memberLinkMode`, `historyShareMode` when reported |
 | Member mode notifications | 🟡 `group.update` adds `memberAddMode` for `member_add_mode`; link/history notifications are not decoded by zapo-js 1.11.0 (query metadata) |
+| Group membership requests | ✅ `GET .../groups/:groupId/membership-requests`; `POST .../approve`, `.../reject`, `.../cancel` (our requests); existing `membership_approval_mode` setting |
+| Membership request notifications | ✅ `group.update` with membership `type`, `requesterJid` or `requests[].jid` when supplied upstream |
 | Profile get/update | ✅ |
 | Username get/set/delete/check/resolve | ✅ `/profile/username` |
 | Send to `@handle` | ✅ `to` on messages, calls, blast |

@@ -1331,6 +1331,11 @@ curl -s -X POST "$BASE/v1/instances/sales-1/media/getBase64FromMediaMessage" \\
           </li>
         </ul>
 
+        <p>
+          Group join requests: see <a href="/guide/groups#join-requests">Join requests</a> — <code>group.update</code>,{' '}
+          <code>data.type</code>, <code>data.requesterJid</code> / <code>data.requests[].jid</code>.
+        </p>
+
         <h2 id="hmac">HMAC and retries</h2>
         <p>
           When configured, the worker signs the POST (<code>X-Webhook-Hmac</code> / <code>X-Webhook-Hmac-Sha512</code>).
@@ -1737,6 +1742,31 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           Detailed reference: <a href="/guide/api/Groups">Groups API</a>.
+        </p>
+        <h2 id="join-requests">Join requests</h2>
+        <p>
+          Enable admin approval with <code>PUT /v1/groups/:groupId/settings/membership_approval_mode</code> and{' '}
+          <code>{'{ "enabled": true }'}</code>. List pending requests with{' '}
+          <code>GET /v1/groups/:groupId/membership-requests</code>. The response is{' '}
+          <code>{'{ "requests": [{ "jid": "111@lid", "requestedAt": "2026-11-06T12:00:00.000Z" }] }'}</code>. Optional
+          fields: <code>phoneNumber</code> (upstream PN JID), <code>method</code>, <code>requestor</code>,{' '}
+          <code>requestorUsername</code> and <code>parentGroupJid</code>. Times are ISO 8601; an absent upstream time is
+          represented by the Unix epoch.
+        </p>
+        <p>
+          Use <code>POST .../membership-requests/approve</code> or <code>.../reject</code> as a group admin;
+          <code>.../cancel</code> withdraws requests sent by this account. Each takes{' '}
+          <code>{'{ "participants": ["5511999999999", "111@lid"] }'}</code> (phones/JIDs, resolved like add/remove).
+          Empty lists return 400, unknown groups 404, missing permissions 403, and approval mode off 409; upstream error
+          messages are preserved. Authenticate with the instance key in <code>X-Api-Key</code>.
+        </p>
+        <p>
+          Membership notifications use <code>group.update</code> on webhooks and SSE. Existing upstream fields,
+          including <code>action</code>, remain available. <code>data.type</code> is{' '}
+          <code>membership_approval_request</code> with <code>data.requesterJid</code> from the upstream author, or{' '}
+          <code>created_membership_requests</code> / <code>revoked_membership_requests</code> with{' '}
+          <code>data.requests[].jid</code> (optional <code>phoneJid</code>/<code>username</code>). Identities are
+          omitted when upstream does not supply them; list pending requests to reconcile the queue.
         </p>
       </>
     ),
