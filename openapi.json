@@ -18416,7 +18416,10 @@
                 },
                 "required": [
                   "mode"
-                ]
+                ],
+                "example": {
+                  "mode": "admin_add"
+                }
               }
             }
           }
@@ -18722,7 +18725,10 @@
                 },
                 "required": [
                   "mode"
-                ]
+                ],
+                "example": {
+                  "mode": "admin_link"
+                }
               }
             }
           }
@@ -19028,7 +19034,10 @@
                 },
                 "required": [
                   "mode"
-                ]
+                ],
+                "example": {
+                  "mode": "admin_share"
+                }
               }
             }
           }

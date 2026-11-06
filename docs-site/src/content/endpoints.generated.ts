@@ -1393,7 +1393,9 @@ export const ENDPOINTS: EndpointDoc[] = [
     tags: ['Groups'],
     security: true,
     params: ['groupId'],
-    bodyExample: null,
+    bodyExample: {
+      mode: 'admin_add',
+    },
     responses: ['200', '400', '403', '404', '503'],
   },
   {
@@ -1406,7 +1408,9 @@ export const ENDPOINTS: EndpointDoc[] = [
     tags: ['Groups'],
     security: true,
     params: ['groupId'],
-    bodyExample: null,
+    bodyExample: {
+      mode: 'admin_link',
+    },
     responses: ['200', '400', '403', '404', '503'],
   },
   {
@@ -1419,7 +1423,9 @@ export const ENDPOINTS: EndpointDoc[] = [
     tags: ['Groups'],
     security: true,
     params: ['groupId'],
-    bodyExample: null,
+    bodyExample: {
+      mode: 'admin_share',
+    },
     responses: ['200', '400', '403', '404', '503'],
   },
   {

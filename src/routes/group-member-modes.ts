@@ -34,7 +34,7 @@ export function registerGroupMemberModeRoutes(
             'Admin-only. Send { mode }; accepted values are listed in the body schema. Read current values with GET /v1/groups/:groupId. History sharing controls POST /v1/groups/:groupId/share-history, independently of HISTORY_GROUP_BUNDLES (receiving).',
           security: [{ apiKey: [] }, { bearerAuth: [] }],
           params: z.object({ groupId: z.string().min(1) }),
-          body: z.object({ mode: modeSchema }),
+          body: z.object({ mode: modeSchema }).meta({ example: { mode: modeSchema.options[0] } }),
           response: {
             200: z.object({ ok: z.literal(true), mode: modeSchema }),
             400: ErrorBodySchema,
