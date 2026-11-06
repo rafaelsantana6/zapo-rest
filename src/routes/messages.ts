@@ -721,6 +721,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRoutesDeps> = async (fasti
         },
         body.starred,
       )
+      await messages?.setStarred(name, body.messageId, body.starred)
       return { ok: true as const, messageId: body.messageId, starred: body.starred }
     },
   )

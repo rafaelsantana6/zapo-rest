@@ -1141,3 +1141,52 @@ export const CommunitySuggestionsSchema = z.object({
   ),
 })
 export const CommunityMetadataSchema = z.object({ community: CommunityGroupMetadataSchema })
+// Chat actions share request/response contracts with their OpenAPI definitions.
+export const ChatPinBodySchema = z.object({ pinned: z.boolean() })
+export const ChatLockBodySchema = z.object({ locked: z.boolean() })
+export const ChatMuteBodySchema = z
+  .object({
+    muted: z.boolean(),
+    until: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .meta({ description: 'Absolute notification resume time (ISO 8601)', example: '2027-01-01T12:00:00Z' }),
+    durationSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(253402300799)
+      .optional()
+      .meta({ description: 'Mute duration from now; mutually exclusive with until', example: 3600 }),
+  })
+  .refine((body) => !(body.until && body.durationSeconds !== undefined), {
+    message: 'Use until or durationSeconds, not both',
+  })
+  .refine((body) => body.muted || (body.until === undefined && body.durationSeconds === undefined), {
+    message: 'Unmuting does not accept until or durationSeconds',
+  })
+export const ChatDeleteBodySchema = z.object({ deleteMedia: z.boolean().optional() }).strict()
+export const ChatClearBodySchema = ChatDeleteBodySchema.extend({
+  deleteStarred: z.boolean().optional().meta({ description: 'Default false: preserve starred messages' }),
+})
+export const PublicChatSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  isGroup: z.boolean(),
+  unreadCount: z.number(),
+  archived: z.boolean(),
+  pinned: z.number().meta({ description: 'Existing numeric pin flag: 0 unpinned, positive pinned' }),
+  muted: z.boolean(),
+  muteUntil: z
+    .string()
+    .nullable()
+    .meta({ description: 'ISO notification resume time; null when unmuted. Forever uses year 9999.' }),
+  muteEndMs: z.number().nullable(),
+  locked: z.boolean(),
+  markedAsUnread: z.boolean(),
+  lastMessage: z
+    .object({ id: z.string(), preview: z.string().nullable(), timestamp: z.number().nullable() })
+    .nullable(),
+  altJids: z.array(z.string()),
+  _data: z.unknown(),
+})

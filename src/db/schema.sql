@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS app_chats (
  PRIMARY KEY (instance_name, chat_jid)
 );
 
+ALTER TABLE app_chats ADD COLUMN IF NOT EXISTS locked BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS app_chats_last_ts_idx
  ON app_chats (instance_name, last_message_ts DESC NULLS LAST);
 

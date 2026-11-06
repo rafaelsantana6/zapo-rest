@@ -9,6 +9,7 @@ export type AppChat = {
   unreadCount: number
   archived: boolean
   pinned: number
+  locked: boolean
   muteEndMs: number | null
   markedAsUnread: boolean
   lastMessageId: string | null
@@ -29,6 +30,7 @@ type Row = {
   unread_count: number
   archived: boolean
   pinned: number
+  locked: boolean
   mute_end_ms: string | number | null
   marked_as_unread: boolean
   last_message_id: string | null
@@ -48,6 +50,7 @@ function mapRow(row: Row): AppChat {
     unreadCount: row.unread_count,
     archived: row.archived,
     pinned: row.pinned,
+    locked: row.locked,
     muteEndMs: row.mute_end_ms == null ? null : Number(row.mute_end_ms),
     markedAsUnread: row.marked_as_unread,
     lastMessageId: row.last_message_id,
@@ -60,6 +63,7 @@ function mapRow(row: Row): AppChat {
 }
 
 export function toPublicChat(c: AppChat) {
+  const muted = c.muteEndMs != null && c.muteEndMs > Date.now()
   return {
     id: c.chatJid,
     name: c.name,
@@ -68,6 +72,9 @@ export function toPublicChat(c: AppChat) {
     archived: c.archived,
     pinned: c.pinned,
     muteEndMs: c.muteEndMs,
+    muted,
+    muteUntil: muted && c.muteEndMs != null ? new Date(c.muteEndMs).toISOString() : null,
+    locked: c.locked,
     markedAsUnread: c.markedAsUnread,
     lastMessage: c.lastMessageId
       ? {
@@ -90,6 +97,7 @@ export type UpsertChatInput = {
   unreadCount?: number
   archived?: boolean
   pinned?: number
+  locked?: boolean
   muteEndMs?: number | null
   markedAsUnread?: boolean
   lastMessageId?: string | null
@@ -106,16 +114,17 @@ export class ChatStore {
     const { rows } = await this.pool.query<Row>(
       `INSERT INTO app_chats (
  instance_name, chat_jid, name, is_group, unread_count, archived, pinned,
- mute_end_ms, marked_as_unread, last_message_id, last_message_preview, last_message_ts, raw
- ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)
+ mute_end_ms, marked_as_unread, last_message_id, last_message_preview, last_message_ts, raw, locked
+ ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14)
  ON CONFLICT (instance_name, chat_jid) DO UPDATE SET
  name = COALESCE(EXCLUDED.name, app_chats.name),
  is_group = EXCLUDED.is_group OR app_chats.is_group,
- unread_count = COALESCE(EXCLUDED.unread_count, app_chats.unread_count),
- archived = COALESCE(EXCLUDED.archived, app_chats.archived),
- pinned = COALESCE(EXCLUDED.pinned, app_chats.pinned),
- mute_end_ms = COALESCE(EXCLUDED.mute_end_ms, app_chats.mute_end_ms),
- marked_as_unread = COALESCE(EXCLUDED.marked_as_unread, app_chats.marked_as_unread),
+ unread_count = CASE WHEN $15 THEN EXCLUDED.unread_count ELSE app_chats.unread_count END,
+ archived = CASE WHEN $16 THEN EXCLUDED.archived ELSE app_chats.archived END,
+ pinned = CASE WHEN $17 THEN EXCLUDED.pinned ELSE app_chats.pinned END,
+ mute_end_ms = CASE WHEN $18 THEN EXCLUDED.mute_end_ms ELSE app_chats.mute_end_ms END,
+ marked_as_unread = CASE WHEN $19 THEN EXCLUDED.marked_as_unread ELSE app_chats.marked_as_unread END,
+ locked = CASE WHEN $20 THEN EXCLUDED.locked ELSE app_chats.locked END,
  last_message_id = CASE
  WHEN EXCLUDED.last_message_ts IS NOT NULL
  AND (app_chats.last_message_ts IS NULL OR EXCLUDED.last_message_ts >= app_chats.last_message_ts)
@@ -151,6 +160,13 @@ export class ChatStore {
         input.lastMessagePreview ?? null,
         input.lastMessageTs ?? null,
         JSON.stringify(input.raw ?? {}),
+        input.locked ?? false,
+        input.unreadCount !== undefined,
+        input.archived !== undefined,
+        input.pinned !== undefined,
+        input.muteEndMs !== undefined,
+        input.markedAsUnread !== undefined,
+        input.locked !== undefined,
       ],
     )
     const row = rows[0]
@@ -248,7 +264,7 @@ export class ChatStore {
  FROM annotated a
  )
  SELECT r.instance_name, r.primary_jid AS chat_jid, r.name, r.is_group, r.unread_count,
- r.archived, r.pinned, r.mute_end_ms, r.marked_as_unread,
+ r.archived, r.pinned, r.locked, r.mute_end_ms, r.marked_as_unread,
  r.last_message_id, r.last_message_preview, r.last_message_ts, r.raw,
  r.created_at, r.updated_at, r.alt_jids
  FROM ranked r
@@ -347,7 +363,7 @@ export class ChatStore {
 
   async setArchived(instanceName: string, chatJid: string, archived: boolean): Promise<AppChat | null> {
     const { rows } = await this.pool.query<Row>(
-      `UPDATE app_chats SET archived = $3, updated_at = now()
+      `UPDATE app_chats SET archived = $3, pinned = CASE WHEN $3 THEN 0 ELSE pinned END, updated_at = now()
  WHERE instance_name = $1 AND chat_jid = $2 RETURNING *`,
       [instanceName, chatJid, archived],
     )
@@ -359,6 +375,19 @@ export class ChatStore {
       `UPDATE app_chats SET unread_count = $3, marked_as_unread = ($3 > 0), updated_at = now()
  WHERE instance_name = $1 AND chat_jid = $2`,
       [instanceName, chatJid, unreadCount],
+    )
+  }
+
+  /** Recompute the preview after destructive actions, including preserved starred messages. */
+  async refreshLastMessage(instanceName: string, chatJid: string, chatJids: string[]): Promise<void> {
+    await this.pool.query(
+      `UPDATE app_chats SET
+ last_message_id = (SELECT message_id FROM app_messages WHERE instance_name = $1 AND chat_jid = ANY($3::text[]) ORDER BY timestamp_ms DESC NULLS LAST, message_id DESC LIMIT 1),
+ last_message_preview = (SELECT COALESCE(body, caption, type) FROM app_messages WHERE instance_name = $1 AND chat_jid = ANY($3::text[]) ORDER BY timestamp_ms DESC NULLS LAST, message_id DESC LIMIT 1),
+ last_message_ts = (SELECT timestamp_ms FROM app_messages WHERE instance_name = $1 AND chat_jid = ANY($3::text[]) ORDER BY timestamp_ms DESC NULLS LAST, message_id DESC LIMIT 1),
+ updated_at = now()
+ WHERE instance_name = $1 AND chat_jid = $2`,
+      [instanceName, chatJid, chatJids],
     )
   }
 

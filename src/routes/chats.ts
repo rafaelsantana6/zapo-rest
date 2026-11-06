@@ -2,8 +2,9 @@ import type { FastifyPluginAsync } from 'fastify'
 import type { ZodTypeProvider } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { resolveInstanceName, scopedInstancePaths } from '~/auth/plugin'
-import { ErrorBodySchema } from '~/http/openapi-schemas'
+import { PublicChatSchema, ErrorBodySchema } from '~/http/openapi-schemas'
 import type { InstanceManager } from '~/instances/manager'
+import { registerChatActions } from './chat-actions'
 import { notFound } from '~/lib/errors'
 import { toRecipientJid } from '~/lib/jid'
 import { bareUserJid, isLidJid } from '~/lib/jid-canon'
@@ -84,6 +85,8 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
     return jid
   }
 
+  registerChatActions(app, deps, resolveChatId)
+
   r.get(
     scopedInstancePaths('/chats'),
     {
@@ -96,7 +99,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         querystring: ListChatsQuery,
         response: {
-          200: z.object({ chats: z.array(z.any().meta({ type: 'object', additionalProperties: true })) }),
+          200: z.object({ chats: z.array(PublicChatSchema) }),
           401: ErrorBodySchema,
         },
       },
@@ -142,7 +145,7 @@ export const chatRoutes: FastifyPluginAsync<ChatRoutesDeps> = async (app, deps) 
         security: [{ apiKey: [] }, { bearerAuth: [] }],
         params: ChatParams,
         response: {
-          200: z.object({ chat: z.any().meta({ type: 'object', additionalProperties: true }) }),
+          200: z.object({ chat: PublicChatSchema }),
           404: ErrorBodySchema,
         },
       },

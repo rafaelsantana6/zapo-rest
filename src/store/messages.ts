@@ -182,7 +182,7 @@ export class MessageStore {
  has_media = app_messages.has_media OR EXCLUDED.has_media,
  is_deleted = app_messages.is_deleted OR EXCLUDED.is_deleted,
  is_edited = app_messages.is_edited OR EXCLUDED.is_edited,
- starred = COALESCE(EXCLUDED.starred, app_messages.starred),
+ starred = CASE WHEN $23 THEN EXCLUDED.starred ELSE app_messages.starred END,
  push_name = COALESCE(EXCLUDED.push_name, app_messages.push_name),
  source = CASE WHEN app_messages.source = 'history' AND EXCLUDED.source = 'live' THEN 'live' ELSE app_messages.source END,
  raw = CASE WHEN EXCLUDED.raw::text = '{}'::text THEN app_messages.raw ELSE EXCLUDED.raw END,
@@ -211,6 +211,7 @@ export class MessageStore {
         input.pushName ?? null,
         input.source ?? 'live',
         JSON.stringify(input.raw ?? {}),
+        input.starred !== undefined,
       ],
     )
     const row = rows[0]
@@ -290,6 +291,22 @@ export class MessageStore {
     return res.rowCount ?? 0
   }
 
+  async clearChat(instanceName: string, chatJids: string[], deleteStarred: boolean, beforeMs?: number): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM app_messages WHERE instance_name = $1 AND chat_jid = ANY($2::text[])
+ AND ($3 OR NOT starred) AND ($4::bigint IS NULL OR timestamp_ms <= $4)`,
+      [instanceName, chatJids, deleteStarred, beforeMs ?? null],
+    )
+  }
+
+  async deleteForMe(instanceName: string, chatJid: string, messageId: string): Promise<void> {
+    await this.pool.query('DELETE FROM app_messages WHERE instance_name = $1 AND chat_jid = $2 AND message_id = $3', [
+      instanceName,
+      chatJid,
+      messageId,
+    ])
+  }
+
   async updateAck(instanceName: string, messageId: string, ack: number): Promise<AppMessage | null> {
     const { rows } = await this.pool.query<Row>(
       `UPDATE app_messages
@@ -299,6 +316,13 @@ export class MessageStore {
       [instanceName, messageId, ack],
     )
     return rows[0] ? mapRow(rows[0]) : null
+  }
+
+  async setStarred(instanceName: string, messageId: string, starred: boolean): Promise<void> {
+    await this.pool.query(
+      'UPDATE app_messages SET starred = $3, updated_at = now() WHERE instance_name = $1 AND message_id = $2',
+      [instanceName, messageId, starred],
+    )
   }
 
   async markDeleted(instanceName: string, messageId: string): Promise<AppMessage | null> {
