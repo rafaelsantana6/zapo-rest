@@ -104,6 +104,10 @@ export function EventsPage({ onLogout }: Props) {
         <p className="muted tiny" style={{ margin: 0 }}>
           Canal unidirecional (SSE). VoIP continua em WebSocket (<code>/v1/voip</code> + stream PCM).
         </p>
+        <p className="muted tiny">
+          Canais: <code>newsletter.update</code> e <code>newsletter.message_update</code> também chegam neste fluxo. Use{' '}
+          <code>POST /v1/newsletters/:jid/live-updates</code> e renove conforme <code>durationSeconds</code>.
+        </p>
         <input
           className="search"
           placeholder="Filtrar evento ou payload…"

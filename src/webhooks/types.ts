@@ -47,6 +47,8 @@ export const WEBHOOK_EVENTS = [
   'profile.username',
   /** Contact/group avatar set/delete from WA picture notification */
   'contact.picture',
+  'newsletter.update',
+  'newsletter.message_update',
   // legacy aliases kept for backward compat
   'message.inbound',
 ] as const

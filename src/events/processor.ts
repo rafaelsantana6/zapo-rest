@@ -83,6 +83,8 @@ export class EventProcessor {
   ): Promise<void> {
     const decoded = decodeIncomingMessage(event)
     if (!decoded) return
+    // Channels use their own read/publish surface; do not seed hidden chat rows or download channel media.
+    if (decoded.chatJid.endsWith('@newsletter')) return
 
     // Persist LID↔PN from message key / remoteJidAlt
     if (decoded.lidPnPair && this.deps.lidMap) {
@@ -732,6 +734,7 @@ export class EventProcessor {
     messageStore: any,
   ): Promise<{ chats: number; messages: number }> {
     const threadJid = String(t.jid)
+    if (threadJid.endsWith('@newsletter')) return { chats: 0, messages: 0 }
     if (threadJid === '0@s.whatsapp.net' || threadJid.endsWith('@broadcast')) return { chats: 0, messages: 0 }
 
     const threadMsgs: readonly ZapoThreadMessage[] = messageStore?.listByThread

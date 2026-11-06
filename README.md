@@ -40,6 +40,7 @@
 | Live events | **SSE** `GET /v1/events` (server → client; prefer header auth) |
 | Voice & video calls | **WebSocket** control + live PCM stream (`@zapo-js/voip`); a second WS carries H.264 (1:1 and group, upgrade mid-call, screen share) — not a second events bus |
 | Media | Local or S3/MinIO/R2 with **CAS dedup**, rehydrate-from-WA, optional auto-download |
+| WhatsApp Channels | Discovery, follow/live updates, admin lifecycle and text/media publishing under `/v1/newsletters`; dedicated webhook/SSE events |
 | Ops UI | Dashboard for QR, chat, send tester, webhooks, softphone |
 
 Not affiliated with WhatsApp/Meta. Independent gateway for engineering and interoperability.
@@ -62,6 +63,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 - **Instance from API key** — instance-key clients may omit `:name` (`/v1/messages/...`, `/v1/instance`); admin always names the target
 - **@handle and late group history** — send to `@handle`; members who join a group later still receive shared history (`HISTORY_GROUP_BUNDLES`)
 - **Synced chat settings** — successful actions and phone app-state update Postgres; mute expiration is reflected on reads; durable action metadata preserves deletions and newer settings across mailbox imports/replays
+- **Separate channel surface** — channel discovery/publishing/events stay outside chat projections; callers renew temporary live subscriptions
 - **Video on its own binary channel** — H.264 frames never share the PCM socket; a lagging viewer drops to the next key frame instead of growing server memory or blocking audio
 
 | Decision | Benefit |
@@ -82,6 +84,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Client-side `w:stats` batches like a real WA Web tab — wire parity / less “headless” fingerprint. Disable with `WAM_ENABLED=false`. |
 | **Group history bundles** (`HISTORY_GROUP_BUNDLES`, default on) | History a member shares after you join lands in projections. A third party triggers the download — set `false` to skip it. |
 | **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Durable cutoffs/settings survive mailbox imports; clear/delete preserve newer messages and empty cleared chats stay listed. |
+| **Dedicated channel routes and events** | Channel traffic does not create hidden chat projections or trigger chat media downloads. Read history directly from WhatsApp; renew live updates using `durationSeconds`. |
 | **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
 
 ---
@@ -253,6 +256,42 @@ POST /v1/messages/text          # same as POST /v1/instances/:name/messages/text
 GET  /v1/instance               # same as GET  /v1/instances/:name
 POST /v1/instance/connect       # same as POST /v1/instances/:name/connect
 ```
+
+Channel quick reference (instance API key; `jid` ends in `@newsletter`):
+
+```http
+GET    /v1/newsletters                     # followed channels
+GET    /v1/newsletters/search?q=news&limit=20&cursor=...
+GET    /v1/newsletters/recommended
+GET    /v1/newsletters/by-invite/:code
+GET    /v1/newsletters/:jid
+GET    /v1/newsletters/:jid/messages?count=50&before=42
+GET    /v1/newsletters/:jid/updates?count=50&after=42&since=1700000000
+POST   /v1/newsletters/:jid/follow         # also /unfollow
+POST   /v1/newsletters/:jid/mute           # { "muted": true }
+POST   /v1/newsletters/:jid/live-updates   # renew before durationSeconds expires
+POST   /v1/newsletters/:jid/messages/:messageId/react  # { "reaction": "🔥" }; empty removes
+POST   /v1/newsletters/:jid/messages/:messageId/vote   # { "options": ["<base64 32-byte option hash>"] }
+POST   /v1/newsletters/:jid/messages/:messageId/view
+POST   /v1/newsletters                     # { "name": "News", "description": "...", "picture": "<base64 JPEG>" }
+PATCH  /v1/newsletters/:jid                 # name/description/picture (null removes)/reactionCodesSetting
+DELETE /v1/newsletters/:jid                 # permanent upstream deletion
+GET    /v1/newsletters/:jid/admin            # info + capabilities
+GET    /v1/newsletters/:jid/followers?count=50
+GET    /v1/newsletters/:jid/pending-invites
+POST   /v1/newsletters/:jid/admins/invite    # { "user": "@handle" }, phone or user JID also accepted
+POST   /v1/newsletters/:jid/admins/invite/accept
+POST   /v1/newsletters/:jid/admins/invite/revoke # { "user": "111@lid" }
+POST   /v1/newsletters/:jid/admins/demote    # { "user": "111@lid" }
+POST   /v1/newsletters/:jid/owner            # { "user": "111@lid" }
+POST   /v1/newsletters/:jid/messages         # { "type": "text", "text": "News" }
+PATCH  /v1/newsletters/:jid/messages/:messageId # same text/media body
+DELETE /v1/newsletters/:jid/messages/:messageId
+```
+
+Media uses `type: image|video|audio|document` with the existing `mediaUrl`, `mediaBase64`, or multipart `file` fields. Publishing calls `client.newsletter.send`, not the regular message coordinator. Publishing/edit/revoke IDs are stanza IDs; react/vote/view require the **numeric server ID** from channel history. Poll options are base64 hashes, not labels. Following persists membership; live updates are a separate temporary subscription, renewed by the caller. Create/accept-invite automatically accept the corresponding WhatsApp terms upstream.
+
+`newsletter.update` and `newsletter.message_update` reach webhooks and SSE with JSON-safe payloads (edits contain projected content, votes contain base64 hashes). Channels are excluded from new chat/message projections and chat media storage. Read/update pages expose `{ name, attributes, children?, text?, bytesBase64? }` because upstream returns `BinaryNode`; metadata, directory and followers use explicit public fields. Followers support `count` only, without cursors. Message pages accept at most one of `before` or `after`; update pages require exactly one, even when `since` is supplied. Missing channel metadata returns `404`. Media MIME is detected from the file when absent; unrecognized formats need an explicit `mimetype` (`400` otherwise). Inline channel pictures must be decodable JPEGs of at most **256 KiB** and **16 megapixels**. Admin invitation/demotion/ownership targets must resolve to PN/LID users; groups, broadcasts and channel JIDs return `400`. See [Channels guide](https://rafaelsantana6.github.io/zapo-rest/groups#channels).
 
 Lifecycle short form uses singular `/v1/instance` so it never collides with the admin collection `/v1/instances`.
 

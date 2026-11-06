@@ -1,3 +1,4 @@
+import { newsletterRoutes } from '~/routes/newsletters'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import cors from '@fastify/cors'
@@ -200,6 +201,7 @@ export async function buildApp(deps: BuildAppDeps) {
   await app.register(groupRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
   await app.register(groupMembershipRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(communityRoutes, { manager: deps.manager, cache: deps.cache })
+  await app.register(newsletterRoutes, { manager: deps.manager, env: deps.env, cache: deps.cache })
   await app.register(groupHistoryRoutes, { manager: deps.manager, cache: deps.cache })
   await app.register(profileRoutes, { manager: deps.manager, env: deps.env })
   await app.register(profileUsernameRoutes, { manager: deps.manager })

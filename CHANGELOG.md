@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Chat actions: `POST /v1/chats/:chatId/pin`, `/mute`, `/lock`, `/clear`, `/delete` and `DELETE /v1/chats/:chatId/messages/:messageId/for-me`. Mute accepts ISO `until` or `durationSeconds`, defaulting to forever. Clear preserves starred messages/media by default. Synced delete removes the chat/history for your account, without leaving groups; the existing `DELETE /v1/chats/:chatId` remains projection-only.
 - Chat reads expose `muted`, `muteUntil`, `locked` alongside existing numeric `pinned` and `muteEndMs`. Phone app-state pin/mute/lock/archive/read/clear/delete changes update projections and emit the existing `chat.update` webhook/SSE event after persistence. Lock storage is migrated idempotently.
 
+- **WhatsApp Channels (`Newsletters`).** 28 instance-key operations under `/v1/newsletters`: discovery/search/recommendations, message/update reads, follow/unfollow/mute, temporary live subscriptions, reactions/poll votes/view receipts, channel metadata CRUD, admin capabilities/followers/invitations/ownership, and publishing/editing/revoking text or image/video/audio/document media (URL, base64 or multipart). Public metadata and event payloads use explicit schemas. New webhook/SSE events: `newsletter.update` and `newsletter.message_update`.
+- Channel guides in Portuguese, English and Spanish, with separate publishing stanza IDs vs numeric server IDs, base64 poll option hashes, and caller-managed live-subscription renewal. Upstream read pages remain typed transport envelopes with base64 bytes because zapo-js 1.11 does not export a decoded page API.
+
 ### Changed
 
 - `group.update` preserves its upstream payload and adds `type` for membership notifications: `membership_approval_request` adds `requesterJid` from the upstream author, while `created_membership_requests` / `revoked_membership_requests` add `requests` with requester JIDs when supplied upstream. The event name and SSE transport stay the same.
@@ -28,9 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Chat actions persist per-chat cutoffs, settings and pending message stars/deletions so mailbox imports and live replays cannot restore removed history or overwrite newer settings. Clear/delete preserve messages newer than the action boundary; empty cleared chats remain listed through reconcile, and LID/PN listings use authoritative settings. Stale app-state mutations are rejected by timestamp; current mutations can retry after partial persistence failures. OpenAPI now marks clear/delete bodies optional.
 - Chat projection upserts preserve omitted settings, so new messages do not reset pin/archive/mute/read/lock state. New chat-action routes return upstream conflicts as 409 and connection failures as 503, without applying a successful local-only fallback.
 
+- Channel messages are explicitly excluded from new `app_messages`/chat projections and mailbox history imports, consistent with their existing exclusion from chat listings. Existing stored rows are not migrated or deleted; use the dedicated channel read endpoints.
+
 ### Fixed
 
 - Community sub-group inputs accept legacy hyphenated `@g.us` JIDs for linking, unlinking, suggestions and joining. The join request body is optional in OpenAPI as well as at runtime. Community operations document 401 and 502 responses; missing MEX transport returns 503, and recognized MEX failures return 502 with a static public message while IQ errors retain their existing status mapping.
+- Newsletter update reads now require exactly one `before`/`after` cursor; message pages reject both cursors together. Examples include the cursor required by zapo-js even when `since` is provided.
+- Channel base64/data-URL media without `mimetype` now uses file detection before publishing/editing; unrecognized formats return an actionable `400`, with temporary media cleaned on every path.
+- Missing channel metadata envelopes from upstream JID/invite lookups now return `404`, while unrelated transport failures remain errors.
+- Inline channel pictures are checked as decodable JPEGs (max 256 KiB decoded / 16 megapixels). Admin actions reject group, broadcast and channel targets and require resolved PN/LID user JIDs.
 
 ## [0.10.0] - 2026-11-06
 

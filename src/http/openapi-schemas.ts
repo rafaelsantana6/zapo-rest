@@ -959,6 +959,7 @@ export const OPENAPI_TAGS = [
       ' "payload": { }\n' +
       '}\n' +
       '```\n\n' +
+      '**Channel events:** `newsletter.update`, `newsletter.message_update`.\n\n' +
       '**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, ' +
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
@@ -977,6 +978,11 @@ export const OPENAPI_TAGS = [
     name: 'Communities',
     description:
       'WhatsApp parent groups: lifecycle, linked sub-groups, participants, suggestions and ownership. Sub-groups, suggestions and ownership require the upstream MEX transport (503 when absent; recognized MEX failures return 502).',
+  },
+  {
+    name: 'Newsletters',
+    description:
+      'WhatsApp channels: discovery, followers, administration and publishing. Separate from chat projections. Live subscriptions are temporary; renew using durationSeconds.',
   },
 ] as const
 

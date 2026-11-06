@@ -210,6 +210,11 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             on reads.
           </li>
           <li>Durable action metadata preserves deletions and newer settings across mailbox imports/replays.</li>
+          <li>
+            {
+              'Separate channel surface: new channel messages and mailbox channel threads are excluded from app_messages/chats and chat media downloads. Existing stored rows are retained. There is no local channel history/search: use the dedicated WhatsApp reads and renew temporary live subscriptions.'
+            }
+          </li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -315,6 +320,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
             <tr>
               <td>Chat action metadata</td>
               <td>Durable action metadata preserves deletions and newer settings across mailbox imports/replays.</td>
+            </tr>
+            <tr>
+              <td>Channels — /v1/newsletters</td>
+              <td>
+                Channel traffic avoids hidden chat projections and chat media storage; history is read from WhatsApp
+                directly.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1408,6 +1420,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           When configured, the worker signs the POST (<code>X-Webhook-Hmac</code> / <code>X-Webhook-Hmac-Sha512</code>).
           Retries: linear/exponential/constant policy + attempts + delaySeconds. The secret is write-only on the API
           (never re-echoed on GET).
+          <code>newsletter.update</code>, <code>newsletter.message_update</code>.
         </p>
         <p>
           Phone app-state changes now emit chat.update after projection: chatId plus the public chat fields (numeric
@@ -1943,6 +1956,61 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           <a href="/guide/api/Communities">Communities API</a>
+        </p>
+        <h2 id="channels">Channels</h2>
+        <p>
+          {
+            'WhatsApp Channels use the Newsletters REST area under /v1/newsletters. Send the instance key in X-Api-Key or Bearer; channel JIDs end in @newsletter. The instance is inferred from that key.'
+          }
+        </p>
+        <p>
+          {
+            'Discovery: GET the collection for followed channels, /:jid for metadata, /by-invite/:code for an invite, /search?q=news&limit=20&cursor=... for directory results and pageInfo, and /recommended?limit=20 for recommendations.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/follow persists membership; /unfollow removes it. POST /:jid/mute accepts { "muted": true, "type": "follower" } (type may also be admin). Following does not create a live subscription: POST /:jid/live-updates returns durationSeconds. Renew before it expires; the gateway does not renew automatically.'
+          }
+        </p>
+        <p>
+          {
+            'GET /:jid/messages?count=50&before=42 and /:jid/updates?count=50&after=42&since=1700000000 read WhatsApp directly (count 1–100; before and after are mutually exclusive). Update reads require exactly one cursor, even with since. Missing channel metadata by JID or invite returns 404. Upstream zapo-js 1.11 returns BinaryNode pages without a public decoder. Responses are transport envelopes { name, attributes, children?, text?, bytesBase64? }, not decoded message projections. Metadata, directory and followers have stable public JSON fields.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/messages/:messageId/react takes { "reaction": "🔥" }; an empty string removes the reaction. /vote takes { "options": ["<base64 32-byte option hash>"] }; these are poll option hashes, not labels or indexes. /view sends a view receipt. These three actions require a positive numeric server message ID from channel history.'
+          }
+        </p>
+        <p>
+          {
+            'Administration: POST the collection with { name, description?, picture? } creates a channel (picture is a decodable base64 JPEG of at most 256 KiB decoded and 16 megapixels). PATCH /:jid accepts name, description, picture (null removes it), and reactionCodesSetting. DELETE /:jid permanently deletes it. GET /:jid/admin returns admin info and capabilities; /followers?count=50 returns followers (no upstream cursor); /pending-invites returns user JIDs.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote and /:jid/owner take { "user": "111@lid" }; phone numbers and @handles are resolved by the existing recipient helper. All targets must resolve to PN/LID user JIDs; groups, broadcasts and channels return 400. POST /:jid/admins/invite/accept accepts for the current account. Ownership transfer requires a previously invited admin. Upstream automatically accepts the creation/admin-invitation terms on create/accept.'
+          }
+        </p>
+        <p>
+          {
+            'Publishing: POST /:jid/messages calls client.newsletter.send. Use { "type": "text", "text": "News" } or type image/video/audio/document with mediaUrl, mediaBase64 or multipart file, plus caption/mimetype/fileName/ptt as applicable. PATCH /:jid/messages/:messageId edits with the same text/media body; DELETE revokes. These IDs are publishing stanza IDs returned as id, unlike numeric server IDs used for react/vote/view. MIME is detected from the file when absent; unrecognized formats need an explicit mimetype (400 otherwise). Temporary media is cleaned after success or failure, including failed MIME detection.'
+          }
+        </p>
+        <p>
+          {
+            'newsletter.update and newsletter.message_update reach both webhooks and SSE. Notification payloads contain jid, action and scalar details; nested unknown payloads are omitted and bigints become decimal strings. Message updates contain jid, serverId and typed edit/revoke/reaction/poll_vote/counters updates. Edits contain projected content; poll hashes are base64. Neither event exposes raw nodes, plaintext or protobuf.'
+          }
+        </p>
+        <p>
+          {
+            'Separate channel surface: new channel messages and mailbox channel threads are excluded from app_messages/chats and chat media downloads. Existing stored rows are retained. There is no local channel history/search: use the dedicated WhatsApp reads and renew temporary live subscriptions.'
+          }
+        </p>
+        <p>
+          Complete contract: <a href="/guide/api/Newsletters">Newsletters API</a> ·{' '}
+          <a href="https://zapo.to/en/guides/newsletters">zapo-js</a>
         </p>
       </>
     ),

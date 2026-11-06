@@ -104,6 +104,13 @@ const MEDIA_ROUTE_RULES: Array<{
     fileDescription: 'WAV audio for blast (`file` / `audio` / `media`). Form field `to` required.',
     fileContentType: 'audio/wav, audio/x-wav, audio/*, application/octet-stream',
   },
+  {
+    path: /\/newsletters\/\{[^}]+}\/messages(?:\/\{[^}]+})?$/,
+    methods: ['post', 'patch'],
+    fileDescription:
+      'Channel media file. Required form field: type (image/video/audio/document). Optional caption, ptt, fileName.',
+    fileContentType: 'image/*, video/*, audio/*, application/octet-stream',
+  },
 ]
 
 function asOperation(value: unknown): Operation | null {
@@ -115,6 +122,13 @@ function unwrapJsonSchema(content: MediaContent | undefined): JsonSchema | null 
   if (!content?.schema || typeof content.schema !== 'object') return null
   const schema = content.schema as JsonSchema
   if (schema.properties) return schema
+  // Newsletter JSON uses a text/media union; multipart uploads use its media branch.
+  if (Array.isArray(schema.oneOf)) {
+    const mediaBranch = schema.oneOf.find(
+      (part) => part && typeof part === 'object' && (part as JsonSchema).properties?.mediaUrl,
+    )
+    if (mediaBranch) return mediaBranch as JsonSchema
+  }
   if (Array.isArray(schema.allOf)) {
     for (const part of schema.allOf) {
       if (part && typeof part === 'object' && (part as JsonSchema).properties) {

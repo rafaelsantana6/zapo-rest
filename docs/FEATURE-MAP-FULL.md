@@ -88,3 +88,18 @@ Last updated: 2026-07-14
 - Chatwoot / Typebot / generic bot runtimes
 - Meta Cloud API HSM templates
 - Multi-region message bus adapters (Kafka/NATS/…) as first-class products
+
+
+## WhatsApp Channels / Newsletters
+
+| Feature | Status |
+|---------|--------|
+| Dedicated `/v1/newsletters` area (28 operations, instance key only) | ✅ |
+| Discovery, search + cursor, invite lookup and recommendations | ✅ |
+| Follow/unfollow/mute and live subscription duration | ✅ caller-managed renewal |
+| Reactions, poll votes and view receipts | ✅ numeric server message IDs; option hashes in base64 |
+| Metadata CRUD, admin capabilities, followers and admin/ownership lifecycle | ✅ follower count only (no upstream cursor); JPEG pictures ≤256 KiB / 16 MP, PN/LID admin targets |
+| Text/image/video/audio/document publish/edit/revoke | ✅ existing URL/base64/multipart helpers; newsletter coordinator; missing MIME is detected, unknown formats → 400 |
+| `newsletter.update` / `newsletter.message_update` on webhooks and SSE | ✅ JSON-safe payloads without raw protobuf |
+| Channel read/update pages | 🟡 typed transport envelope; decoded pages require an upstream public API; updates require exactly one `before`/`after` cursor, messages allow at most one |
+| Channel projection into `app_messages`/chats and chat media storage | N/A — deliberately excluded; existing rows retained |

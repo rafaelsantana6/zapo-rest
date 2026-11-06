@@ -216,6 +216,11 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
           <li>
             Metadados duráveis preservam exclusões e configurações recentes durante importações da mailbox e replays.
           </li>
+          <li>
+            {
+              'Área própria para canais: novas mensagens e threads de canais do mailbox ficam fora de app_messages/chats e do download de mídia de chats. Linhas já armazenadas são preservadas. Não há histórico/busca local de canais: consulte as rotas dedicadas do WhatsApp e renove as assinaturas temporárias ao vivo.'
+            }
+          </li>
         </ul>
 
         <h2 id="table">Decisão → benefício</h2>
@@ -326,6 +331,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Metadados duráveis preservam exclusões e configurações recentes durante importações da mailbox e
                 replays.
+              </td>
+            </tr>
+            <tr>
+              <td>Canais — /v1/newsletters</td>
+              <td>
+                O tráfego de canais evita projeções ocultas e armazenamento de mídia de chats; o histórico é lido
+                diretamente do WhatsApp.
               </td>
             </tr>
           </tbody>
@@ -1428,6 +1440,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
           Quando configurado, o worker assina o POST (<code>X-Webhook-Hmac</code> / <code>X-Webhook-Hmac-Sha512</code>
           ). Retries: policy linear/exponential/constant + attempts + delaySeconds. O secret é write-only na API (nunca
           re-ecoado no GET).
+          <code>newsletter.update</code>, <code>newsletter.message_update</code>.
         </p>
         <p>
           Mudanças de app-state do telefone passam a emitir chat.update após projeção: chatId e os campos públicos da
@@ -1967,6 +1980,61 @@ curl -s -X PUT "$BASE/v1/groups/$GID/settings/history-share-mode" \\
         </p>
         <p>
           <a href="/guide/api/Communities">Communities API</a>
+        </p>
+        <h2 id="channels">Canais</h2>
+        <p>
+          {
+            'Canais do WhatsApp usam a área REST Newsletters em /v1/newsletters. Envie a chave da instância em X-Api-Key ou Bearer; os JIDs terminam em @newsletter. A instância vem dessa chave.'
+          }
+        </p>
+        <p>
+          {
+            'Descoberta: GET na coleção lista os canais seguidos; /:jid consulta metadados; /by-invite/:code busca por convite; /search?q=noticias&limit=20&cursor=... retorna o diretório e pageInfo; /recommended?limit=20 lista recomendações.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/follow mantém a associação; /unfollow deixa de seguir. POST /:jid/mute aceita { "muted": true, "type": "follower" } (type também pode ser admin). Seguir não cria uma assinatura ao vivo: POST /:jid/live-updates retorna durationSeconds. Renove antes de expirar; o gateway não renova automaticamente.'
+          }
+        </p>
+        <p>
+          {
+            'GET /:jid/messages?count=50&before=42 e /:jid/updates?count=50&after=42&since=1700000000 leem diretamente do WhatsApp (count de 1 a 100; before e after são mutuamente exclusivos). A leitura de atualizações exige exatamente um cursor, mesmo com since. Metadados ausentes por JID ou convite retornam 404. O zapo-js 1.11 retorna páginas BinaryNode sem decodificador público. A resposta é um envelope de transporte { name, attributes, children?, text?, bytesBase64? }, não uma projeção de mensagens decodificadas. Metadados, diretório e seguidores têm campos JSON públicos estáveis.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/messages/:messageId/react recebe { "reaction": "🔥" }; uma string vazia remove a reação. /vote recebe { "options": ["<hash de 32 bytes em base64>"] }; são hashes das opções da enquete, não rótulos ou índices. /view envia confirmação de visualização. Essas três ações exigem o ID numérico positivo atribuído pelo servidor, obtido no histórico do canal.'
+          }
+        </p>
+        <p>
+          {
+            'Administração: POST na coleção com { name, description?, picture? } cria um canal (picture é um JPEG decodificável em base64, limitado a 256 KiB decodificados e 16 megapixels). PATCH /:jid aceita name, description, picture (null remove) e reactionCodesSetting. DELETE /:jid exclui permanentemente. GET /:jid/admin retorna informações e capacidades administrativas; /followers?count=50 retorna seguidores (sem cursor upstream); /pending-invites retorna JIDs de usuários.'
+          }
+        </p>
+        <p>
+          {
+            'POST /:jid/admins/invite, /:jid/admins/invite/revoke, /:jid/admins/demote e /:jid/owner recebem { "user": "111@lid" }; telefones e @handles passam pelo resolvedor existente de destinatários. Todos os alvos precisam resolver para JIDs de usuário PN/LID; grupos, broadcasts e canais retornam 400. POST /:jid/admins/invite/accept aceita para a conta atual. A transferência exige um administrador previamente convidado. O upstream aceita automaticamente os termos de criação/convite administrativo ao criar/aceitar.'
+          }
+        </p>
+        <p>
+          {
+            'Publicação: POST /:jid/messages chama client.newsletter.send. Use { "type": "text", "text": "Notícias" } ou type image/video/audio/document com mediaUrl, mediaBase64 ou arquivo multipart file, além de caption/mimetype/fileName/ptt conforme o tipo. PATCH /:jid/messages/:messageId edita com o mesmo corpo de texto/mídia; DELETE revoga. Esses IDs são os IDs de stanza retornados em id ao publicar, diferentes dos IDs numéricos de servidor de react/vote/view. O MIME é detectado no arquivo quando ausente; formatos não reconhecidos exigem mimetype explícito (400 caso contrário). A mídia temporária é removida após sucesso ou falha, inclusive quando a detecção de MIME falha.'
+          }
+        </p>
+        <p>
+          {
+            'newsletter.update e newsletter.message_update chegam a webhooks e SSE. Notificações contêm jid, action e detalhes escalares; objetos aninhados desconhecidos são omitidos e bigints viram strings decimais. Atualizações de mensagens contêm jid, serverId e o tipo edit/revoke/reaction/poll_vote/counters. Edições trazem conteúdo projetado; hashes de votos usam base64. Nenhum dos eventos expõe nós brutos, plaintext ou protobuf.'
+          }
+        </p>
+        <p>
+          {
+            'Área própria para canais: novas mensagens e threads de canais do mailbox ficam fora de app_messages/chats e do download de mídia de chats. Linhas já armazenadas são preservadas. Não há histórico/busca local de canais: consulte as rotas dedicadas do WhatsApp e renove as assinaturas temporárias ao vivo.'
+          }
+        </p>
+        <p>
+          Contrato completo: <a href="/guide/api/Newsletters">Newsletters API</a> ·{' '}
+          <a href="https://zapo.to/en/guides/newsletters">zapo-js</a>
         </p>
       </>
     ),

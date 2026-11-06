@@ -133,6 +133,7 @@ const API_TAGS = [
   'Status',
   'Business',
   'Realtime',
+  'Newsletters',
 ] as const
 
 function tItem(copy: NavCopy, id: string, fallback: string): string {
