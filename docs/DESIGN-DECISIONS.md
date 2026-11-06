@@ -37,6 +37,7 @@ Not affiliated with WhatsApp/Meta.
 | **WAM telemetry** (`@zapo-js/wam`, default on) | Wire parity with real WhatsApp Web analytics (`w:stats`) — better session fingerprint |
 | **Contract-first OpenAPI** | Scalar `/docs`, exportable `openapi.json`, guide SPA, GitHub Pages |
 | **Video on its own WS, drop-until-keyframe backpressure** | H.264 never blocks or shares the PCM socket; a lagging viewer drops to the next key frame — bounded memory, no stale video |
+| **Browser-owned call media** | No server media hop or codec/native media peers for remote calls; secret plans remain private to the instance control WS |
 
 ---
 
@@ -293,3 +294,14 @@ Metadata, directory results, followers, capabilities and publish results have ex
 
 
 Channel input contracts are also checked against the installed upstream coordinator in tests, with only its I/O replaced. Update reads require exactly one `before`/`after` cursor (a `since` timestamp alone is insufficient), and message pages reject ambiguous cursors. The SDK's missing lookup envelope maps to 404 only for channel metadata reads; unrelated errors propagate. Media without a MIME uses file detection, with 400 for unrecognized formats and cleanup even on failure. Inline pictures must be decodable JPEGs (≤256 KiB / 16 megapixels), and administrative targets must resolve to PN/LID users. The test fixture loads the installed coordinator internally; production continues to use public `client.newsletter` exclusively.
+
+
+## Remote VoIP media belongs with the person
+
+**Decision:** `VOIP_MEDIA_MODE=local|remote` defaults to local and is fixed for each instance's `WaClient`, because the plugin option cannot change per call. The environment currently supplies every instance; no generic update route exists, so persisted per-instance overrides are deferred. Operators finish calls and restart the process to recreate/reconnect clients safely.
+
+**Why:** a softphone user's mic, speakers and camera are in the browser. `WaCallMediaReceiver` + `webMediaHost` moves relay legs, SRTP, MLow, jitter and H.264 there. Audio/video no longer detour through this server, and remote calls do not require its native/media codec peers. Local bots keep their existing PCM/H.264 and file playback paths.
+
+**Transport and security:** use the existing authenticated, instance-scoped control WS. `call:media.message` and `call:media_event.event` carry upstream-encoded strings, preserving byte arrays and bigint; snapshots handle late joins/resync. Plans contain SRTP keys and relay credentials. The transport subscribes directly to that instance's upstream client: no realtime bus, webhook outbox, persistence, or logs, including failed host decoding. Only instance-key sockets receive it. Authorization is revalidated before every ordered plan delivery and host event, so rotating a key or deleting/recreating the same instance name revokes old sockets (4403). Queues are bounded. WSS is required in production. Tests cover isolation even when instances reuse a call id, codec round trips, resync and non-disclosure.
+
+**Trade-offs:** HTTPS/secure browser APIs and a live host are required. Browser hosts cannot provide `group/1` + `raw-udp`, so upstream reports a sanitized `call.error`. Server file playback, PCM/video sockets, recording, blast and STT are unavailable (409 / WS 4409). RED runs on the receiver, participant PCM remains local, and video subscriptions remain unsupported upstream. Gesture-bound audio opens before awaiting permission/codec, the plan listener is attached first, decoded VideoFrames are closed, reusable buffers are consumed synchronously, and stop statistics are shown without exposing plans.

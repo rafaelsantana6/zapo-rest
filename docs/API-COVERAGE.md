@@ -139,3 +139,13 @@ Legend: ✅ implemented · 🟡 partial · ❌ not yet
 | Text/image/video/audio/document publishing, edit, revoke | ✅ `POST /:jid/messages`, `PATCH/DELETE /:jid/messages/:messageId`; URL/base64/multipart; detect absent MIME or return 400 for unknown formats |
 | Channel events | ✅ `newsletter.update`, `newsletter.message_update` via webhook/SSE; no raw protobuf |
 | Local channel projections / stored channel media | N/A — deliberately excluded; read from WhatsApp directly |
+
+VoIP errors and queued playback completion: ✅ `call.error` / `call.audio_finished` (webhook/SSE), `call:error` / `call:audio_finished` (control WS). Errors carry `call: null` because upstream drops call identity; public errors exclude private messages, keys and stacks.
+
+VoIP file playback: ✅ `POST /v1/calls/:callId/audio` (`loadAudio`), URL/base64/multipart via capped media helpers, ffmpeg required (503), selects file playback and removes temporary files after decoding.
+
+MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.
+
+Per-participant PCM (local only): `VOIP_PARTICIPANT_AUDIO=false` by default. Opt in via `/v1/calls/:callId/stream?participants=1`: every server frame gains a 4-byte header (`u8 version=1`, `u8 reserved=0`, `u16 BE streamId`), then f32le PCM. Mix id 0; participant ids announced with JSON `stream` (`participantJid`) and retired with `stream_end`. Client frames stay raw PCM. Without the flag, protocol unchanged. Disabled opt-in: close 4409. No PCM on SSE/webhooks; no separate participant recordings.
+
+Remote call media: ✅ `VOIP_MEDIA_MODE=local|remote` (default local, fixed per instance client; restart after changes). `mediaMode` in instance/call reads; private WS `call:media` / `call:media_event` with upstream wire strings, snapshots on late join/resync, direct browser MLow/SRTP/H.264 and stop stats. Secret plans bypass bus/webhooks/logs/persistence. Local-only file/PCM/video/recording/blast/STT → 409 / WS 4409 in remote mode. Browser group host → `call.error` (`REMOTE_GROUP_UNSUPPORTED`, needs group/1 + raw-udp). Deferred: persisted per-instance mode override, start-call audioFile/audioUrl, participant recordings. Upstream unsupported: `setVideoSubscriptions`.

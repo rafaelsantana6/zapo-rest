@@ -53,6 +53,8 @@ You do **not** need to open another file to see why this stack is shaped this wa
 
 **At a glance**
 
+- **Browser-owned call media** — remote mode removes the server media hop and codec/native peer requirement for those calls; private plans stay on the instance control WS.
+
 - **Cheaper media** — CAS dedup (SHA-256 per instance); forwards/stickers do not multiply objects
 - **Recoverable media** — missing object re-downloads from WhatsApp; an expired CDN blob (404/410) asks the sender to re-upload once
 - **Reliable webhooks** — persist chat first, outbox + retries, HMAC, no double-fire on redelivery
@@ -86,6 +88,7 @@ You do **not** need to open another file to see why this stack is shaped this wa
 | **Chat settings projected from app-state** | Pin/mute/lock match phone changes; timed mute reads expire without a new event. Durable cutoffs/settings survive mailbox imports; clear/delete preserve newer messages and empty cleared chats stay listed. |
 | **Dedicated channel routes and events** | Channel traffic does not create hidden chat projections or trigger chat media downloads. Read history directly from WhatsApp; renew live updates using `durationSeconds`. |
 | **Video on a dedicated WS, drop-until-keyframe backpressure** | `.../calls/:callId/video` never blocks or slows the PCM stream; when a viewer lags, frames are dropped until the next key frame — bounded memory, no stale video. |
+| **Browser-owned call media** (`VOIP_MEDIA_MODE=remote`) | No server audio/video hop or media peers for those calls. SRTP/relay plans go only to authenticated sockets of that instance, outside SSE/webhooks/logs. Authorization is revalidated on every ordered plan/host event; revoked keys close with 4403. |
 
 ---
 
@@ -325,6 +328,16 @@ const res = await fetch(`${BASE}/v1/events?instance=sales-1`, {
 
 In-call hand raise (`POST .../calls/:callId/hand`, WS `call:hand`) and emoji reactions (`POST .../calls/:callId/reaction`, WS `call:reaction`) round-trip to the peer as `call.peer_mute`, `call.hand_raise`, and `call.reaction` (webhook + WS). The call snapshot adds `peerAudioMuted`, `handRaised`, and `raisedHands`.
 
+`POST /v1/calls/:callId/audio` plays `mediaUrl` / `mediaBase64` / multipart `file` (cap: `MEDIA_UPLOAD_MAX_BYTES`, ffmpeg required; 503 if missing). Stop the microphone PCM stream first: loading disables external mode before decoding (the upstream transition clears its buffer); on failure, reopen `/stream` to resume live audio; reopening `/stream` selects live audio. Temporary files are removed after decoding.
+
+Browser media: `VOIP_MEDIA_MODE=local|remote` (default `local`) is fixed per instance client. Finish calls and restart the server after changing it; no persisted per-instance override in this release. Instance reads/call snapshots expose `mediaMode`. In remote mode the softphone opens mic/speaker from the dial/answer click, uses `WaCallMediaReceiver` + `webMediaHost` + browser audio/video adapters, and sends media directly to WhatsApp relays. HTTPS/localhost and WSS in production are required. Server `@roamhq/wrtc`/`libmlow-wasm-fork` are unnecessary for these calls (still installed for local mode).
+
+Private `/v1/voip` ops: server `{ op: "call:media", callId, message }`, host `{ op: "call:media_event", id, callId, event }`; `message`/`event` are **strings from upstream encode/decode functions**, preserving bytes/bigint. Late joins/resync receive `media.snapshot(callId)`. Plans carry SRTP keys/relay credentials: never log/persist/broadcast through SSE or webhooks. Dial/answer waits for authenticated `ready`; mute and the selected microphone are applied before capture. Device changes preserve ownership, serialize output changes and surface failures; rejected accepts and late camera/screen acquisitions release their resources. Host `relay_lost` goes to upstream; `receiver.stop()` stats go to the softphone console and summary line. Close every decoded `VideoFrame`; copy reusable buffers before retaining them.
+
+Remote limits: server loadAudio, audio blast, recording and transcription → **409** naming remote mode; PCM `/stream` and H.264 `/video` → **4409**. Reactions belong on the browser receiver (`plane.sendReaction`). Browser **group calls are unsupported** (`group/1` + `raw-udp` required), reported via `call.error` / `call:error` (`REMOTE_GROUP_UNSUPPORTED`). `setVideoSubscriptions` is unsupported upstream. `VOIP_MLOW_RED` moves to the browser receiver; `VOIP_PARTICIPANT_AUDIO` stays local only. Optional start-call audioFile/audioUrl and participant recordings are not implemented.
+
+Call errors and playback completion: webhook/SSE `call.error` / `call.audio_finished`, control WS `call:error` / `call:audio_finished`. Errors have `call: null` (upstream omits identity) and a sanitized public message/code; playback completion includes the call snapshot.
+
 Video: `isVideo: true` on 1:1 and group calls; an audio call upgrades with `POST .../calls/:callId/video/upgrade` (the peer's own request arrives as `call.video_state` with `upgradeRequested: true`), a group camera toggles with `.../video`, and `.../screen-share` swaps the camera for the screen. Frames ride `.../calls/:callId/video`, one `streamId` per sender (`stream_end` when it leaves). Control WS: `call:video_upgrade`, `call:video_upgrade_accept|reject|cancel`, `call:video`, `call:screen_share`. Events: `call.video_state`, `call.video_upgraded`, `call.screen_share` (WS `call:screen_share_changed`). `mediaType` reads `video` once a 1:1 call upgraded. The dashboard softphone tests and switches the camera and shares the screen.
 
 Group calls: `POST .../calls` with `groupId` + `participants` (resolved to LIDs; `400` with `details.missing` otherwise) instead of `to`. `POST .../calls/:callId/leave` (WS `call:leave`), `.../join` (WS `call:join`) and `.../participants/mute` (WS `call:mute_participant`). Roster and media changes arrive as `call.participants_changed`, `call.mute_requested`, and `call.participant_media`; the snapshot adds `isGroup`, `groupJid`, and `participants`.
@@ -487,6 +500,7 @@ GET /v1/events?instance=optional
 X-Api-Key: …
 
 # VoIP remains WebSocket
+# POST /v1/calls/:id/audio  (mediaUrl / mediaBase64 / multipart file; ffmpeg)
 # /v1/voip · /v1/calls/:id/stream  (instance key; ?apiKey= for browsers)
 # /v1/calls/:id/video — H.264, one stream id per sender; also on audio calls (they can upgrade)
 # POST /v1/instances/:name/calls/blast
@@ -692,3 +706,7 @@ The WhatsApp protocol implementation is provided by **zapo-js** under its own MI
 ## Disclaimer
 
 Use this software in accordance with WhatsApp’s terms and applicable law. You are solely responsible for how you operate instances, store messages, and contact end users. The authors provide the software “as is”, without warranty.
+
+MLow RED: `VOIP_MLOW_RED=false` (opt-in). Local media sends previous-frame redundancy for loss recovery; DTX is disabled and bandwidth increases. Remote receivers must enable it on the host. Harness comparison: `CALL_HARNESS_MLOW_RED=false|true pnpm test:call-quality`.
+
+Per-participant PCM (local only): `VOIP_PARTICIPANT_AUDIO=false` by default. Opt in via `/v1/calls/:callId/stream?participants=1`: every server frame gains a 4-byte header (`u8 version=1`, `u8 reserved=0`, `u16 BE streamId`), then f32le PCM. Mix id 0; participant ids announced with JSON `stream` (`participantJid`) and retired with `stream_end`. Client frames stay raw PCM. Without the flag, protocol unchanged. Disabled opt-in: close 4409. No PCM on SSE/webhooks; no separate participant recordings.

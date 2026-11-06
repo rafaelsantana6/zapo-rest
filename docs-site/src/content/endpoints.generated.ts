@@ -815,7 +815,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     path: '/v1/calls',
     summary: 'Start outbound voice or video call',
     description:
-      'Places a WhatsApp call (`client.voip.startCall`). Audio by default; `isVideo: true` negotiates H.264 video too (frames over `.../calls/:callId/video`).\n\n**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as `call.participants_changed`.\n\nReturns `callId` immediately after the offer is sent. Progress continues via webhooks `call.state` / `call.ended` and the live PCM WebSocket.\n\n**No file / audioUrl playback** — open the stream and send live mic PCM.\n\n**Example body**\n```json\n{\n  "to": "5511888888888",\n  "isVideo": false\n}\n```\n\n```bash\ncurl -s -X POST "$BASE/v1/calls" \\\n  -H "X-Api-Key: $KEY" -H "content-type: application/json" \\\n  -d \'{"to":"5511888888888","isVideo":false}\'\n```',
+      'Places a WhatsApp call (`client.voip.startCall`). Audio by default; `isVideo: true` negotiates H.264 video too (frames over `.../calls/:callId/video`).\n\n**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as `call.participants_changed`.\n\nReturns `callId` immediately after the offer is sent. Progress continues via webhooks `call.state` / `call.ended` and the live PCM WebSocket.\n\nLocal media: use `/stream` for PCM or `POST /calls/:callId/audio` for a file. Remote media: use the browser host over `/v1/voip`.\n\n**Example body**\n```json\n{\n  "to": "5511888888888",\n  "isVideo": false\n}\n```\n\n```bash\ncurl -s -X POST "$BASE/v1/calls" \\\n  -H "X-Api-Key: $KEY" -H "content-type: application/json" \\\n  -d \'{"to":"5511888888888","isVideo":false}\'\n```',
     tags: ['Calls'],
     security: true,
     params: [],
@@ -856,12 +856,12 @@ export const ENDPOINTS: EndpointDoc[] = [
     path: '/v1/settings/call-recording',
     summary: 'Enable/disable call recording',
     description:
-      'Requires media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote) stored in object storage.',
+      'Requires local media mode (remote mode returns 409) and media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote leg) stored in object storage.',
     tags: ['Calls'],
     security: true,
     params: [],
     bodyExample: null,
-    responses: ['200'],
+    responses: ['409'],
   },
   {
     id: 'get-_v1_calls_callId',
@@ -941,6 +941,19 @@ export const ENDPOINTS: EndpointDoc[] = [
     params: ['callId'],
     bodyExample: null,
     responses: ['404'],
+  },
+  {
+    id: 'post-_v1_calls_callId_audio',
+    method: 'POST',
+    path: '/v1/calls/{callId}/audio',
+    summary: 'Play an audio file into a live call',
+    description:
+      'Accepts mediaUrl / mediaBase64 or multipart file (same inputs as message media). Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode before decoding (also on decode failure); stop the softphone microphone stream first. Opening /stream again switches back to external audio. Returns once decoded and queued, not when playback ends (call.audio_finished). Temporary files are removed after decoding or on error. Remote media mode returns 409 before multipart parsing/download.',
+    tags: ['Calls'],
+    security: true,
+    params: ['callId'],
+    bodyExample: null,
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_calls_callId_hand',
@@ -1126,7 +1139,7 @@ export const ENDPOINTS: EndpointDoc[] = [
       transcribe: true,
       sttLanguage: 'pt',
     },
-    responses: ['200', '400', '401', '403', '404', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_calls_callId_transcribe',
@@ -1139,7 +1152,7 @@ export const ENDPOINTS: EndpointDoc[] = [
     security: true,
     params: ['callId'],
     bodyExample: null,
-    responses: ['200', '400', '401', '403', '404', '503'],
+    responses: ['200', '400', '401', '403', '404', '409', '503'],
   },
   {
     id: 'post-_v1_chats_chatId_pin',

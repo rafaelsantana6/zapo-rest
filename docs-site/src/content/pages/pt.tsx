@@ -221,6 +221,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               'Área própria para canais: novas mensagens e threads de canais do mailbox ficam fora de app_messages/chats e do download de mídia de chats. Linhas já armazenadas são preservadas. Não há histórico/busca local de canais: consulte as rotas dedicadas do WhatsApp e renove as assinaturas temporárias ao vivo.'
             }
           </li>
+          <li>
+            <strong>Mídia da chamada no navegador</strong> — O modo remoto elimina o salto de mídia pelo servidor e os
+            codecs/peers nativos nessas chamadas; planos privados ficam no WS da instância.
+          </li>
         </ul>
 
         <h2 id="table">Decisão → benefício</h2>
@@ -338,6 +342,13 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 O tráfego de canais evita projeções ocultas e armazenamento de mídia de chats; o histórico é lido
                 diretamente do WhatsApp.
+              </td>
+            </tr>
+            <tr>
+              <td>Mídia da chamada no navegador</td>
+              <td>
+                O modo remoto elimina o salto de mídia pelo servidor e os codecs/peers nativos nessas chamadas; planos
+                privados ficam no WS da instância. Chaves revogadas deixam de receber planos (revalidação por entrega).
               </td>
             </tr>
           </tbody>
@@ -1611,7 +1622,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
             <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
             <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
             <code>call.participant_media</code>, <code>call.video_state</code>, <code>call.video_upgraded</code>,{' '}
-            <code>call.screen_share</code>
+            <code>call.screen_share</code>, <code>call.error</code>, <code>call.audio_finished</code>
           </li>
         </ul>
 
@@ -1685,6 +1696,103 @@ const dec = new TextDecoder
     description: 'Sinalização JSON, PCM 16 kHz, gravação, audio blast e STT.',
     body: (
       <>
+        <h2 id="browser-media">Mídia no navegador</h2>
+        <p>
+          <code>VOIP_MEDIA_MODE=local|remote</code> tem padrão local. A opção é fixa por cliente da instância, não por
+          chamada. Altere o ambiente e reinicie o servidor para recriar/reconectar as instâncias; termine as chamadas
+          antes. Esta versão não inclui override persistido por instância (não existe rota genérica de atualização). A
+          leitura da instância e os snapshots de chamadas expõem <code>mediaMode</code>.
+        </p>
+        <p>
+          No modo remoto, o dashboard abre microfone e saída no clique de ligar/atender com <code>WaWebCallAudio</code>{' '}
+          e executa <code>WaCallMediaReceiver</code> com <code>webMediaHost</code>. O listener é registrado antes do
+          primeiro await. O navegador conecta diretamente aos relays do WhatsApp: áudio/vídeo não atravessam o servidor,
+          que não precisa de <code>@roamhq/wrtc</code> nem <code>libmlow-wasm-fork</code> para essas chamadas. O modo
+          local mantém PCM/H.264. Use HTTPS (localhost no desenvolvimento) e WSS em produção.
+        </p>
+        <p>
+          WS privado servidor → host:{' '}
+          <code>{'{ op: "call:media", callId, message: "string codificada upstream" }'}</code>. Host → servidor:{' '}
+          <code>{'{ op: "call:media_event", id, callId, event: "string codificada upstream" }'}</code>. Use{' '}
+          <code>encodeCallMediaMessage</code>/<code>decodeCallMediaMessage</code> e <code>encodeCallMediaEvent</code>/
+          <code>decodeCallMediaEvent</code> para preservar bytes e bigint. O servidor envia{' '}
+          <code>media.snapshot(callId)</code> na conexão tardia e no resync. Só sockets autenticados com a chave da
+          própria instância recebem planos. Eles contêm chaves SRTP e credenciais dos relays: nunca registrar em log,
+          persistir ou enviar por SSE/webhooks. Payloads de host e erros do decoder não são logados.
+        </p>
+        <p>
+          O receiver encaminha <code>host</code>, <code>active</code>, <code>relay_answered</code>,{' '}
+          <code>relay_lost</code>, reações e <code>sender_media</code> à sinalização; o upstream decide o encerramento
+          após perder relays. Vídeo usa <code>WaWebCallVideoReceiver</code>/<code>WaWebCallVideoSender</code>; feche
+          cada <code>VideoFrame</code>. Copie buffers reutilizáveis de PCM/H.264 antes de guardá-los. Ao desligar,{' '}
+          <code>receiver.stop()</code> retorna <code>WaCallMediaStats</code>: o softphone registra apenas essas
+          estatísticas e exibe um resumo. Áudio remoto usa cancelamento de eco/AGC do navegador; preferências de
+          processamento local não se aplicam.
+        </p>
+        <p>
+          A autorização é revalidada, em ordem, antes de cada plano e evento de host; revogar a chave ou excluir/recriar
+          a instância fecha o socket antigo com 4403. A abertura de chamadas aguarda o ready autenticado antes de
+          habilitar o clique. Mute e microfone selecionado são preservados, trocas de saída são serializadas e erros
+          aparecem no softphone. Cancelamentos e falhas de aceite liberam apenas os recursos da tentativa
+          correspondente, inclusive capturas que terminam de abrir depois.
+        </p>
+        <h3>Limites remotos</h3>
+        <ul>
+          <li>
+            <code>loadAudio</code>, audio blast, gravação e transcrição no servidor retornam 409 citando o modo remoto.
+            PCM <code>/stream</code> e H.264 <code>/video</code> fecham com 4409. Capture e reproduza no host; reações
+            no servidor são indisponíveis (use <code>receiver.plane.sendReaction</code>).
+          </li>
+          <li>
+            Navegadores não hospedam chamadas em grupo: o upstream exige <code>group/1</code> e <code>raw-udp</code>.{' '}
+            <code>voip_call_error</code> chega como webhook/SSE <code>call.error</code> e WS <code>call:error</code>,
+            código <code>REMOTE_GROUP_UNSUPPORTED</code>. Não há fallback UDP inventado no gateway.
+          </li>
+          <li>
+            <code>VOIP_MLOW_RED=false</code> é aplicado ao receiver do navegador no modo remoto (ao plugin no local).
+            RED desativa DTX e aumenta a banda para recuperar perdas. <code>VOIP_PARTICIPANT_AUDIO=false</code> continua
+            exclusivo do modo local.
+          </li>
+          <li>
+            <code>setVideoSubscriptions</code> não é suportado: o upstream ainda não o envia ao relay. Não há variante
+            audioFile/audioUrl na abertura da chamada nem gravações separadas por participante.
+          </li>
+        </ul>
+        <h2 id="participant-audio">Áudio por participante</h2>
+        <p>
+          Ative <code>VOIP_PARTICIPANT_AUDIO=true</code> (padrão false, somente local; copia cada quadro). Conecte em{' '}
+          <code>/v1/calls/:callId/stream?participants=1</code>: cada quadro binário do servidor ganha cabeçalho de 4
+          bytes (versão 1, reservado 0, id uint16 BE), seguido de PCM f32le mono 16 kHz. Id 0 é a mixagem; outros ids
+          são anunciados por JSON <code>stream</code> com <code>participantJid</code> e encerrados por{' '}
+          <code>stream_end</code>, sem reutilização. Quadros do cliente continuam PCM bruto. Sem o parâmetro, os bytes
+          não mudam. Opt-in desativado fecha com 4409. PCM nunca vai para webhooks/SSE; gravações separadas não
+          implementadas.
+        </p>
+        <h2 id="mlow-red">Redundância MLow</h2>
+        <p>
+          <code>VOIP_MLOW_RED=false</code> vem desativado. Ative no modo local para enviar uma cópia de baixa taxa do
+          quadro anterior: melhora a recuperação sob perda, desativa DTX e aumenta o consumo de banda. Hosts remotos
+          precisam ativar RED no receiver.
+        </p>
+        <h2 id="load-audio">Reproduzir um arquivo de áudio</h2>
+        <p>
+          <code>POST /v1/calls/:callId/audio</code> aceita <code>mediaUrl</code>, <code>mediaBase64</code> (JSON) ou{' '}
+          <code>file</code> multipart, limitado por <code>MEDIA_UPLOAD_MAX_BYTES</code>. Exige ffmpeg no PATH (503 se
+          ausente). O arquivo é apagado após decodificação ou erro. Desativa o áudio externo nessa chamada; pare o
+          stream PCM do microfone antes. Reabrir o stream volta ao áudio ao vivo. A resposta indica áudio carregado;{' '}
+          <code>call.audio_finished</code> indica o fim da reprodução.
+        </p>
+        <p>
+          O modo externo é desativado antes da decodificação porque a transição apaga o buffer upstream; em erro, reabra
+          o stream PCM para retomá-lo.
+        </p>
+        <h2 id="call-errors">Falhas e conclusão do áudio</h2>
+        <p>
+          Os eventos webhook/SSE <code>call.error</code> e <code>call.audio_finished</code> chegam no WS de controle
+          como <code>call:error</code> e <code>call:audio_finished</code>, com <code>{'{ call, error? }'}</code>. Erros
+          upstream não identificam a chamada: <code>call</code> é null e mensagem/código são sanitizados, sem stack ou
+          credenciais. A conclusão inclui o snapshot da chamada e indica o fim da reprodução do áudio carregado.
+        </p>
         <h2 id="control">Control plane — /v1/voip</h2>
         <CodeBlock
           language="json"

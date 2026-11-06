@@ -5,6 +5,7 @@ import { wamPlugin } from '@zapo-js/wam'
 import type { Pool } from 'pg'
 import { createPinoLogger, createStore, type Logger, WaClient, type WaClientOptions, type WaStore } from 'zapo-js'
 import type { Env } from '~/config/env'
+import { setClientMediaMode } from '~/voip/media-mode'
 import { getLogger } from '~/lib/logger'
 
 /** All domains used by createPostgresStore + caches — warm once at boot to avoid concurrent CREATE TABLE races. */
@@ -139,7 +140,12 @@ export function createWaClient(
       groupBundles: env.HISTORY_GROUP_BUNDLES,
     },
     plugins: [
-      voipPlugin({ maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS }),
+      voipPlugin({
+        maxConcurrentCalls: env.VOIP_MAX_CONCURRENT_CALLS,
+        media: { mode: env.VOIP_MEDIA_MODE },
+        participantAudio: env.VOIP_MEDIA_MODE === 'local' && env.VOIP_PARTICIPANT_AUDIO,
+        mlowRed: env.VOIP_MEDIA_MODE === 'local' && env.VOIP_MLOW_RED,
+      }),
       // WAM = WA Web client-side analytics (`w:stats`). Default on for wire parity.
       ...(env.WAM_ENABLED ? [wamPlugin()] : []),
     ],
@@ -171,5 +177,7 @@ export function createWaClient(
       : {}),
   }
 
-  return new WaClient(options, runtime.logger)
+  const client = new WaClient(options, runtime.logger)
+  setClientMediaMode(client, env.VOIP_MEDIA_MODE)
+  return client
 }

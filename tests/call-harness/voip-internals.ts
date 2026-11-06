@@ -36,6 +36,13 @@ export type SrtpSessionLike = {
 export type MLowCodecLike = {
   encode(pcm: Float32Array): Uint8Array
   decode(frame: Uint8Array | null): Float32Array
+  decodeSequenced(
+    seq: number,
+    packet: Uint8Array,
+    onFrame: (pcm: Float32Array) => void,
+    timestamp?: number,
+    stream?: 0 | 1,
+  ): string
   getFrameSize(): number
   destroy(): void
 }

@@ -1,4 +1,6 @@
 import { serializeNewsletterEvent, serializeNewsletterMessageUpdate } from '~/newsletters/serialize'
+
+import { setCallMediaMode } from '~/voip/media-mode'
 import type { Pool } from 'pg'
 import type { WaAuthCredentials, WaClient, WaConnectionEvent, WaIncomingMessageEvent } from 'zapo-js'
 import type { Env } from '~/config/env'
@@ -199,7 +201,7 @@ export class InstanceManager {
     }
 
     const avatarUrl = await this.resolveOwnAvatarUrl(row.name, meJid, client)
-    return toPublicInstance(row, { pushName, avatarUrl })
+    return toPublicInstance(row, { pushName, avatarUrl, mediaMode: this.opts.env.VOIP_MEDIA_MODE })
   }
 
   /**
@@ -305,7 +307,7 @@ export class InstanceManager {
 
     const row = await this.opts.repo.create(input)
     this.log.info({ name: row.name }, 'instance created')
-    return toPublicInstance(row, { avatarUrl: null })
+    return toPublicInstance(row, { avatarUrl: null, mediaMode: this.opts.env.VOIP_MEDIA_MODE })
   }
 
   /**
@@ -627,15 +629,42 @@ export class InstanceManager {
     const onVoip = client.on.bind(client) as (event: string, fn: (payload: any) => void) => void
 
     onVoip('voip_call_incoming', (call) => {
+      setCallMediaMode(call, this.opts.env.VOIP_MEDIA_MODE)
       runSafe('voip_call_incoming', () => this.onVoipIncoming(name, call))
     })
 
     onVoip('voip_call_state', (call) => {
+      setCallMediaMode(call, this.opts.env.VOIP_MEDIA_MODE)
       runSafe('voip_call_state', () => this.onVoipState(name, call))
     })
 
     onVoip('voip_call_ended', (call) => {
+      setCallMediaMode(call, this.opts.env.VOIP_MEDIA_MODE)
       runSafe('voip_call_ended', () => this.onVoipEnded(name, call))
+    })
+
+    onVoip('voip_call_error', (error: Error) => {
+      // Upstream drops the call context. Never expose arbitrary messages or stacks:
+      // a media-host failure can carry credentials from its private plan.
+      runSafe('voip_call_error', async () => {
+        const row = await this.getRecord(name)
+        const unsupportedGroup =
+          /^the media host lacks (group\/1|raw-udp|group\/1, raw-udp), which a group call needs$/.test(error.message)
+        if (row)
+          await this.opts.webhooks.emit(row, 'call.error', {
+            call: null,
+            error: {
+              message: unsupportedGroup
+                ? 'Group calls in remote media mode require group/1 and raw-udp; browser hosts are unsupported.'
+                : 'Call media or signaling failed; verify the media host capabilities and connection.',
+              code: unsupportedGroup ? 'REMOTE_GROUP_UNSUPPORTED' : 'VOIP_CALL_ERROR',
+            },
+          })
+      })
+    })
+
+    onVoip('voip_call_outbound_audio_finished', (call) => {
+      runSafe('voip_call_outbound_audio_finished', () => this.onVoipInteraction(name, 'call.audio_finished', call, {}))
     })
 
     // Peer-side interactions (voip 1.2): data = { call, ...detail }

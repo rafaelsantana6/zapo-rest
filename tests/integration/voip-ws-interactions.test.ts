@@ -99,4 +99,17 @@ describe('VoIP control WS: hand + reaction', () => {
     ws.send(JSON.stringify({ op: 'call:join', id: 'j1', callId: 'GONE' }))
     expect(await next((f) => f.id === 'j1')).toMatchObject({ ok: false, code: 'CALL_FAILED' })
   })
+  it.each([
+    ['call.error', 'call:error'],
+    ['call.audio_finished', 'call:audio_finished'],
+  ])('forwards %s on the instance control socket', async (event, op) => {
+    realtimeBus.emitInstance({
+      instance: INSTANCE,
+      event,
+      eventId: event,
+      timestamp: new Date().toISOString(),
+      data: { call: null, error: { message: 'Call failed', code: 'VOIP_CALL_ERROR' } },
+    })
+    expect(await next((f) => f.eventId === event)).toMatchObject({ op, call: null })
+  })
 })

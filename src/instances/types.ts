@@ -46,6 +46,7 @@ export type PublicInstance = {
   pairPhone: string | null
   lastQr: string | null
   lastQrAt: string | null
+  mediaMode: 'local' | 'remote'
   callRecordingEnabled: boolean
   createdAt: string
   updatedAt: string
@@ -53,7 +54,7 @@ export type PublicInstance = {
 
 export function toPublicInstance(
   row: InstanceRecord,
-  extras?: { avatarUrl?: string | null; pushName?: string | null; apiKey?: string },
+  extras?: { mediaMode?: 'local' | 'remote'; avatarUrl?: string | null; pushName?: string | null; apiKey?: string },
 ): PublicInstance {
   const pushName = extras?.pushName !== undefined ? extras.pushName : (row.pushName ?? null)
   const apiKey = extras?.apiKey ?? row.apiKey
@@ -72,7 +73,8 @@ export function toPublicInstance(
     pairPhone: row.pairPhone,
     lastQr: row.lastQr,
     lastQrAt: row.lastQrAt?.toISOString() ?? null,
-    callRecordingEnabled: Boolean(row.config?.callRecordingEnabled),
+    mediaMode: extras?.mediaMode ?? 'local',
+    callRecordingEnabled: (extras?.mediaMode ?? 'local') === 'local' && Boolean(row.config?.callRecordingEnabled),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

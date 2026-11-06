@@ -215,6 +215,10 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               'Separate channel surface: new channel messages and mailbox channel threads are excluded from app_messages/chats and chat media downloads. Existing stored rows are retained. There is no local channel history/search: use the dedicated WhatsApp reads and renew temporary live subscriptions.'
             }
           </li>
+          <li>
+            <strong>Browser-owned call media</strong> — Remote mode removes the server media hop and codec/native peer
+            requirement for those calls; private plans stay on the instance control WS.
+          </li>
         </ul>
 
         <h2 id="table">Decision → benefit</h2>
@@ -326,6 +330,14 @@ export const GUIDE_PAGES: Record<string, GuidePage> = {
               <td>
                 Channel traffic avoids hidden chat projections and chat media storage; history is read from WhatsApp
                 directly.
+              </td>
+            </tr>
+            <tr>
+              <td>Browser-owned call media</td>
+              <td>
+                Remote mode removes the server media hop and codec/native peer requirement for those calls; private
+                plans stay on the instance control WS. Revoked keys stop receiving plans (authorization on every
+                delivery).
               </td>
             </tr>
           </tbody>
@@ -1592,7 +1604,7 @@ DELETE /v1/chats/:chatId/messages/:messageId/for-me?deleteMedia=true`}
             <code>call.peer_mute</code>, <code>call.hand_raise</code>, <code>call.reaction</code>,{' '}
             <code>call.participants_changed</code>, <code>call.mute_requested</code>,{' '}
             <code>call.participant_media</code>, <code>call.video_state</code>, <code>call.video_upgraded</code>,{' '}
-            <code>call.screen_share</code>
+            <code>call.screen_share</code>, <code>call.error</code>, <code>call.audio_finished</code>
           </li>
         </ul>
 
@@ -1664,6 +1676,104 @@ const dec = new TextDecoder
     description: 'JSON signaling, 16 kHz PCM, recording, audio blast and STT.',
     body: (
       <>
+        <h2 id="browser-media">Media in the browser</h2>
+        <p>
+          <code>VOIP_MEDIA_MODE=local|remote</code> defaults to local. It is fixed per instance client, not per call.
+          Change the environment and restart the server to recreate/reconnect all instances; finish live calls first.
+          This release has no persisted per-instance override (there is no generic instance update route). Instance
+          reads and live call snapshots expose <code>mediaMode</code>.
+        </p>
+        <p>
+          In remote mode the dashboard opens the microphone and speaker inside the dial/answer click with{' '}
+          <code>WaWebCallAudio</code>, then runs <code>WaCallMediaReceiver</code> with <code>webMediaHost</code>. The
+          listener is attached before the first await. The browser connects directly to WhatsApp relays: no audio/video
+          traverses this server, and those calls need neither server media peer (<code>@roamhq/wrtc</code> or{' '}
+          <code>libmlow-wasm-fork</code>). Local mode keeps its PCM/H.264 paths. Use HTTPS (localhost for development)
+          and WSS in production.
+        </p>
+        <p>
+          Private control WS server → host:{' '}
+          <code>{'{ op: "call:media", callId, message: "encoded upstream string" }'}</code>. Host → server:{' '}
+          <code>{'{ op: "call:media_event", id, callId, event: "encoded upstream string" }'}</code>. Encode/decode with{' '}
+          <code>encodeCallMediaMessage</code>/<code>decodeCallMediaMessage</code> and <code>encodeCallMediaEvent</code>/
+          <code>decodeCallMediaEvent</code>; bytes and bigint are tagged by upstream. The server sends{' '}
+          <code>media.snapshot(callId)</code> on late attach and resync. Only sockets authenticated with that instance
+          key receive its plans. Plans contain SRTP keys/relay credentials: never log, persist, or send them through
+          SSE/webhooks. The server does not log host payloads or decoder exceptions.
+        </p>
+        <p>
+          The receiver forwards <code>host</code>, <code>active</code>, <code>relay_answered</code>,{' '}
+          <code>relay_lost</code>, reactions and <code>sender_media</code> to signaling. Upstream decides how relay loss
+          ends the call. Video uses <code>WaWebCallVideoReceiver</code>/<code>WaWebCallVideoSender</code>; close every
+          decoded <code>VideoFrame</code>. Reusable PCM/H.264 buffers must be copied before retaining them. On hangup,{' '}
+          <code>receiver.stop()</code> returns <code>WaCallMediaStats</code>; the softphone logs only these stats and
+          shows a small summary. The remote path uses browser echo cancellation/AGC; local processing preferences do not
+          apply.
+        </p>
+        <p>
+          Authorization is revalidated in order before every plan and host event; rotating the key or
+          deleting/recreating the instance closes the old socket with 4403. Dialing waits for authenticated ready before
+          enabling the click. Initial mute and the selected microphone are preserved, output switches are serialized and
+          errors appear in the softphone. Cancellation and rejected accepts release only their own attempt resources,
+          including captures acquired after cancellation.
+        </p>
+        <h3>Remote limits</h3>
+        <ul>
+          <li>
+            Server <code>loadAudio</code>, audio blast, call recording and transcription return 409 naming remote mode.
+            PCM <code>/stream</code> and H.264 <code>/video</code> close with 4409. Capture and playback belong on the
+            media host; server reactions are unavailable (use <code>receiver.plane.sendReaction</code>).
+          </li>
+          <li>
+            A browser cannot host group calls: upstream requires <code>group/1</code> and <code>raw-udp</code>. Its{' '}
+            <code>voip_call_error</code> reaches webhook/SSE <code>call.error</code> and WS <code>call:error</code> with
+            code <code>REMOTE_GROUP_UNSUPPORTED</code>. No UDP relay fallback is invented here.
+          </li>
+          <li>
+            <code>VOIP_MLOW_RED=false</code> is applied to the browser receiver in remote mode (local plugin otherwise).
+            RED disables DTX and increases bandwidth for better loss recovery. <code>VOIP_PARTICIPANT_AUDIO=false</code>{' '}
+            remains local only.
+          </li>
+          <li>
+            <code>setVideoSubscriptions</code> is unsupported: upstream does not send it to the relay yet. There is no
+            start-call audioFile/audioUrl convenience variant and no separate participant recordings.
+          </li>
+        </ul>
+        <h2 id="participant-audio">Per-participant audio</h2>
+        <p>
+          Enable <code>VOIP_PARTICIPANT_AUDIO=true</code> (default false, local media only; copies every frame). Connect
+          to <code>/v1/calls/:callId/stream?participants=1</code>: server binary frames gain a 4-byte header (version 1,
+          reserved 0, uint16 BE stream id) followed by mono 16 kHz f32le PCM. Id 0 is the mix; other ids are announced
+          by JSON <code>stream</code> with <code>participantJid</code>, retired by <code>stream_end</code> and never
+          reused. Client frames stay raw PCM. Without the flag, bytes are unchanged. Disabled opt-in closes with 4409.
+          PCM never reaches webhooks/SSE; separate recordings are not implemented.
+        </p>
+        <h2 id="mlow-red">MLow redundancy</h2>
+        <p>
+          <code>VOIP_MLOW_RED=false</code> defaults off. Enable it for local media to send a low-rate copy of the
+          previous frame: better recovery under packet loss, with DTX off and higher bandwidth. Remote hosts must enable
+          RED on their receiver.
+        </p>
+        <h2 id="load-audio">Play an audio file</h2>
+        <p>
+          <code>POST /v1/calls/:callId/audio</code> takes <code>mediaUrl</code>, <code>mediaBase64</code> (JSON) or a
+          multipart <code>file</code>, capped by <code>MEDIA_UPLOAD_MAX_BYTES</code>. It requires ffmpeg on PATH (503 if
+          missing). The file is deleted after decoding or on error. It switches external audio off for that call; stop
+          the PCM microphone stream first. Reopening the stream switches back to live audio. The response means queued;{' '}
+          <code>call.audio_finished</code> means playback finished.
+        </p>
+        <p>
+          External mode is disabled before decoding because upstream clears the buffer on that transition; on failure,
+          reopen the PCM stream to resume it.
+        </p>
+        <h2 id="call-errors">Call failures and playback completion</h2>
+        <p>
+          Webhook/SSE events <code>call.error</code> and <code>call.audio_finished</code> also arrive on the control WS
+          as <code>call:error</code> and <code>call:audio_finished</code>. Both use <code>{'{ call, error? }'}</code>.
+          Upstream errors have no call identity, so <code>call</code> is null and the public message/code are sanitized;
+          no stack or credentials. Playback completion carries the call snapshot and means queued audio finished
+          playing.
+        </p>
         <h2 id="control">Control plane — /v1/voip</h2>
         <CodeBlock
           language="json"

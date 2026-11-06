@@ -348,6 +348,14 @@
                                 "null"
                               ]
                             },
+                            "mediaMode": {
+                              "type": "string",
+                              "enum": [
+                                "local",
+                                "remote"
+                              ],
+                              "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                            },
                             "callRecordingEnabled": {
                               "description": "Whether call PCM recording is enabled for this instance",
                               "example": false,
@@ -376,6 +384,7 @@
                             "pairPhone",
                             "lastQr",
                             "lastQrAt",
+                            "mediaMode",
                             "createdAt",
                             "updatedAt"
                           ],
@@ -397,6 +406,7 @@
                             "lastQr": null,
                             "lastQrAt": null,
                             "callRecordingEnabled": false,
+                            "mediaMode": "local",
                             "createdAt": "2026-07-11T12:00:00.000Z",
                             "updatedAt": "2026-07-11T12:05:00.000Z"
                           }
@@ -425,6 +435,7 @@
                           "lastQr": null,
                           "lastQrAt": null,
                           "callRecordingEnabled": false,
+                          "mediaMode": "local",
                           "createdAt": "2026-07-11T12:00:00.000Z",
                           "updatedAt": "2026-07-11T12:05:00.000Z"
                         }
@@ -688,6 +699,14 @@
                             "null"
                           ]
                         },
+                        "mediaMode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "remote"
+                          ],
+                          "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                        },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
                           "example": false,
@@ -716,6 +735,7 @@
                         "pairPhone",
                         "lastQr",
                         "lastQrAt",
+                        "mediaMode",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -737,6 +757,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -763,6 +784,7 @@
                       "lastQr": null,
                       "lastQrAt": null,
                       "callRecordingEnabled": false,
+                      "mediaMode": "local",
                       "createdAt": "2026-07-11T12:00:00.000Z",
                       "updatedAt": "2026-07-11T12:05:00.000Z"
                     }
@@ -1117,6 +1139,14 @@
                               "null"
                             ]
                           },
+                          "mediaMode": {
+                            "type": "string",
+                            "enum": [
+                              "local",
+                              "remote"
+                            ],
+                            "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                          },
                           "callRecordingEnabled": {
                             "description": "Whether call PCM recording is enabled for this instance",
                             "example": false,
@@ -1145,6 +1175,7 @@
                           "pairPhone",
                           "lastQr",
                           "lastQrAt",
+                          "mediaMode",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -1166,6 +1197,7 @@
                           "lastQr": null,
                           "lastQrAt": null,
                           "callRecordingEnabled": false,
+                          "mediaMode": "local",
                           "createdAt": "2026-07-11T12:00:00.000Z",
                           "updatedAt": "2026-07-11T12:05:00.000Z"
                         }
@@ -1194,6 +1226,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -1670,6 +1703,14 @@
                             "null"
                           ]
                         },
+                        "mediaMode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "remote"
+                          ],
+                          "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                        },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
                           "example": false,
@@ -1698,6 +1739,7 @@
                         "pairPhone",
                         "lastQr",
                         "lastQrAt",
+                        "mediaMode",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -1719,6 +1761,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -1745,6 +1788,7 @@
                       "lastQr": null,
                       "lastQrAt": null,
                       "callRecordingEnabled": false,
+                      "mediaMode": "local",
                       "createdAt": "2026-07-11T12:00:00.000Z",
                       "updatedAt": "2026-07-11T12:05:00.000Z"
                     }
@@ -2044,6 +2088,14 @@
                             "null"
                           ]
                         },
+                        "mediaMode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "remote"
+                          ],
+                          "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                        },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
                           "example": false,
@@ -2072,6 +2124,7 @@
                         "pairPhone",
                         "lastQr",
                         "lastQrAt",
+                        "mediaMode",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -2093,6 +2146,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -2119,6 +2173,7 @@
                       "lastQr": null,
                       "lastQrAt": null,
                       "callRecordingEnabled": false,
+                      "mediaMode": "local",
                       "createdAt": "2026-07-11T12:00:00.000Z",
                       "updatedAt": "2026-07-11T12:05:00.000Z"
                     }
@@ -2418,6 +2473,14 @@
                             "null"
                           ]
                         },
+                        "mediaMode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "remote"
+                          ],
+                          "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                        },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
                           "example": false,
@@ -2446,6 +2509,7 @@
                         "pairPhone",
                         "lastQr",
                         "lastQrAt",
+                        "mediaMode",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -2467,6 +2531,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -2493,6 +2558,7 @@
                       "lastQr": null,
                       "lastQrAt": null,
                       "callRecordingEnabled": false,
+                      "mediaMode": "local",
                       "createdAt": "2026-07-11T12:00:00.000Z",
                       "updatedAt": "2026-07-11T12:05:00.000Z"
                     }
@@ -2847,6 +2913,14 @@
                             "null"
                           ]
                         },
+                        "mediaMode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "remote"
+                          ],
+                          "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                        },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
                           "example": false,
@@ -2875,6 +2949,7 @@
                         "pairPhone",
                         "lastQr",
                         "lastQrAt",
+                        "mediaMode",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -2896,6 +2971,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -2922,6 +2998,7 @@
                       "lastQr": null,
                       "lastQrAt": null,
                       "callRecordingEnabled": false,
+                      "mediaMode": "local",
                       "createdAt": "2026-07-11T12:00:00.000Z",
                       "updatedAt": "2026-07-11T12:05:00.000Z"
                     }
@@ -3221,6 +3298,14 @@
                             "null"
                           ]
                         },
+                        "mediaMode": {
+                          "type": "string",
+                          "enum": [
+                            "local",
+                            "remote"
+                          ],
+                          "description": "Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE)."
+                        },
                         "callRecordingEnabled": {
                           "description": "Whether call PCM recording is enabled for this instance",
                           "example": false,
@@ -3249,6 +3334,7 @@
                         "pairPhone",
                         "lastQr",
                         "lastQrAt",
+                        "mediaMode",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -3270,6 +3356,7 @@
                         "lastQr": null,
                         "lastQrAt": null,
                         "callRecordingEnabled": false,
+                        "mediaMode": "local",
                         "createdAt": "2026-07-11T12:00:00.000Z",
                         "updatedAt": "2026-07-11T12:05:00.000Z"
                       }
@@ -3296,6 +3383,7 @@
                       "lastQr": null,
                       "lastQrAt": null,
                       "callRecordingEnabled": false,
+                      "mediaMode": "local",
                       "createdAt": "2026-07-11T12:00:00.000Z",
                       "updatedAt": "2026-07-11T12:05:00.000Z"
                     }
@@ -11196,7 +11284,7 @@
         "tags": [
           "Calls"
         ],
-        "description": "Places a WhatsApp call (`client.voip.startCall`). Audio by default; `isVideo: true` negotiates H.264 video too (frames over `.../calls/:callId/video`).\n\n**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as `call.participants_changed`.\n\nReturns `callId` immediately after the offer is sent. Progress continues via webhooks `call.state` / `call.ended` and the live PCM WebSocket.\n\n**No file / audioUrl playback** — open the stream and send live mic PCM.\n\n**Example body**\n```json\n{\n  \"to\": \"5511888888888\",\n  \"isVideo\": false\n}\n```\n\n```bash\ncurl -s -X POST \"$BASE/v1/calls\" \\\n  -H \"X-Api-Key: $KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511888888888\",\"isVideo\":false}'\n```",
+        "description": "Places a WhatsApp call (`client.voip.startCall`). Audio by default; `isVideo: true` negotiates H.264 video too (frames over `.../calls/:callId/video`).\n\n**Group call:** send `groupId` + `participants` instead of `to`. Participants are resolved to LIDs; any without one → `400` with `details.missing`. Roster changes arrive as `call.participants_changed`.\n\nReturns `callId` immediately after the offer is sent. Progress continues via webhooks `call.state` / `call.ended` and the live PCM WebSocket.\n\nLocal media: use `/stream` for PCM or `POST /calls/:callId/audio` for a file. Remote media: use the browser host over `/v1/voip`.\n\n**Example body**\n```json\n{\n  \"to\": \"5511888888888\",\n  \"isVideo\": false\n}\n```\n\n```bash\ncurl -s -X POST \"$BASE/v1/calls\" \\\n  -H \"X-Api-Key: $KEY\" -H \"content-type: application/json\" \\\n  -d '{\"to\":\"5511888888888\",\"isVideo\":false}'\n```",
         "requestBody": {
           "required": true,
           "content": {
@@ -11614,6 +11702,13 @@
                       "items": {
                         "type": "object",
                         "properties": {
+                          "mediaMode": {
+                            "type": "string",
+                            "enum": [
+                              "local",
+                              "remote"
+                            ]
+                          },
                           "callId": {
                             "type": "string",
                             "description": "Id for control routes and PCM stream",
@@ -11841,6 +11936,7 @@
                           }
                         },
                         "required": [
+                          "mediaMode",
                           "callId"
                         ],
                         "additionalProperties": false,
@@ -12207,7 +12303,7 @@
         "tags": [
           "Calls"
         ],
-        "description": "Requires media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote) stored in object storage.",
+        "description": "Requires local media mode (remote mode returns 409) and media storage (`MEDIA_STORAGE=local|s3`). Recordings are WAV stereo (local | remote leg) stored in object storage.",
         "requestBody": {
           "required": true,
           "content": {
@@ -12235,8 +12331,60 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Default Response"
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -12282,6 +12430,13 @@
                         {
                           "type": "object",
                           "properties": {
+                            "mediaMode": {
+                              "type": "string",
+                              "enum": [
+                                "local",
+                                "remote"
+                              ]
+                            },
                             "callId": {
                               "type": "string",
                               "description": "Id for control routes and PCM stream",
@@ -12509,6 +12664,7 @@
                             }
                           },
                           "required": [
+                            "mediaMode",
                             "callId"
                           ],
                           "additionalProperties": false,
@@ -14051,6 +14207,424 @@
         ],
         "responses": {
           "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/calls/{callId}/audio": {
+      "post": {
+        "summary": "Play an audio file into a live call",
+        "tags": [
+          "Calls"
+        ],
+        "description": "Accepts mediaUrl / mediaBase64 or multipart file (same inputs as message media). Requires ffmpeg on PATH (503 if missing). Disables external PCM audio mode before decoding (also on decode failure); stop the softphone microphone stream first. Opening /stream again switches back to external audio. Returns once decoded and queued, not when playback ends (call.audio_finished). Temporary files are removed after decoding or on error. Remote media mode returns 409 before multipart parsing/download.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaUrl": {
+                    "description": "Public audio URL (SSRF guarded).",
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "mediaBase64": {
+                    "description": "Inline audio bytes, optionally a data URL.",
+                    "type": "string"
+                  },
+                  "mimetype": {
+                    "type": "string"
+                  },
+                  "fileName": {
+                    "type": "string"
+                  }
+                },
+                "description": "Audio URL, base64, or multipart file. Limited by MEDIA_UPLOAD_MAX_BYTES."
+              }
+            }
+          },
+          "description": "Audio URL, base64, or multipart file. Limited by MEDIA_UPLOAD_MAX_BYTES."
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "ABCDEF0123456789"
+            },
+            "in": "path",
+            "name": "callId",
+            "required": true,
+            "description": "Call id from start or webhook"
+          }
+        ],
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Operation succeeded",
+                      "example": true,
+                      "enum": [
+                        true
+                      ]
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false,
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
             "description": "Standard API error envelope",
             "content": {
               "application/json": {
@@ -18967,6 +19541,61 @@
               }
             }
           },
+          "409": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
           "503": {
             "description": "Standard API error envelope",
             "content": {
@@ -19269,6 +19898,61 @@
             }
           },
           "404": {
+            "description": "Standard API error envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Machine-readable error code (UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, …)",
+                          "example": "VALIDATION_ERROR"
+                        },
+                        "message": {
+                          "type": "string",
+                          "description": "Human-readable error message",
+                          "example": "Invalid request"
+                        },
+                        "details": {
+                          "description": "Optional structured details (e.g. Zod flatten)",
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Standard API error envelope",
+                  "example": {
+                    "error": {
+                      "code": "VALIDATION_ERROR",
+                      "message": "Invalid request",
+                      "details": {
+                        "fieldErrors": {
+                          "to": [
+                            "Required"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Standard API error envelope",
             "content": {
               "application/json": {
@@ -47332,7 +48016,7 @@
     },
     {
       "name": "Webhooks",
-      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"id\": \"01K9D453G00000000000000000\",\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": 1793966400000,\n \"engine\": \"zapo\",\n \"payload\": { }\n}\n```\n\n**Channel events:** `newsletter.update`, `newsletter.message_update`.\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, `call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n`group.update` membership notifications preserve upstream `action` and add `payload.type`: `membership_approval_request` has `payload.requesterJid` from the upstream author; `created_membership_requests` / `revoked_membership_requests` have `payload.requests[].jid` (optional `phoneJid` / `username`). Identities are omitted when upstream does not supply them. SSE carries the same fields under `data` (`data.type`, `data.requesterJid`, `data.requests[].jid`). Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests."
+      "description": "When `webhookUrl` is set on an instance, events are **HTTP POST** JSON:\n\n```json\n{\n \"id\": \"01K9D453G00000000000000000\",\n \"event\": \"message.inbound\",\n \"instance\": \"sales-1\",\n \"timestamp\": 1793966400000,\n \"engine\": \"zapo\",\n \"payload\": { }\n}\n```\n\n**Channel events:** `newsletter.update`, `newsletter.message_update`.\n\n**Events:** `instance.qr`, `instance.connection`, `instance.paired`, `instance.pairing_required`, `instance.logged_out`, `message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, `message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, `group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, `call.incoming`, `call.state`, `call.ended`, `call.error`, `call.audio_finished`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, `call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\nFilter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n`group.update` membership notifications preserve upstream `action` and add `payload.type`: `membership_approval_request` has `payload.requesterJid` from the upstream author; `created_membership_requests` / `revoked_membership_requests` have `payload.requests[].jid` (optional `phoneJid` / `username`). Identities are omitted when upstream does not supply them. SSE carries the same fields under `data` (`data.type`, `data.requesterJid`, `data.requests[].jid`). Use GET /v1/groups/:groupId/membership-requests to reconcile pending requests."
     },
     {
       "name": "Communities",

@@ -29,6 +29,7 @@ export const EXAMPLES = {
     lastQr: null,
     lastQrAt: null,
     callRecordingEnabled: false,
+    mediaMode: 'local',
     createdAt: '2026-07-11T12:00:00.000Z',
     updatedAt: '2026-07-11T12:05:00.000Z',
   },
@@ -263,6 +264,9 @@ const instanceBaseShape = z.object({
     .nullable()
     .meta({ description: 'Raw QR payload from last `auth_qr` event — render as QR image on clients', example: null }),
   lastQrAt: z.string().nullable().meta({ description: 'ISO-8601 time when lastQr was updated', example: null }),
+  mediaMode: z
+    .enum(['local', 'remote'])
+    .meta({ description: 'Where VoIP media runs (fixed per client; restart after changing VOIP_MEDIA_MODE).' }),
   callRecordingEnabled: z.boolean().optional().meta({
     description: 'Whether call PCM recording is enabled for this instance',
     example: false,
@@ -599,6 +603,7 @@ export const CallParticipantSchema = z.object({
 
 export const CallInfoSchema = z
   .object({
+    mediaMode: z.enum(['local', 'remote']),
     callId: z.string().meta({ description: 'Id for control routes and PCM stream', example: EXAMPLES.callInfo.callId }),
     peerJid: z.string().nullable().optional().meta({ example: EXAMPLES.callInfo.peerJid }),
     peerJidRaw: z.string().nullable().optional(),
@@ -870,6 +875,10 @@ export const ReadyResponseSchema = z
   .meta({ example: EXAMPLES.ready })
 
 export const StreamQuerySchema = z.object({
+  participants: z
+    .enum(['0', '1'])
+    .optional()
+    .meta({ description: 'Audio stream only: opt into framed per-participant PCM (VOIP_PARTICIPANT_AUDIO required).' }),
   apiKey: z.string().optional().meta({
     description: 'API key for browsers (WebSocket cannot always set custom headers). Prefer X-Api-Key when possible.',
     example: 'zr_AbCdEfGhIjKlMnOpQrStUvWx',
@@ -967,7 +976,7 @@ export const OPENAPI_TAGS = [
       '`message`, `message.any`, `message.inbound`, `message.media.stored`, `message.media.failed`, `message.ack`, ' +
       '`message.reaction`, `message.revoked`, `message.edited`, `chat.update`, `presence.update`, `chatstate`, ' +
       '`group.update`, `history.sync`, `history.group`, `profile.username`, `contact.picture`, ' +
-      '`call.incoming`, `call.state`, `call.ended`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
+      '`call.incoming`, `call.state`, `call.ended`, `call.error`, `call.audio_finished`, `call.peer_mute`, `call.hand_raise`, `call.reaction`, ' +
       '`call.participants_changed`, `call.mute_requested`, `call.participant_media`, `call.video_state`, `call.video_upgraded`, `call.screen_share`.\n\n' +
       'Filter with `webhookEvents` on create (empty = all). Delivery is best-effort with timeout `WEBHOOK_TIMEOUT_MS`.\n\n' +
       '`group.update` membership notifications preserve upstream `action` and add `payload.type`: ' +
@@ -1349,3 +1358,12 @@ export const SendStickerPackBodySchema = z
       trayIcon: { media: { url: 'https://cdn.example.com/tray.png' }, fileName: 'tray.png' },
     },
   })
+
+export const CallAudioBodySchema = z
+  .object({
+    mediaUrl: z.url().optional().meta({ description: 'Public audio URL (SSRF guarded).' }),
+    mediaBase64: z.string().optional().meta({ description: 'Inline audio bytes, optionally a data URL.' }),
+    mimetype: z.string().optional(),
+    fileName: z.string().optional(),
+  })
+  .meta({ description: 'Audio URL, base64, or multipart file. Limited by MEDIA_UPLOAD_MAX_BYTES.' })
