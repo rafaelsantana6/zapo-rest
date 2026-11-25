@@ -6,7 +6,10 @@ import { buildTestApp, createInstance, type TestApp } from '../helpers/test-app'
 function fakeGroupVoipClient() {
   const call = { callId: 'GROUP01', groupJid: '120363000000000000@g.us', stateData: { state: 'active' } }
   const voip = {
-    getCall: vi.fn((id: string) => (id === call.callId ? call : null)),
+    acceptCall: vi.fn(async (_callId: string) => undefined),
+    getCall: vi.fn((id: string): Pick<typeof call, 'callId' | 'stateData'> | null =>
+      id === call.callId ? call : null,
+    ),
     getCalls: vi.fn(() => [call]),
     startCall: vi.fn(async (_opts: unknown) => 'NEWGROUP'),
     setExternalAudioMode: vi.fn(),
@@ -42,6 +45,24 @@ describe('group call routes', () => {
 
   const post = (url: string, payload?: InjectOptions['payload']) =>
     ctx.app.inject({ method: 'POST', url, headers: { 'x-api-key': apiKey }, payload: payload ?? {} })
+
+  it.each([true, false])('handles a keyless offer with isGroupCall=%s', async (isGroupCall) => {
+    const incoming = {
+      callId: 'INVITE',
+      stateData: { state: 'incoming_ringing' },
+      canAccept: true,
+      isGroupCall,
+    }
+    voip.getCall.mockReturnValueOnce(incoming)
+    const res = await post('/v1/calls/INVITE/accept')
+    if (isGroupCall) {
+      expect(res.statusCode).toBe(200)
+      await vi.waitFor(() => expect(voip.acceptCall).toHaveBeenCalledWith('INVITE'))
+    } else {
+      expect(res.statusCode).toBe(400)
+      expect(voip.acceptCall).not.toHaveBeenCalled()
+    }
+  })
 
   it('places a group call ringing the participant LIDs', async () => {
     const res = await post('/v1/calls', { groupId: '120363000000000000', participants: ['111@lid', '222@lid'] })

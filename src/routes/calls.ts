@@ -307,8 +307,8 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
           snap,
         )
       }
-      // Without encryption key the plugin skips the accept stanza — peer keeps ringing
-      if (!resolved.encryptionKey) {
+      // Group calls receive their key after acceptance via enc_rekey.
+      if (!resolved.encryptionKey && resolved.isGroupCall !== true) {
         log.error({ callId: resolved.callId }, 'accept — missing encryptionKey')
         throw badRequest(
           'call encryption key missing (offer decrypt failed) — cannot complete accept; hang up and retry',

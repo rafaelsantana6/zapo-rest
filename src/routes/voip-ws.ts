@@ -521,7 +521,7 @@ export const voipWsRoutes: FastifyPluginAsync<VoipWsDeps> = async (app, deps) =>
                 )
                 return
               }
-              if (!resolved.encryptionKey) {
+              if (!resolved.encryptionKey && resolved.isGroupCall !== true) {
                 log.error({ callId: resolved.callId }, 'call:accept — missing encryptionKey')
                 ackErr(
                   id,

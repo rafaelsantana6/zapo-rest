@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Incoming group calls can now be answered via REST or the softphone when the group key arrives after acceptance.
+
 ## [0.12.0] - 2026-11-06
 
 ### Fixed
