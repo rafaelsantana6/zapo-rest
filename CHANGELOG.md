@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The call history and softphone download existing and new WAV recordings through the instance-key route and report failed downloads.
+
 ## [0.12.0] - 2026-11-06
 
 ### Fixed

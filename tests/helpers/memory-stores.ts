@@ -716,6 +716,13 @@ export class MemoryCallStore {
     return `${instanceName}::${callId}`
   }
 
+  async list(instanceName: string, { limit = 50, offset = 0, withRecordingOnly = false } = {}) {
+    return [...this.byKey.values()]
+      .filter((row) => row.instanceName === instanceName && (!withRecordingOnly || row.recordingStatus === 'ready'))
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(offset, offset + limit)
+  }
+
   async get(instanceName: string, callId: string): Promise<AppCall | null> {
     return this.byKey.get(this.key(instanceName, callId)) ?? null
   }

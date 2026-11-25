@@ -83,6 +83,29 @@ describe('blast + STT routes (integration)', () => {
     expect(row?.recordingStorageKey).toBeTruthy()
   })
 
+  it('downloads the WAV advertised in history for a recording saved with the legacy path', async () => {
+    const callId = 'saved+call'
+    const wav = silenceWav()
+    await ctx.calls.upsertStart({ instanceName: INSTANCE, callId, recordingEnabled: true })
+    const stored = await ctx.mediaStorage.put(INSTANCE, wav, { mimeType: 'audio/wav' })
+    await ctx.calls.setRecordingResult(INSTANCE, callId, {
+      status: 'ready',
+      storageKey: stored.storageKey,
+      url: `/v1/instances/${INSTANCE}/calls/${encodeURIComponent(callId)}/recording`,
+      mime: 'audio/wav',
+      bytes: wav.length,
+    })
+
+    const history = await ctx.app.inject({ method: 'GET', url: '/v1/calls/history', headers: key })
+    expect(history.statusCode).toBe(200)
+    const row = history.json().calls.find((c: { callId: string }) => c.callId === callId)
+    const download = await ctx.app.inject({ method: 'GET', url: row.recording.downloadPath, headers: key })
+    expect(download.statusCode).toBe(200)
+    expect(download.headers['content-type']).toBe('audio/wav')
+    expect(download.rawPayload.equals(wav)).toBe(true)
+    expect(row.recording.url).toBe(row.recording.downloadPath)
+  })
+
   it('POST /calls/:id/transcribe uses stored recording', async () => {
     // seed a ready recording
     await ctx.calls.upsertStart({

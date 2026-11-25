@@ -975,6 +975,19 @@ export function callRecordingDownloadUrl(_name: string, callId: string) {
   return `/v1/calls/${enc(callId)}/recording`
 }
 
+export async function downloadCallRecording(name: string, callId: string): Promise<void> {
+  const url = await fetchAuthedBlobUrl(callRecordingDownloadUrl(name, callId))
+  if (!url) throw new Error('Falha ao baixar a gravação')
+  try {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `call-${callId}.wav`
+    link.click()
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 export function subscribePresence(_name: string, jid: string) {
   return request(`/v1/presence/subscribe`, {
     method: 'POST',

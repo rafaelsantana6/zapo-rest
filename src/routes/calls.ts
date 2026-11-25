@@ -163,7 +163,7 @@ export const callRoutes: FastifyPluginAsync<CallRoutesDeps> = async (app, deps) 
         offset: q.offset,
         withRecordingOnly: q.withRecording,
       })
-      return { calls: rows.map((c) => toPublicCall(c, { instanceName: name })) }
+      return { calls: rows.map(toPublicCall) }
     },
   )
 

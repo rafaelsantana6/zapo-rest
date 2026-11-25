@@ -2,7 +2,7 @@ import type { Env } from '~/config/env'
 import type { InstanceRepo } from '~/instances/repo'
 import { getLogger } from '~/lib/logger'
 import type { MediaStorage } from '~/media/storage'
-import type { CallStore } from '~/store/calls'
+import { callRecordingPath, type CallStore } from '~/store/calls'
 import { CallPcmRecorder } from './call-recorder'
 
 export type InstanceCallConfig = {
@@ -198,9 +198,7 @@ export class CallRecordingManager {
         filename: `${call.callId}.wav`,
         messageId: `call-${call.callId}`,
       })
-      const url =
-        stored.url ??
-        `/v1/instances/${encodeURIComponent(instanceName)}/calls/${encodeURIComponent(call.callId)}/recording`
+      const url = stored.url ?? callRecordingPath(call.callId)
       await this.calls.setRecordingResult(instanceName, call.callId, {
         status: 'ready',
         storageKey: stored.storageKey,

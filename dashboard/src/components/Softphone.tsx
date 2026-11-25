@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import {
   type CallHistoryItem,
   callDisplayJid,
+  downloadCallRecording,
   getCallRecordingSettings,
   getInstanceHint,
   getStoredKey,
@@ -1318,29 +1319,20 @@ export function Softphone() {
                       </div>
                     </div>
                     {c.recording.status === 'ready' && c.recording.downloadPath && (
-                      <a
+                      <button
+                        type="button"
                         className="btn ghost small"
-                        href={c.recording.downloadPath}
-                        onClick={async (e) => {
-                          e.preventDefault()
-                          const key = getStoredKey()
-                          if (!key) return
-                          const path = c.recording.downloadPath
-                          if (!path) return
-                          const res = await fetch(path, {
-                            headers: { 'X-Api-Key': key },
-                          })
-                          const blob = await res.blob()
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement('a')
-                          a.href = url
-                          a.download = `call-${c.callId}.wav`
-                          a.click()
-                          URL.revokeObjectURL(url)
+                        onClick={async () => {
+                          setError(null)
+                          try {
+                            await downloadCallRecording(instanceName, c.callId)
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Falha ao baixar a gravação')
+                          }
                         }}
                       >
                         WAV
-                      </a>
+                      </button>
                     )}
                     <button
                       type="button"
