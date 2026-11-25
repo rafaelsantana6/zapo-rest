@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   type CallHistoryItem,
   callDisplayJid,
+  downloadCallRecording,
   getCallRecordingSettings,
   getStoredKey,
   type LiveCall,
@@ -195,18 +196,12 @@ export function CallsPage({ onLogout }: Props) {
                         type="button"
                         className="btn ghost small"
                         onClick={async () => {
-                          const key = sessionStorage.getItem('zapo_rest_api_key')
-                          if (!key || !c.recording.downloadPath) return
-                          const res = await fetch(c.recording.downloadPath, {
-                            headers: { 'X-Api-Key': key },
-                          })
-                          const blob = await res.blob()
-                          const url = URL.createObjectURL(blob)
-                          const a = document.createElement('a')
-                          a.href = url
-                          a.download = `call-${c.callId}.wav`
-                          a.click()
-                          URL.revokeObjectURL(url)
+                          setError(null)
+                          try {
+                            await downloadCallRecording(name, c.callId)
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Falha ao baixar a gravação')
+                          }
                         }}
                       >
                         Download

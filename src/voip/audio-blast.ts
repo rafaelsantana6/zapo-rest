@@ -4,7 +4,7 @@ import { getLogger } from '~/lib/logger'
 import { resolveRecipientJid } from '~/lib/phone-resolve'
 import type { MediaStorage } from '~/media/storage'
 import type { CacheClient } from '~/redis/client'
-import type { CallStore } from '~/store/calls'
+import { callRecordingPath, type CallStore } from '~/store/calls'
 import {
   decodeLocalWav,
   downloadAndDecode,
@@ -399,8 +399,7 @@ export async function executeAudioBlast(opts: AudioBlastRequest): Promise<AudioB
           filename: `blast-${callId}.wav`,
           messageId: `blast-${callId}`,
         })
-        const downloadPath = `/v1/instances/${encodeURIComponent(instanceName)}/calls/${encodeURIComponent(callId)}/recording`
-        recordingUrl = stored.url ?? downloadPath
+        recordingUrl = stored.url ?? callRecordingPath(callId)
         if (calls) {
           await calls.setRecordingResult(instanceName, callId, {
             status: 'ready',

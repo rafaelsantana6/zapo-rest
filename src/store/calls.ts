@@ -64,12 +64,15 @@ function mapRow(r: Row): AppCall {
   }
 }
 
-export function toPublicCall(c: AppCall, opts?: { instanceName?: string }) {
+export function callRecordingPath(callId: string): string {
+  return `/v1/calls/${encodeURIComponent(callId)}/recording`
+}
+
+export function toPublicCall(c: AppCall) {
   const hasRecording = c.recordingStatus === 'ready' && Boolean(c.recordingStorageKey)
-  const downloadPath =
-    hasRecording && opts?.instanceName
-      ? `/v1/instances/${encodeURIComponent(opts.instanceName)}/calls/${encodeURIComponent(c.callId)}/recording`
-      : null
+  const downloadPath = hasRecording ? callRecordingPath(c.callId) : null
+  // Older local recordings persisted the obsolete instance-prefixed route.
+  const legacyPath = `/v1/instances/${encodeURIComponent(c.instanceName)}/calls/${encodeURIComponent(c.callId)}/recording`
   return {
     callId: c.callId,
     peerJid: c.peerJid,
@@ -85,7 +88,7 @@ export function toPublicCall(c: AppCall, opts?: { instanceName?: string }) {
       status: c.recordingStatus,
       mime: c.recordingMime,
       bytes: c.recordingBytes,
-      url: c.recordingUrl ?? downloadPath,
+      url: c.recordingUrl === legacyPath ? downloadPath : (c.recordingUrl ?? downloadPath),
       downloadPath,
       error: c.recordingError,
     },
