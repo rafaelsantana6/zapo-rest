@@ -10,6 +10,8 @@ function fakeVoipSurface() {
   const call = { callId: 'CALL1', stateData: { state: 'active' } }
   const surface = {
     reactionReady: true,
+    acceptCall: vi.fn(async (_callId: string) => undefined),
+    setExternalAudioMode: vi.fn(),
     getCall: vi.fn((id: string) => (id === call.callId ? call : null)),
     getCalls: vi.fn(() => [call]),
     setHandRaised: vi.fn(async (_callId: string, _raised: boolean) => undefined),
@@ -52,6 +54,21 @@ describe('VoIP control WS: hand + reaction', () => {
   afterAll(async () => {
     ws.terminate()
     await ctx.app.close()
+  })
+
+  it.each([true, false])('handles a keyless offer with isGroupCall=%s', async (isGroupCall) => {
+    const id = `accept-${isGroupCall}`
+    const incoming = { callId: id, stateData: { state: 'incoming_ringing' }, canAccept: true, isGroupCall }
+    voip.getCall.mockReturnValueOnce(incoming)
+    ws.send(JSON.stringify({ op: 'call:accept', id, callId: id }))
+    const ack = await next((f) => f.id === id)
+    if (isGroupCall) {
+      expect(ack).toMatchObject({ ok: true, data: { callId: id } })
+      await vi.waitFor(() => expect(voip.acceptCall).toHaveBeenCalledWith(id))
+    } else {
+      expect(ack).toMatchObject({ ok: false, code: 'CALL_NO_KEY' })
+      expect(voip.acceptCall).not.toHaveBeenCalledWith(id)
+    }
   })
 
   it('acks call:hand and announces the hand', async () => {
